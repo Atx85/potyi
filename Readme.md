@@ -140,6 +140,14 @@ If CMake is not already installed:
 winget install Kitware.CMake
 ```
 
+The project sets `CMAKE_POLICY_VERSION_MINIMUM` to `3.5` automatically through
+`.cargo/config.toml`. If Cargo does not load that configuration, set the
+variable manually in PowerShell before building:
+
+```powershell
+$env:CMAKE_POLICY_VERSION_MINIMUM = "3.5"
+```
+
 ### Build and run
 
 From the Pötyi project directory:
