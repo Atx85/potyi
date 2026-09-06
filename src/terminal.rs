@@ -17,6 +17,7 @@
 
 use std::collections::VecDeque;
 use std::env;
+use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::process::{
@@ -129,7 +130,7 @@ impl Terminal {
 
         terminal.append_text(
             "Pötyi command terminal\n\
-Built-ins: cd, pwd, edit, view, clear, help, exit\n\
+Built-ins: cd, pwd, ls, edit, view, clear, help, exit\n\
 Ctrl+` switches between terminal and editor\n"
         )?;
 
@@ -444,6 +445,15 @@ Ctrl+` switches between terminal and editor\n"
                 Ok(TerminalAction::None)
             }
 
+            "ls" => {
+                let listing = list_directory(
+                    arguments,
+                    &self.cwd,
+                )?;
+                self.append_text(&listing)?;
+                Ok(TerminalAction::None)
+            }
+
             "clear" if arguments.trim().is_empty() => {
                 self.clear()?;
                 Ok(TerminalAction::None)
@@ -453,6 +463,7 @@ Ctrl+` switches between terminal and editor\n"
                 self.append_text(
                     "cd PATH        change directory\n\
 pwd            show current directory\n\
+ls [OPTIONS] [PATH]  list directory contents\n\
 edit PATH[:LINE[:COLUMN]]  edit a file\n\
 view PATH[:LINE[:COLUMN]]  open read-only\n\
 clear          clear terminal output\n\
@@ -1144,6 +1155,220 @@ fn format_exit_status(
     }
 }
 
+#[derive(Default)]
+struct LsOptions {
+    all: bool,
+    long: bool,
+    human_readable: bool,
+    recursive: bool,
+    one_per_line: bool,
+}
+
+fn list_directory(
+    arguments: &str,
+    cwd: &Path,
+) -> io::Result<String> {
+    let mut options = LsOptions::default();
+    let mut paths = Vec::new();
+    let mut parse_options = true;
+
+    for argument in arguments.split_whitespace() {
+        if parse_options && argument == "--" {
+            parse_options = false;
+            continue;
+        }
+
+        if parse_options && argument.starts_with("--") {
+            match argument {
+                "--all" => options.all = true,
+                "--long" => options.long = true,
+                "--human-readable" => {
+                    options.human_readable = true;
+                }
+                "--recursive" => options.recursive = true,
+                "--one-per-line" => {
+                    options.one_per_line = true;
+                }
+                _ => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!(
+                            "Unsupported ls option: {argument}"
+                        ),
+                    ));
+                }
+            }
+        } else if parse_options && argument.starts_with('-')
+            && argument != "-"
+        {
+            for option in argument[1..].chars() {
+                match option {
+                    'a' => options.all = true,
+                    'l' => options.long = true,
+                    'h' => options.human_readable = true,
+                    'R' => options.recursive = true,
+                    '1' => options.one_per_line = true,
+                    _ => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            format!(
+                                "Unsupported ls option: -{option}"
+                            ),
+                        ));
+                    }
+                }
+            }
+        } else {
+            paths.push(argument.to_string());
+        }
+    }
+
+    if paths.is_empty() {
+        paths.push(".".to_string());
+    }
+
+    let mut output = String::new();
+    for (index, value) in paths.iter().enumerate() {
+        if index > 0 {
+            output.push('\n');
+        }
+
+        let path = resolve_ls_path(value, cwd);
+        append_ls_path(
+            &mut output,
+            &path,
+            value,
+            &options,
+            paths.len() > 1 || options.recursive,
+        )?;
+    }
+
+    if !output.ends_with('\n') {
+        output.push('\n');
+    }
+
+    Ok(output)
+}
+
+fn resolve_ls_path(
+    value: &str,
+    cwd: &Path,
+) -> PathBuf {
+    let path = PathBuf::from(expand_home(value));
+    if path.is_absolute() {
+        path
+    } else {
+        cwd.join(path)
+    }
+}
+
+fn append_ls_path(
+    output: &mut String,
+    path: &Path,
+    display_name: &str,
+    options: &LsOptions,
+    show_header: bool,
+) -> io::Result<()> {
+    let metadata = fs::metadata(path)?;
+
+    if !metadata.is_dir() {
+        append_ls_entry(output, path, display_name, options)?;
+        return Ok(());
+    }
+
+    if show_header {
+        output.push_str(display_name);
+        output.push_str(":\n");
+    }
+
+    let mut entries = fs::read_dir(path)?
+        .collect::<Result<Vec<_>, io::Error>>()?;
+    entries.sort_by_key(|entry| entry.file_name());
+
+    for entry in &entries {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !options.all && name.starts_with('.') {
+            continue;
+        }
+
+        append_ls_entry(
+            output,
+            &entry.path(),
+            &name,
+            options,
+        )?;
+    }
+
+    if options.recursive {
+        for entry in entries {
+            let name = entry.file_name();
+            if !options.all
+                && name.to_string_lossy().starts_with('.')
+            {
+                continue;
+            }
+
+            if entry.file_type()?.is_dir() {
+                output.push('\n');
+                append_ls_path(
+                    output,
+                    &entry.path(),
+                    &entry.path().display().to_string(),
+                    options,
+                    true,
+                )?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn append_ls_entry(
+    output: &mut String,
+    path: &Path,
+    display_name: &str,
+    options: &LsOptions,
+) -> io::Result<()> {
+    if options.long {
+        let metadata = fs::metadata(path)?;
+        let kind = if metadata.is_dir() { 'd' } else { '-' };
+        let size = if options.human_readable {
+            format_ls_size(metadata.len())
+        } else {
+            metadata.len().to_string()
+        };
+
+        output.push_str(&format!(
+            "{kind} {:>12} {display_name}\n",
+            size,
+        ));
+    } else {
+        output.push_str(display_name);
+        output.push(if options.one_per_line { '\n' } else { '\t' });
+    }
+
+    Ok(())
+}
+
+fn format_ls_size(size: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "K", "M", "G", "T"];
+    let mut value = size as f64;
+    let mut unit = 0;
+
+    while value >= 1024.0 && unit + 1 < UNITS.len() {
+        value /= 1024.0;
+        unit += 1;
+    }
+
+    if unit == 0 {
+        format!("{}B", size)
+    } else {
+        format!("{value:.1}{}", UNITS[unit])
+    }
+}
+
 fn split_command(
     command: &str,
 ) -> (&str, &str) {
@@ -1344,6 +1569,19 @@ mod tests {
                 .unwrap(),
             cwd.join("src/main.rs"),
         );
+    }
+
+    #[test]
+    fn ls_supports_common_options_and_relative_paths() {
+        let cwd = env::current_dir().unwrap();
+
+        let listing = list_directory(
+            "--long --human-readable Cargo.toml",
+            &cwd,
+        ).unwrap();
+
+        assert!(listing.contains("Cargo.toml"));
+        assert!(listing.ends_with('\n'));
     }
 
     #[test]

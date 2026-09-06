@@ -1116,12 +1116,24 @@ all_lines_cached: original_length == 0,
             if byte == b'\n' {
                 let end =
                     position + offset;
+                let has_carriage_return =
+                    if offset > 0 {
+                        bytes[offset - 1] == b'\r'
+                    } else {
+                        position > line_start
+                            && self.byte_at(
+                                position - 1
+                            )? == Some(b'\r')
+                    };
 
                 self.line_cache.push(
                     LineInfo {
                         start: line_start,
                         end,
-                        length: char_count,
+                        length: char_count
+                            .saturating_sub(
+                                has_carriage_return as usize
+                            ),
                     }
                 );
 
@@ -1274,7 +1286,7 @@ all_lines_cached: original_length == 0,
                 info.end - info.start,
             )?;
 
-        String::from_utf8(bytes)
+        let mut text = String::from_utf8(bytes)
             .map_err(|error| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -1282,7 +1294,13 @@ all_lines_cached: original_length == 0,
                         "invalid UTF-8: {error}"
                     ),
                 )
-            })
+            })?;
+
+        if text.ends_with('\r') {
+            text.pop();
+        }
+
+        Ok(text)
     }
 
     pub fn line_text_from_start(
@@ -1329,10 +1347,10 @@ all_lines_cached: original_length == 0,
                         length,
                     )?;
 
-                let text =
-                    String::from_utf8(
-                        bytes
-                    )
+                    let mut text =
+                        String::from_utf8(
+                            bytes
+                        )
                     .map_err(|error| {
                         io::Error::new(
                             io::ErrorKind::InvalidData,
@@ -1341,6 +1359,10 @@ all_lines_cached: original_length == 0,
                             ),
                         )
                     })?;
+
+                    if text.ends_with('\r') {
+                        text.pop();
+                    }
 
                 let next =
                     if info.end < self.len() {
@@ -1983,7 +2005,22 @@ all_lines_cached: original_length == 0,
                 bytes[offset];
 
             if byte == b'\n' {
-                return Ok(character_count);
+                let has_carriage_return =
+                    if offset > 0 {
+                        bytes[offset - 1] == b'\r'
+                    } else {
+                        position > start
+                            && self.byte_at(
+                                position - 1
+                            )? == Some(b'\r')
+                    };
+
+                return Ok(
+                    character_count
+                        .saturating_sub(
+                            has_carriage_return as usize
+                        )
+                );
             }
 
             let width =
@@ -3820,6 +3857,26 @@ mod tests {
             .unwrap();
 
         table
+    }
+
+    #[test]
+    fn crlf_line_text_excludes_carriage_return() {
+        let mut table = table_with_text(
+            "one\r\ntwo\r\n",
+        );
+
+        assert_eq!(
+            table.line_text(0).unwrap(),
+            "one",
+        );
+        assert_eq!(
+            table.line_length(0).unwrap(),
+            3,
+        );
+        assert_eq!(
+            table.line_text(1).unwrap(),
+            "two",
+        );
     }
 
     #[test]
