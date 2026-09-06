@@ -1,0 +1,20 @@
+[package]
+name = "potyi"
+version = "0.1.0"
+edition = "2024"
+authors = ["Attila Banko"]
+description = "A lightweight text editor built with Rust and SDL3"
+license = "GPL-3.0-or-later"
+readme = "Readme.md"
+
+[dependencies]
+sdl3 = { version = "0.18", features = ["build-from-source-static", "ttf"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.9"
+regex = "1"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winuser"] }
+
+[profile.dev]
+opt-level = 1

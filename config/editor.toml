@@ -1,0 +1,20 @@
+[editor]
+
+# Number of spaces represented by one tab.
+tab_width = 2
+
+# false = insert a real tab character
+# true  = insert spaces instead
+insert_spaces = false
+
+# Line number display:
+# normal   = absolute line numbers
+# relative = distance from the cursor line
+# dynamic  = relative numbers with an absolute cursor line
+line_numbers = "dynamic"
+
+# Editor font size in points (8 through 72).
+font_size = 18
+
+# Keyboard behavior: "conventional" or "vim".
+keybinding_mode = "conventional"

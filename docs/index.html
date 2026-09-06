@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Pötyi is a lightweight native text editor built in Rust with low memory and CPU usage in mind.">
+    <meta name="theme-color" content="#161817">
+    <title>Pötyi — a lightweight text editor</title>
+    <link rel="icon" href="favicon.svg?v=2" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="wordmark" href="#top" aria-label="Pötyi home">
+        <img class="wordmark-mark" src="favicon.svg?v=2" alt="" width="35" height="35">
+        <span>Pötyi</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#features">Features</a>
+        <a href="https://github.com/Atx85/potyi">Source</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="hero-copy">
+          <p class="eyebrow">A native editor for the files in front of you</p>
+          <h1>Light on the system.<br><span>Ready for real work.</span></h1>
+          <p class="intro">Pötyi is a focused text editor built in Rust and SDL3. It keeps memory and CPU use low while putting search, navigation, split editing, and a practical command terminal close at hand.</p>
+
+          <div class="pronunciation" aria-label="Pronunciation guide">
+            <span class="pronunciation-name">Say it like</span>
+            <strong class="pronunciation-english">“PUR-chee”</strong>
+            <span class="pronunciation-hint">— leave out the <em>r</em> sound</span>
+            <details>
+              <summary>Closer Hungarian pronunciation</summary>
+              <p>Start as if saying “purr,” but stop before the <em>r</em>. Keep that vowel short and round your lips. Finish with a soft “chee,” with the stress on the first part. <span class="ipa">Exact IPA: /ˈpøci/</span></p>
+            </details>
+          </div>
+        </div>
+
+        <aside class="download-panel" aria-labelledby="download-title">
+          <div class="panel-heading">
+            <p class="panel-kicker" id="release-label">Downloads</p>
+            <h2 id="download-title">Choose your platform</h2>
+          </div>
+
+          <div class="download-list">
+            <a class="download-row" href="https://github.com/Atx85/potyi/releases" data-platform="macos">
+              <span>
+                <strong>macOS</strong>
+                <small>See available build</small>
+              </span>
+              <span class="download-arrow" aria-hidden="true">↘</span>
+            </a>
+            <a class="download-row" href="https://github.com/Atx85/potyi/releases" data-platform="windows">
+              <span>
+                <strong>Windows</strong>
+                <small>See available build</small>
+              </span>
+              <span class="download-arrow" aria-hidden="true">↘</span>
+            </a>
+            <a class="download-row" href="https://github.com/Atx85/potyi/releases" data-platform="linux">
+              <span>
+                <strong>Linux</strong>
+                <small>See available build</small>
+              </span>
+              <span class="download-arrow" aria-hidden="true">↘</span>
+            </a>
+          </div>
+
+          <p class="release-note" id="release-note">Platform builds are published with each GitHub release.</p>
+        </aside>
+      </section>
+
+      <section class="command-strip" aria-label="Example Pötyi command">
+        <span class="command-label">command bar</span>
+        <code><span>:</span>find "the important bit" --ignore-case</code>
+        <span class="command-key">Enter</span>
+      </section>
+
+      <section class="feature-intro" id="features">
+        <p class="eyebrow">What it does</p>
+        <h2>The useful parts of a serious editor, without the sprawl.</h2>
+      </section>
+
+      <section class="feature-grid" aria-label="Pötyi features">
+        <article class="feature-card feature-card-wide">
+          <div class="feature-number">01</div>
+          <div>
+            <h3>One command bar</h3>
+            <p>Search, replace, navigate, open files, adjust settings, save, and quit from one discoverable place. Press <kbd>Ctrl</kbd> + <kbd>P</kbd> or type <kbd>:</kbd> on an empty line.</p>
+          </div>
+          <code>:goto 120:4</code>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-number">02</div>
+          <h3>Split editing</h3>
+          <p>Open two documents side by side. Each pane keeps its own cursor, selection, scroll position, and undo history.</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-number">03</div>
+          <h3>Practical Vim mode</h3>
+          <p>Optional Normal, Insert, and Visual modes cover everyday motions, operators, search, paste, undo, redo, and repeat.</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-number">04</div>
+          <h3>Command terminal</h3>
+          <p>Run ordinary, non-interactive shell commands without leaving the editor. Printed file locations are clickable.</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-number">05</div>
+          <h3>Search that stays live</h3>
+          <p>Preview results as you type, search forward or backward, use regular expressions, and replace one match or all of them.</p>
+        </article>
+
+        <article class="feature-card feature-card-wide">
+          <div class="feature-number">06</div>
+          <div>
+            <h3>File-backed by design</h3>
+            <p>A piece table keeps large files editable without making a complete in-memory copy. Pötyi sleeps while idle to keep resource use predictable.</p>
+          </div>
+          <code>low memory · low CPU</code>
+        </article>
+      </section>
+
+      <section class="closing">
+        <div>
+          <p class="eyebrow">Open source</p>
+          <h2>Small enough to understand.<br>Useful enough to keep open.</h2>
+        </div>
+        <a class="source-link" href="https://github.com/Atx85/potyi">
+          <span>Explore the source</span>
+          <span aria-hidden="true">↗</span>
+        </a>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-inner">
+        <p>© 2026 Attila Banko</p>
+        <p>Pötyi is free software under the <a href="https://github.com/Atx85/potyi/blob/main/LICENSE">GPLv3</a>.</p>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

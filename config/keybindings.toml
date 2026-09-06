@@ -1,0 +1,177 @@
+# config/keybindings.toml
+
+# ---------------------------------------------------------
+
+# Cursor movement
+
+# ---------------------------------------------------------
+
+[[bindings]]
+key = "Left"
+modifiers = []
+command = "MoveLeft"
+repeatable = true
+
+[[bindings]]
+key = "Tab"
+modifiers = []
+command = "InsertTab"
+repeatable = false
+
+[[bindings]]
+key = "Right"
+modifiers = []
+command = "MoveRight"
+repeatable = true
+
+[[bindings]]
+key = "Up"
+modifiers = []
+command = "MoveUp"
+repeatable = true
+
+[[bindings]]
+key = "Down"
+modifiers = []
+command = "MoveDown"
+repeatable = true
+
+# ---------------------------------------------------------
+
+# Selection
+
+# ---------------------------------------------------------
+
+[[bindings]]
+key = "Left"
+modifiers = ["Shift"]
+command = "SelectLeft"
+repeatable = true
+
+[[bindings]]
+key = "Right"
+modifiers = ["Shift"]
+command = "SelectRight"
+repeatable = true
+
+[[bindings]]
+key = "Up"
+modifiers = ["Shift"]
+command = "SelectUp"
+repeatable = true
+
+[[bindings]]
+key = "Down"
+modifiers = ["Shift"]
+command = "SelectDown"
+repeatable = true
+
+# ---------------------------------------------------------
+
+# Editing
+
+#
+
+# IMPORTANT:
+
+# Printable characters, including Space, are NOT keybindings.
+
+# They arrive through SDL TextInput.
+
+# ---------------------------------------------------------
+
+[[bindings]]
+key = "Backspace"
+modifiers = []
+command = "Backspace"
+repeatable = true
+
+[[bindings]]
+key = "Delete"
+modifiers = []
+command = "Delete"
+repeatable = true
+
+[[bindings]]
+key = "Return"
+modifiers = []
+command = "Newline"
+repeatable = false
+
+[[bindings]]
+key = "KpEnter"
+modifiers = []
+command = "Newline"
+repeatable = false
+
+# ---------------------------------------------------------
+
+# Navigation
+
+# ---------------------------------------------------------
+
+[[bindings]]
+key = "Home"
+modifiers = []
+command = "Home"
+repeatable = false
+
+[[bindings]]
+key = "End"
+modifiers = []
+command = "End"
+repeatable = false
+
+# ---------------------------------------------------------
+
+# Application
+
+# ---------------------------------------------------------
+
+[[bindings]]
+key = "Escape"
+modifiers = []
+command = "Quit"
+repeatable = false
+
+# ---------------------------------------------------------
+
+# Ctrl commands
+
+# ---------------------------------------------------------
+
+[[bindings]]
+key = "S"
+modifiers = ["Ctrl"]
+command = "Save"
+repeatable = false
+
+[[bindings]]
+key = "Z"
+modifiers = ["Ctrl"]
+command = "Undo"
+repeatable = false
+
+[[bindings]]
+key = "Y"
+modifiers = ["Ctrl"]
+command = "Redo"
+repeatable = false
+
+[[bindings]]
+key = "C"
+modifiers = ["Ctrl"]
+command = "Copy"
+repeatable = false
+
+[[bindings]]
+key = "X"
+modifiers = ["Ctrl"]
+command = "Cut"
+repeatable = false
+
+[[bindings]]
+key = "V"
+modifiers = ["Ctrl"]
+command = "Paste"
+repeatable = false

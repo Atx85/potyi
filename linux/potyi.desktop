@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Pötyi
+Comment=A lightweight text editor built with Rust and SDL3
+Exec=potyi %F
+Icon=potyi
+Terminal=false
+Categories=Utility;TextEditor;Development;
+MimeType=text/plain;

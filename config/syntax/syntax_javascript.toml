@@ -1,0 +1,181 @@
+[syntax]
+name = "JavaScript"
+extensions = ["js", "jsx", "vue"]
+
+# ==========================================================================
+# Comments
+# ==========================================================================
+
+[[syntax.rules]]
+name = "comment"
+pattern = '''//.*$'''
+color = "#6A9955"
+
+[[syntax.rules]]
+name = "comment"
+pattern = '''/\*.*?\*/'''
+color = "#6A9955"
+
+# ==========================================================================
+# Strings
+# ==========================================================================
+
+[[syntax.rules]]
+name = "string"
+pattern = '''"([^"\\]|\\.)*"'''
+color = "#CE9178"
+
+[[syntax.rules]]
+name = "string"
+pattern = ''''([^'\\]|\\.)*'''
+color = "#CE9178"
+
+[[syntax.rules]]
+name = "template"
+pattern = '''`([^`\\]|\\.)*`'''
+color = "#CE9178"
+
+# ==========================================================================
+# Numbers
+# ==========================================================================
+
+[[syntax.rules]]
+name = "number"
+pattern = '''\b(0x[0-9a-fA-F]+|0b[01]+|0o[0-7]+|[0-9]+(\.[0-9]+)?)\b'''
+color = "#B5CEA8"
+
+# ==========================================================================
+# JavaScript keywords
+# ==========================================================================
+
+[[syntax.rules]]
+name = "keyword"
+pattern = '''\b(as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|export|extends|false|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|true|try|typeof|undefined|var|void|while|with|yield)\b'''
+color = "#569CD6"
+
+# ==========================================================================
+# Built-in JavaScript types / objects
+# ==========================================================================
+
+[[syntax.rules]]
+name = "type"
+pattern = '''\b(Array|Boolean|Date|Error|Function|JSON|Map|Math|Number|Object|Promise|RegExp|Set|String|Symbol|WeakMap|WeakSet)\b'''
+color = "#4EC9B0"
+
+# ==========================================================================
+# Functions
+# ==========================================================================
+
+[[syntax.rules]]
+name = "function"
+pattern = '''\bfunction\s+[a-zA-Z_$][a-zA-Z0-9_$]*'''
+color = "#DCDCAA"
+
+# Function declarations / arrow functions without look-ahead.
+[[syntax.rules]]
+name = "function"
+pattern = '''\b[a-zA-Z_$][a-zA-Z0-9_$]*\s*=\s*\([^)]*\)\s*=>'''
+color = "#DCDCAA"
+
+[[syntax.rules]]
+name = "function"
+pattern = '''\b[a-zA-Z_$][a-zA-Z0-9_$]*\s*=\s*[a-zA-Z_$][a-zA-Z0-9_$]*\s*=>'''
+color = "#DCDCAA"
+
+# ==========================================================================
+# Object properties
+# ==========================================================================
+
+# Does not use (?=...), because Rust's regex crate does not support
+# look-around.
+[[syntax.rules]]
+name = "property"
+pattern = '''\b[a-zA-Z_$][a-zA-Z0-9_$]*\s*:'''
+color = "#9CDCFE"
+
+# ==========================================================================
+# Decorators
+# ==========================================================================
+
+[[syntax.rules]]
+name = "decorator"
+pattern = '''@[a-zA-Z_$][a-zA-Z0-9_$]*'''
+color = "#C586C0"
+
+# ==========================================================================
+# Constants
+# ==========================================================================
+
+[[syntax.rules]]
+name = "constant"
+pattern = '''\b[A-Z][A-Z0-9_]*\b'''
+color = "#4FC1FF"
+
+# ==========================================================================
+# ==========================================================================
+# HTML / JSX / Vue template syntax
+# ==========================================================================
+
+# HTML comments
+[[syntax.rules]]
+name = "html_comment"
+pattern = '''<!--.*?-->'''
+color = "#6A9955"
+
+# Opening and closing HTML/Vue tags.
+#
+# The rule intentionally matches the complete tag rather than relying on
+# look-ahead/look-behind.
+[[syntax.rules]]
+name = "html_tag"
+pattern = '''</?[a-zA-Z][a-zA-Z0-9:-]*(?:\s[^<>]*?)?/?>'''
+color = "#569CD6"
+
+# HTML/Vue attribute names.
+[[syntax.rules]]
+name = "html_attribute"
+pattern = '''\b[a-zA-Z_:][a-zA-Z0-9_:.@-]*\s*='''
+color = "#9CDCFE"
+
+# Vue directives such as:
+#
+#   v-if
+#   v-for
+#   v-model
+#   v-bind
+#   v-on
+#
+[[syntax.rules]]
+name = "vue_directive"
+pattern = '''\bv-[a-zA-Z-]+'''
+color = "#C586C0"
+
+# Vue shorthand directives:
+#
+#   :class
+#   :value
+#   @click
+#   @input
+#   #default
+#
+[[syntax.rules]]
+name = "vue_shorthand"
+pattern = '''[:@#][a-zA-Z_$][a-zA-Z0-9_$.-]*'''
+color = "#C586C0"
+
+# JSX expressions / Vue interpolation.
+#
+# Examples:
+#
+#   {value}
+#   {{ message }}
+#
+[[syntax.rules]]
+name = "template_expression"
+pattern = '''\{\{.*?\}\}'''
+color = "#DCDCAA"
+
+[[syntax.rules]]
+name = "jsx_expression"
+pattern = '''\{[^{}]+\}'''
+color = "#DCDCAA"
