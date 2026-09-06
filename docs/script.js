@@ -1,5 +1,5 @@
 const repository = "https://github.com/Atx85/potyi";
-const releasePage = `${repository}/releases`;
+const releasePage = `${repository}/releases/tag/v0.1.0`;
 const apiUrl = "https://api.github.com/repos/Atx85/potyi/releases/latest";
 
 const platformPatterns = {
@@ -52,7 +52,7 @@ async function connectLatestRelease() {
       : "Open the latest release to see its available files.";
   } catch {
     releaseLabel.textContent = "Downloads";
-    releaseNote.textContent = "Packaged builds will appear here with the first public release.";
+    releaseNote.textContent = "Download the v0.1.0 build for your platform.";
     releaseNote.dataset.state = "empty";
   }
 }
