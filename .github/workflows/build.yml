@@ -1,0 +1,176 @@
+name: Build Potyi
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "New release tag, for example v0.1.2"
+        required: true
+        type: string
+
+concurrency:
+  group: manual-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+
+jobs:
+  prepare:
+    name: Check release tag
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require a new version tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Enter a version tag such as v0.1.2."
+            exit 1
+          fi
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            echo "::error::This tag already exists. Choose a new release version."
+            exit 1
+          fi
+
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - platform: windows-x86_64
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+          - platform: macos-arm64
+            runner: macos-15
+            target: aarch64-apple-darwin
+          - platform: macos-x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config \
+            libasound2-dev libpulse-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+            libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+            libxkbcommon-dev libwayland-dev libdecor-0-dev \
+            libgl1-mesa-dev libegl1-mesa-dev \
+            libdbus-1-dev libudev-dev
+
+      - name: Install Rust toolchain
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+        run: rustup toolchain install stable --profile minimal --no-self-update --target "$BUILD_TARGET"
+
+      - name: Build release executable
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+        run: cargo +stable build --release --locked --target "$BUILD_TARGET"
+
+      - name: Package download
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+          BUILD_PLATFORM: ${{ matrix.platform }}
+        run: |
+          package="potyi-$BUILD_PLATFORM"
+          stage="$RUNNER_TEMP/$package"
+          mkdir -p "$stage/fonts" dist
+          cp LICENSE Readme.md "$stage/"
+          cp fonts/LICENSE-DejaVuSans.md "$stage/fonts/"
+
+          case "$RUNNER_OS" in
+            macOS)
+              app="$stage/Potyi.app/Contents"
+              mkdir -p "$app/MacOS" "$app/Resources"
+              cp "target/$BUILD_TARGET/release/potyi" "$app/MacOS/potyi"
+              cp macos/Info.plist "$app/Info.plist"
+              cp macos/Potyi.icns "$app/Resources/"
+              chmod +x "$app/MacOS/potyi"
+              codesign --force --sign - "$stage/Potyi.app"
+              ditto -c -k --sequesterRsrc --keepParent "$stage" "dist/$package.zip"
+              ;;
+            Windows)
+              cp "target/$BUILD_TARGET/release/potyi.exe" "$stage/"
+              7z a -tzip "dist/$package.zip" "$stage"
+              ;;
+            Linux)
+              cp "target/$BUILD_TARGET/release/potyi" "$stage/"
+              cp linux/potyi.desktop linux/potyi.png "$stage/"
+              chmod +x "$stage/potyi"
+              tar -czf "dist/$package.tar.gz" -C "$RUNNER_TEMP" "$package"
+              ;;
+          esac
+
+      - name: Upload download
+        uses: actions/upload-artifact@v6
+        with:
+          name: potyi-${{ matrix.platform }}
+          path: dist/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  release:
+    name: Publish website downloads
+    needs: build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Collect all platform downloads
+        uses: actions/download-artifact@v6
+        with:
+          pattern: potyi-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish complete release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          for archive in \
+            potyi-linux-x86_64.tar.gz \
+            potyi-windows-x86_64.zip \
+            potyi-macos-arm64.zip \
+            potyi-macos-x86_64.zip; do
+            test -s "dist/$archive"
+          done
+          gh release create "$RELEASE_TAG" dist/* \
+            --draft --target "$GITHUB_SHA" \
+            --title "Pötyi $RELEASE_TAG" --generate-notes
+          gh release edit "$RELEASE_TAG" --draft=false --latest
