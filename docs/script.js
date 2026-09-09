@@ -1,9 +1,10 @@
 const repository = "https://github.com/Atx85/potyi";
-const releasePage = `${repository}/releases/tag/v0.1.1`;
+const releasePage = `${repository}/releases/latest`;
 const apiUrl = "https://api.github.com/repos/Atx85/potyi/releases/latest";
 
 const platformPatterns = {
-  macos: /(?:macos|darwin|osx|\.dmg$)/i,
+  "macos-arm64": /(?:macos|darwin|osx).*(?:arm64|aarch64)/i,
+  "macos-x86_64": /(?:macos|darwin|osx).*(?:x86_64|x64|intel)/i,
   windows: /(?:windows|win64|win-x64|\.msi$|\.exe$)/i,
   linux: /(?:linux|appimage|\.deb$)/i,
 };
@@ -52,7 +53,7 @@ async function connectLatestRelease() {
       : "Open the latest release to see its available files.";
   } catch {
     releaseLabel.textContent = "Downloads";
-    releaseNote.textContent = "Download the v0.1.1 build for your platform.";
+    releaseNote.textContent = "Each button downloads the latest release for your platform.";
     releaseNote.dataset.state = "empty";
   }
 }

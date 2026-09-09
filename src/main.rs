@@ -54,6 +54,7 @@ mod window;
 mod syntax;
 mod config;
 mod terminal;
+mod terminal_layout;
 mod vim;
 
 use keybindings::{Command, KeyBindings};
@@ -68,7 +69,11 @@ use search::{
     Searcher,
 };
 use search_ui::SearchUi;
-use config::{EditorConfig, KeybindingMode};
+use config::{
+    EditorConfig,
+    KeybindingMode,
+    LineNumberMode,
+};
 use clipboard::{
     copy_selection,
     cut_selection,
@@ -79,6 +84,7 @@ use command_bar::{
     quote_argument,
     CommandBar,
     CommandBarHit,
+    GotoMode,
     ParsedCommand,
 };
 use terminal::{
@@ -86,7 +92,7 @@ use terminal::{
     TerminalAction,
     TerminalEvent,
 };
-use vim::{VimController, VimUiAction};
+use vim::{VimController, VimMode, VimUiAction};
 
 // ==========================================================================
 // Cursor / history
@@ -370,9 +376,44 @@ fn save(&mut self) -> io::Result<()> {
     Ok(())
 }
 
+    fn save_as(&mut self, path: &str, overwrite: bool) -> io::Result<()> {
+        if self.read_only {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "This file is open for viewing",
+            ));
+        }
+        if path.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Enter a destination path",
+            ));
+        }
+
+        let destination = PathBuf::from(path);
+        if overwrite || file_is_open_in(path, self) {
+            self.document.write_to(&destination)?;
+        } else {
+            self.document.write_to_new(&destination).map_err(|error| {
+                if error.kind() == io::ErrorKind::AlreadyExists {
+                    io::Error::new(
+                        error.kind(),
+                        "File already exists. Use :save-as! or :saveas! to overwrite it.",
+                    )
+                } else {
+                    error
+                }
+            })?;
+        }
+        self.path = Some(destination);
+        self.dirty = false;
+        Ok(())
+    }
+
     fn execute(
         &mut self,
         command: Command,
+        page_lines: usize,
     ) -> io::Result<()> {
         match command {
             Command::MoveLeft =>
@@ -389,6 +430,22 @@ fn save(&mut self) -> io::Result<()> {
 
             Command::MoveDown =>
                 self.move_down(),
+
+            Command::MoveWordLeft | Command::SelectWordLeft =>
+                self.document.move_word(false, command == Command::SelectWordLeft),
+
+            Command::MoveWordRight | Command::SelectWordRight =>
+                self.document.move_word(true, command == Command::SelectWordRight),
+
+            Command::PageUp | Command::SelectPageUp =>
+                self.document.move_page(false, page_lines, command == Command::SelectPageUp),
+
+            Command::PageDown | Command::SelectPageDown =>
+                self.document.move_page(true, page_lines, command == Command::SelectPageDown),
+
+            Command::SelectAll => self.document.select_all(),
+            Command::SelectHome => self.document.select_home(),
+            Command::SelectEnd => self.document.select_end(),
 
             Command::SelectLeft =>
                 self.select_left(),
@@ -433,6 +490,8 @@ fn save(&mut self) -> io::Result<()> {
 
             Command::Quit =>
                 Ok(()),
+
+            Command::SaveAs => Ok(()), // Opens the command bar in the event loop.
         }
     }
 
@@ -1575,6 +1634,90 @@ struct CommandOutcome {
     keybinding_mode: Option<KeybindingMode>,
 }
 
+fn goto_line_index(
+    table: &mut PieceTable,
+    line: isize,
+    mode: GotoMode,
+    configured_mode: LineNumberMode,
+) -> Result<usize, String> {
+    let current_line = table.cursor.line;
+    if mode == GotoMode::Automatic
+        && configured_mode != LineNumberMode::Normal
+        && line >= 0
+    {
+        let label = line as usize;
+        let mut matches = Vec::new();
+        // Only the cursor line and the two lines at this distance can
+        // carry this label. Reuse the gutter's numbering rules exactly.
+        for candidate in [
+            Some(current_line),
+            current_line.checked_sub(label),
+            current_line.checked_add(label),
+        ].into_iter().flatten() {
+            if matches.contains(&candidate)
+                || line_numbers::LineNumbers::display_number(
+                    configured_mode, candidate, current_line,
+                ) != label
+            {
+                continue;
+            }
+            table.ensure_line_cached(candidate)
+                .map_err(|error| error.to_string())?;
+            if candidate < table.cached_line_count() {
+                matches.push(candidate);
+            }
+        }
+        return match matches.as_slice() {
+            [destination] => Ok(*destination),
+            [] => Err(format!("No line is labelled {label}.")),
+            _ => Err(format!(
+                "Label {label} matches multiple lines. Use :goto -{label} (up), :goto +{label} (down), or --abs."
+            )),
+        };
+    }
+
+    // Signed arguments and --rel are both resolved to Relative by the parser.
+    // Automatic here is an absolute label in normal mode, never an offset.
+    let relative = mode == GotoMode::Relative;
+
+    let destination = if relative {
+        if line >= 0 {
+            current_line
+                .checked_add(line as usize)
+                .ok_or_else(|| {
+                    "Relative line is out of range"
+                        .to_string()
+                })
+        } else {
+            current_line
+                .checked_sub(line.unsigned_abs())
+                .ok_or_else(|| {
+                    "Relative line is before the start of the document"
+                        .to_string()
+                })
+        }
+    } else {
+        usize::try_from(line)
+            .ok()
+            .and_then(|line| line.checked_sub(1))
+            .ok_or_else(|| {
+                "line numbers start at 1"
+                    .to_string()
+            })
+    }?;
+
+    table.ensure_line_cached(destination)
+        .map_err(|error| error.to_string())?;
+    if destination >= table.cached_line_count() {
+        return Err(format!(
+            "Line {} is past the last line ({}).",
+            destination + 1,
+            table.cached_line_count(),
+        ));
+    }
+    Ok(destination)
+}
+
 fn execute_command_bar(
     command_bar: &mut CommandBar,
     search_ui: &mut SearchUi,
@@ -1651,13 +1794,23 @@ fn execute_command_bar(
         Ok(ParsedCommand::Goto {
             line,
             column,
+            mode,
         }) => {
-            match editor.document
-                .move_cursor_to_line_column(
-                    line - 1,
-                    column.unwrap_or(1) - 1,
-                )
-            {
+            let result = goto_line_index(
+                &mut editor.document,
+                line,
+                mode,
+                editor.config.line_numbers,
+            ).and_then(|line| {
+                editor.document
+                    .move_cursor_to_line_column(
+                        line,
+                        column.unwrap_or(1) - 1,
+                    )
+                    .map_err(|error| error.to_string())
+            });
+
+            match result {
                 Ok(()) => {
                     command_bar.close();
                     search_ui.close();
@@ -1666,7 +1819,7 @@ fn execute_command_bar(
 
                 Err(error) => {
                     command_bar.set_status(
-                        error.to_string()
+                        error
                     );
                 }
             }
@@ -1800,6 +1953,23 @@ fn execute_command_bar(
             }
         }
 
+        Ok(ParsedCommand::SaveAs { path, overwrite }) => {
+            if let Some(path) = path {
+                match save_as_in_pane(editor, other_editor, &path, overwrite) {
+                    Ok(()) => {
+                        command_bar.close();
+                        search_ui.close();
+                        outcome.path_changed = true;
+                    }
+                    Err(error) => command_bar.set_status(error.to_string()),
+                }
+            } else {
+                command_bar.open(if overwrite { ":save-as! " } else { ":save-as " });
+                command_bar.set_status("Enter a destination path; quote paths containing spaces");
+                search_ui.close();
+            }
+        }
+
         Ok(ParsedCommand::Quit) => {
             outcome.quit = true;
         }
@@ -1810,6 +1980,21 @@ fn execute_command_bar(
     }
 
     outcome
+}
+
+fn save_as_in_pane(
+    editor: &mut Editor,
+    other_editor: &Editor,
+    path: &str,
+    overwrite: bool,
+) -> io::Result<()> {
+    if file_is_open_in(path, other_editor) {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "That file is open in the other pane. Choose a different destination.",
+        ));
+    }
+    editor.save_as(path, overwrite)
 }
 
 fn parse_location(arg: &str) -> Option<(&str, usize, Option<usize>)> {
@@ -1874,6 +2059,10 @@ fn focus_pane(
     renderer.swap_view();
     *active_pane = target;
     renderer.set_active_pane(target);
+    renderer.set_file_path(editor.path.as_deref());
+    renderer.invalidate_scroll_cache();
+    renderer.update_cursor(&editor.document);
+    renderer.ensure_cursor_visible(&mut editor.document);
     renderer.set_mode_label(
         (editor.config.keybinding_mode == KeybindingMode::Vim)
             .then_some(vim.mode_label())
@@ -1902,70 +2091,85 @@ fn apply_keybinding_mode(
     }
 }
 
+/// Return whether the requested file belongs in the other pane. Reuse an
+/// already-open document before considering replacement, preserving its edits.
+fn open_terminal_document(
+    path: &str,
+    read_only: bool,
+    editor: &mut Editor,
+    other_editor: &mut Editor,
+) -> io::Result<bool> {
+    if file_is_open_in(path, editor) {
+        return Ok(false);
+    }
+    if file_is_open_in(path, other_editor) {
+        return Ok(true);
+    }
+    let focus_other = editor.dirty;
+    let target = if focus_other { other_editor } else { editor };
+    if target.dirty {
+        return Err(io::Error::new(
+            io::ErrorKind::Other,
+            "Both panes have unsaved changes. Save one file before opening another.",
+        ));
+    }
+    target.open(path)?;
+    target.read_only = read_only;
+    Ok(focus_other)
+}
+
 fn handle_terminal_action(
     action: TerminalAction,
     terminal: &mut Terminal,
     editor: &mut Editor,
-    other_editor: &Editor,
+    other_editor: &mut Editor,
     renderer: &mut Renderer<'_>,
 ) -> Result<bool, String> {
-    let (value, read_only) = match action {
+    let read_only = matches!(action, TerminalAction::View(_));
+    let (path, line, column, read_only) = match action {
         TerminalAction::None => return Ok(false),
-        TerminalAction::Edit(value) => (value, false),
-        TerminalAction::View(value) => (value, true),
-    };
-
-    if editor.dirty {
-        terminal.set_status(
-            "Save the current file before opening another one"
-        );
-        return Ok(false);
-    }
-
-    let (path_text, line, column) =
-        match parse_location(&value) {
-            Some((path, line, column)) =>
-                (path, Some(line), column),
-            None =>
-                (value.as_str(), None, None),
-        };
-
-    let path = match terminal.resolve_path(
-        path_text
-    ) {
-        Ok(path) => path,
-        Err(error) => {
-            terminal.set_status(error.to_string());
+        TerminalAction::EnterDirectory(path) => {
+            if let Err(error) = terminal.enter_directory(&path) {
+                terminal.set_status(error.to_string());
+            }
             return Ok(false);
+        }
+        TerminalAction::ListedFile(path) => (path, None, None, false),
+        TerminalAction::Edit(value) | TerminalAction::View(value) => {
+            let (path_text, line, column) = match parse_location(&value) {
+                Some((path, line, column)) => (path, Some(line), column),
+                None => (value.as_str(), None, None),
+            };
+            let path = match terminal.resolve_path(path_text) {
+                Ok(path) => path,
+                Err(error) => {
+                    terminal.set_status(error.to_string());
+                    return Ok(false);
+                }
+            };
+            (path, line, column, read_only)
         }
     };
 
     let display_path =
         path.to_string_lossy().into_owned();
 
-    if file_is_open_in(
+    let focus_other = match open_terminal_document(
         &display_path,
+        read_only,
+        editor,
         other_editor,
     ) {
-        terminal.set_status(
-            "That file is already open in the other pane"
-        );
-        terminal.close_to_editor();
-        return Ok(true);
-    }
-
-    if let Err(error) = editor.open(&display_path) {
-        terminal.set_status(format!(
-            "Could not open {}: {error}",
-            path.display(),
-        ));
-        return Ok(false);
-    }
-
-    editor.read_only = read_only;
+        Ok(focus_other) => focus_other,
+        Err(error) => {
+            terminal.set_status(format!("Could not open {}: {error}", path.display()));
+            return Ok(false);
+        }
+    };
+    let target = if focus_other { other_editor } else { editor };
 
     if let Some(line) = line
-        && let Err(error) = editor.document
+        && let Err(error) = target.document
             .move_cursor_to_line_column(
                 line.saturating_sub(1),
                 column.unwrap_or(1)
@@ -1975,17 +2179,15 @@ fn handle_terminal_action(
         terminal.set_status(error.to_string());
     }
 
-    renderer.set_file_path(
-        editor.path.as_deref()
-    );
-    renderer.invalidate_scroll_cache();
-    renderer.update_cursor(&editor.document);
-    renderer.ensure_cursor_visible(
-        &mut editor.document
-    );
+    if !focus_other {
+        renderer.set_file_path(target.path.as_deref());
+        renderer.invalidate_scroll_cache();
+        renderer.update_cursor(&target.document);
+        renderer.ensure_cursor_visible(&mut target.document);
+    }
     terminal.close_to_editor();
 
-    Ok(false)
+    Ok(focus_other)
 }
 
 // ==========================================================================
@@ -2349,7 +2551,7 @@ Event::MouseButtonDown {
                                         action,
                                         &mut terminal,
                                         &mut editor,
-                                        &other_editor,
+                                        &mut other_editor,
                                         &mut renderer,
                                     )? {
                                         focus_pane(
@@ -2385,18 +2587,18 @@ Event::MouseButtonDown {
                     }
 
                     TerminalHit::Output => {
-                        if let Some(path) = renderer
-                            .terminal_path_at(
+                        if let Some(action) = renderer
+                            .terminal_action_at(
                                 &mut terminal,
                                 x as i32,
                                 y as i32,
                             )?
                         {
                             if handle_terminal_action(
-                                TerminalAction::Edit(path),
+                                action,
                                 &mut terminal,
                                 &mut editor,
-                                &other_editor,
+                                &mut other_editor,
                                 &mut renderer,
                             )? {
                                 focus_pane(
@@ -2799,7 +3001,7 @@ Event::MouseMotion {
                                             action,
                                             &mut terminal,
                                             &mut editor,
-                                            &other_editor,
+                                            &mut other_editor,
                                             &mut renderer,
                                         )? {
                                             focus_pane(
@@ -2833,6 +3035,11 @@ Event::MouseMotion {
                      * command list.
                      */
                     if ctrl_pressed(keymod)
+                        && !(vim_enabled
+                            && vim.mode() != vim::VimMode::Insert
+                            && !command_bar.is_active()
+                            && !search_ui.is_active()
+                            && VimController::page_motion(key, keymod).is_some())
                         && (key == Keycode::F
                             || key == Keycode::H
                             || key == Keycode::P)
@@ -3124,6 +3331,7 @@ Event::MouseMotion {
                             key,
                             keymod,
                             repeat,
+                            renderer.visible_line_count(),
                         )?;
 
                         renderer.set_mode_label(
@@ -3213,6 +3421,23 @@ Event::MouseMotion {
 
                         let redraw =
                             match command {
+                                Command::SaveAs => {
+                                    command_bar.open(":save-as ");
+                                    search_ui.close();
+                                    true
+                                }
+
+                                Command::Save => {
+                                    match editor.save() {
+                                        Ok(()) => renderer.set_file_path(editor.path.as_deref()),
+                                        Err(error) => {
+                                            command_bar.open(":save");
+                                            command_bar.set_status(error.to_string());
+                                        }
+                                    }
+                                    true
+                                }
+
                                 Command::Copy => {
                                     if let Err(error) =
                                         copy_selection(
@@ -3287,7 +3512,7 @@ Event::MouseMotion {
 
                                 _ => {
                                     editor
-                                        .execute(command)
+                                        .execute(command, renderer.visible_line_count())
                                         .map_err(
                                             |e| e.to_string()
                                         )?;

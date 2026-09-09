@@ -47,8 +47,9 @@ pub(crate) enum ParsedCommand {
     },
 
     Goto {
-        line: usize,
+        line: isize,
         column: Option<usize>,
+        mode: GotoMode,
     },
 
     Open {
@@ -71,7 +72,18 @@ pub(crate) enum ParsedCommand {
     Split,
     ExtractConfig,
     Save,
+    SaveAs {
+        path: Option<String>,
+        overwrite: bool,
+    },
     Quit,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum GotoMode {
+    Automatic,
+    Absolute,
+    Relative,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -130,8 +142,8 @@ const COMMANDS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "goto",
-        description: "Move to a line and optional column",
-        usage: ":goto line[:column]",
+        description: "Gutter label, +N down, or -N up; optional :column",
+        usage: ":goto line[:column] [--abs|--rel]",
     },
     CommandSpec {
         name: "open",
@@ -157,6 +169,16 @@ const COMMANDS: &[CommandSpec] = &[
         name: "save",
         description: "Save the current document",
         usage: ":save",
+    },
+    CommandSpec {
+        name: "save-as",
+        description: "Save under a new name; add ! to overwrite",
+        usage: ":save-as[!] path",
+    },
+    CommandSpec {
+        name: "saveas",
+        description: "Vim Save As (also :sav); add ! to overwrite",
+        usage: ":saveas[!] path",
     },
     CommandSpec {
         name: "extract-config",
@@ -205,6 +227,17 @@ const REPLACE_OPTIONS: &[OptionSpec] = &[
     OptionSpec {
         name: "--all",
         description: "Replace every non-overlapping match",
+    },
+];
+
+const GOTO_OPTIONS: &[OptionSpec] = &[
+    OptionSpec {
+        name: "--abs",
+        description: "Treat the line as an absolute line number",
+    },
+    OptionSpec {
+        name: "--rel",
+        description: "Force an offset: positive down, negative up",
     },
 ];
 
@@ -608,10 +641,18 @@ impl CommandBar {
             );
         }
 
+        let command = match command {
+            "save-as!" => "save-as",
+            "sav" | "savea" | "sav!" | "savea!" | "saveas!" => "saveas",
+            "w" | "write" => "save",
+            _ => command,
+        };
+
         let options =
             match command {
                 "find" => FIND_OPTIONS,
                 "replace" => REPLACE_OPTIONS,
+                "goto" => GOTO_OPTIONS,
                 _ => {
                     return COMMANDS.iter()
                         .find(|spec| {
@@ -779,6 +820,17 @@ impl CommandBar {
                     other,
                 );
             }
+        }
+
+        if matches!(option, "--abs" | "--rel") {
+            remove_token(
+                &mut self.input,
+                if option == "--abs" {
+                    "--rel"
+                } else {
+                    "--abs"
+                },
+            );
         }
 
         if !self.input.chars()
@@ -962,6 +1014,7 @@ fn parse_command(
     let mut backward = false;
     let mut all = false;
     let mut search_option_used = false;
+    let mut goto_mode = GotoMode::Automatic;
 
     for word in &words[1..] {
         match (word.quoted, word.text.as_str()) {
@@ -983,6 +1036,26 @@ fn parse_command(
             (false, "--backward") =>
                 backward = true,
             (false, "--all") => all = true,
+            (false, "--abs") => {
+                if goto_mode == GotoMode::Relative {
+                    return Err(
+                        "--abs and --rel cannot be used together"
+                            .to_string()
+                    );
+                }
+
+                goto_mode = GotoMode::Absolute;
+            }
+            (false, "--rel") => {
+                if goto_mode == GotoMode::Absolute {
+                    return Err(
+                        "--abs and --rel cannot be used together"
+                            .to_string()
+                    );
+                }
+
+                goto_mode = GotoMode::Relative;
+            }
 
             (false, option)
                 if option.starts_with("--") =>
@@ -998,6 +1071,15 @@ fn parse_command(
                 word.text.clone()
             ),
         }
+    }
+
+    if command != "goto"
+        && goto_mode != GotoMode::Automatic
+    {
+        return Err(
+            "--abs and --rel are only available for goto"
+                .to_string()
+        );
     }
 
     match command.as_str() {
@@ -1060,7 +1142,7 @@ fn parse_command(
 
             if arguments.len() != 1 {
                 return Err(
-                    "Usage: :goto line[:column]"
+                    "Usage: :goto line[:column] [--abs|--rel]"
                         .to_string()
                 );
             }
@@ -1068,11 +1150,16 @@ fn parse_command(
             let mut parts =
                 arguments[0].split(':');
 
+            let line_text = parts.next().unwrap_or("");
+            // Parsing a signed integer loses an explicit '+' (and '-0').
+            // Preserve the user's direction before converting the number.
+            if goto_mode == GotoMode::Automatic
+                && (line_text.starts_with('+') || line_text.starts_with('-'))
+            {
+                goto_mode = GotoMode::Relative;
+            }
             let line =
-                parse_one_based(
-                    parts.next().unwrap_or(""),
-                    "line",
-                )?;
+                parse_line_number(line_text)?;
 
             let column =
                 match parts.next() {
@@ -1086,7 +1173,7 @@ fn parse_command(
 
             if parts.next().is_some() {
                 return Err(
-                    "Usage: :goto line[:column]"
+                    "Usage: :goto line[:column] [--abs|--rel]"
                         .to_string()
                 );
             }
@@ -1094,6 +1181,7 @@ fn parse_command(
             Ok(ParsedCommand::Goto {
                 line,
                 column,
+                mode: goto_mode,
             })
         }
 
@@ -1239,7 +1327,23 @@ fn parse_command(
             Ok(ParsedCommand::ExtractConfig)
         }
 
-        "save" => {
+        "save-as" | "saveas" | "sav" | "savea"
+        | "save-as!" | "saveas!" | "sav!" | "savea!" => {
+            reject_search_options(search_option_used, backward, all)?;
+            if arguments.len() > 1
+                || arguments.first().is_some_and(|path| path.is_empty())
+            {
+                return Err(
+                    "Usage: :save-as[!] path (quote paths containing spaces)".to_string()
+                );
+            }
+            Ok(ParsedCommand::SaveAs {
+                path: arguments.into_iter().next(),
+                overwrite: command.ends_with('!'),
+            })
+        }
+
+        "save" | "w" | "write" => {
             reject_no_arguments(
                 command,
                 &arguments,
@@ -1330,6 +1434,15 @@ fn parse_one_based(
     } else {
         Ok(number)
     }
+}
+
+fn parse_line_number(
+    value: &str,
+) -> Result<isize, String> {
+    value.parse::<isize>()
+        .map_err(|_| {
+            format!("Invalid line: {value}")
+        })
 }
 
 fn tokenize(
@@ -1609,6 +1722,38 @@ mod tests {
     use super::*;
 
     #[test]
+    fn save_as_commands_parse_paths_and_overwrite_intent() {
+        for name in ["save-as", "saveas", "sav", "savea"] {
+            for overwrite in [false, true] {
+                let bang = if overwrite { "!" } else { "" };
+                for path in ["new.rs", "folder/é file.txt", r#"C:\new\test.txt"#, "--regex"] {
+                    assert_eq!(
+                        parse_command(&format!(":{name}{bang} {}", quote_argument(path))).unwrap(),
+                        ParsedCommand::SaveAs { path: Some(path.to_string()), overwrite },
+                    );
+                }
+                assert_eq!(
+                    parse_command(&format!(":{name}{bang}")).unwrap(),
+                    ParsedCommand::SaveAs { path: None, overwrite },
+                );
+            }
+        }
+        for input in [":save-as a b", ":sav \"\"", ":saveas a --all", ":saveas a --rel"] {
+            assert!(parse_command(input).is_err(), "{input}");
+        }
+        for input in [":save", ":w", ":write"] {
+            assert_eq!(parse_command(input).unwrap(), ParsedCommand::Save);
+        }
+        let mut bar = CommandBar::new();
+        bar.open(":save-");
+        assert!(bar.apply_selected());
+        assert_eq!(bar.input(), ":save-as ");
+        assert_eq!(bar.suggestion(0).unwrap().label, ":save-as[!] path");
+        bar.open(":sav! ");
+        assert_eq!(bar.suggestion(0).unwrap().label, ":saveas[!] path");
+    }
+
+    #[test]
     fn parses_quoted_find_and_visible_options() {
         let mut bar = CommandBar::new();
         bar.open(
@@ -1661,8 +1806,93 @@ mod tests {
             ParsedCommand::Goto {
                 line: 12,
                 column: Some(4),
+                mode: GotoMode::Automatic,
             },
         );
+    }
+
+    #[test]
+    fn goto_parses_line_number_overrides() {
+        assert_eq!(
+            parse_command(":goto 76 --rel")
+                .unwrap(),
+            ParsedCommand::Goto {
+                line: 76,
+                column: None,
+                mode: GotoMode::Relative,
+            },
+        );
+
+        assert_eq!(
+            parse_command(":goto -12:4 --rel")
+                .unwrap(),
+            ParsedCommand::Goto {
+                line: -12,
+                column: Some(4),
+                mode: GotoMode::Relative,
+            },
+        );
+
+        assert_eq!(
+            parse_command(":goto 76 --abs")
+                .unwrap(),
+            ParsedCommand::Goto {
+                line: 76,
+                column: None,
+                mode: GotoMode::Absolute,
+            },
+        );
+
+        assert_eq!(
+            parse_command(
+                ":goto 76 --abs --rel"
+            )
+            .unwrap_err(),
+            "--abs and --rel cannot be used together",
+        );
+    }
+
+    #[test]
+    fn goto_preserves_direction_and_explicit_overrides() {
+        for (input, line, column, mode) in [
+            (":goto 3", 3, None, GotoMode::Automatic),
+            (":goto +3", 3, None, GotoMode::Relative),
+            (":goto -3", -3, None, GotoMode::Relative),
+            (":goto +0", 0, None, GotoMode::Relative),
+            (":goto -0", 0, None, GotoMode::Relative),
+            (":goto +3:2", 3, Some(2), GotoMode::Relative),
+            (":goto -3:2", -3, Some(2), GotoMode::Relative),
+            (":goto 3 --rel", 3, None, GotoMode::Relative),
+            (":goto +3 --abs", 3, None, GotoMode::Absolute),
+            (":goto --abs +3", 3, None, GotoMode::Absolute),
+        ] {
+            assert_eq!(
+                parse_command(input).unwrap(),
+                ParsedCommand::Goto { line, column, mode },
+                "{input}",
+            );
+        }
+        for input in [":goto +", ":goto -", ":goto +-3", ":goto +3:0"] {
+            assert!(parse_command(input).is_err(), "{input}");
+        }
+    }
+
+    #[test]
+    fn goto_options_are_discoverable_and_exclusive() {
+        let mut bar = CommandBar::new();
+        bar.open(":goto 76 --r");
+
+        assert_eq!(
+            bar.suggestion(0).unwrap().label,
+            "--rel",
+        );
+
+        assert!(bar.apply_suggestion(0));
+        assert_eq!(bar.input(), ":goto 76 --rel ");
+
+        bar.open(":goto 76 --rel --a");
+        assert!(bar.apply_suggestion(0));
+        assert_eq!(bar.input(), ":goto 76 --abs ");
     }
 
     #[test]

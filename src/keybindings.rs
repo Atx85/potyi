@@ -32,11 +32,22 @@ pub enum Command {
     MoveRight,
     MoveUp,
     MoveDown,
+    MoveWordLeft,
+    MoveWordRight,
+    PageUp,
+    PageDown,
 
     SelectLeft,
     SelectRight,
     SelectUp,
     SelectDown,
+    SelectAll,
+    SelectWordLeft,
+    SelectWordRight,
+    SelectPageUp,
+    SelectPageDown,
+    SelectHome,
+    SelectEnd,
 
     Home,
     End,
@@ -49,6 +60,7 @@ pub enum Command {
     Quit,
 
     Save,
+    SaveAs,
     Undo,
     Redo,
     Copy,
@@ -301,6 +313,8 @@ impl KeyBindings {
 
             "home" => Ok(Keycode::Home),
             "end" => Ok(Keycode::End),
+            "pageup" | "page_up" => Ok(Keycode::PageUp),
+            "pagedown" | "page_down" => Ok(Keycode::PageDown),
 
             "delete" | "del" => Ok(Keycode::Delete),
             "backspace" => Ok(Keycode::Backspace),
@@ -354,11 +368,22 @@ impl KeyBindings {
             "moveright" | "move_right" => Some(Command::MoveRight),
             "moveup" | "move_up" => Some(Command::MoveUp),
             "movedown" | "move_down" => Some(Command::MoveDown),
+            "movewordleft" | "move_word_left" => Some(Command::MoveWordLeft),
+            "movewordright" | "move_word_right" => Some(Command::MoveWordRight),
+            "pageup" | "page_up" => Some(Command::PageUp),
+            "pagedown" | "page_down" => Some(Command::PageDown),
 
             "selectleft" | "select_left" => Some(Command::SelectLeft),
             "selectright" | "select_right" => Some(Command::SelectRight),
             "selectup" | "select_up" => Some(Command::SelectUp),
             "selectdown" | "select_down" => Some(Command::SelectDown),
+            "selectall" | "select_all" => Some(Command::SelectAll),
+            "selectwordleft" | "select_word_left" => Some(Command::SelectWordLeft),
+            "selectwordright" | "select_word_right" => Some(Command::SelectWordRight),
+            "selectpageup" | "select_page_up" => Some(Command::SelectPageUp),
+            "selectpagedown" | "select_page_down" => Some(Command::SelectPageDown),
+            "selecthome" | "select_home" => Some(Command::SelectHome),
+            "selectend" | "select_end" => Some(Command::SelectEnd),
 
             "home" => Some(Command::Home),
             "end" => Some(Command::End),
@@ -371,6 +396,7 @@ impl KeyBindings {
             "quit" => Some(Command::Quit),
 
             "save" => Some(Command::Save),
+            "saveas" => Some(Command::SaveAs),
             "undo" => Some(Command::Undo),
             "redo" => Some(Command::Redo),
             "copy" => Some(Command::Copy),
@@ -388,6 +414,20 @@ impl KeyBindings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn save_as_shortcuts_are_distinct_and_do_not_repeat() {
+        let bindings = KeyBindings::default();
+        for modifiers in [
+            Mod::LCTRLMOD | Mod::LSHIFTMOD,
+            Mod::RCTRLMOD | Mod::RSHIFTMOD,
+            Mod::LGUIMOD | Mod::LSHIFTMOD,
+        ] {
+            assert_eq!(bindings.command_for(Keycode::S, modifiers, false), Some(Command::SaveAs));
+            assert_eq!(bindings.command_for(Keycode::S, modifiers, true), None);
+        }
+        assert_eq!(bindings.command_for(Keycode::S, Mod::LCTRLMOD, false), Some(Command::Save));
+    }
 
     #[test]
     fn parses_basic_binding() {
@@ -762,8 +802,13 @@ mod tests {
                 Mod::NOMOD,
                 false
             ),
-            Some(Command::Quit)
+            None
         );
+        for modifiers in [Mod::LCTRLMOD, Mod::RCTRLMOD, Mod::LGUIMOD, Mod::RGUIMOD] {
+            assert_eq!(bindings.command_for(Keycode::Q, modifiers, false), Some(Command::Quit));
+            assert_eq!(bindings.command_for(Keycode::Q, modifiers, true), None);
+        }
+        assert_eq!(bindings.command_for(Keycode::Q, Mod::NOMOD, false), None);
     }
 
     #[test]
@@ -787,5 +832,49 @@ mod tests {
             ),
             Some(Command::Save)
         );
+    }
+
+    #[test]
+    fn default_navigation_bindings_and_selection_variants() {
+        let bindings = KeyBindings::default();
+        for (key, modifiers, command) in [
+            (Keycode::Left, Mod::RCTRLMOD, Command::MoveWordLeft),
+            (Keycode::Right, Mod::RCTRLMOD, Command::MoveWordRight),
+            (Keycode::Left, Mod::RALTMOD, Command::MoveWordLeft),
+            (Keycode::Right, Mod::RALTMOD, Command::MoveWordRight),
+            (Keycode::Left, Mod::RCTRLMOD | Mod::RSHIFTMOD, Command::SelectWordLeft),
+            (Keycode::Right, Mod::RCTRLMOD | Mod::RSHIFTMOD, Command::SelectWordRight),
+            (Keycode::Left, Mod::RALTMOD | Mod::RSHIFTMOD, Command::SelectWordLeft),
+            (Keycode::Right, Mod::RALTMOD | Mod::RSHIFTMOD, Command::SelectWordRight),
+            (Keycode::PageUp, Mod::NOMOD, Command::PageUp),
+            (Keycode::PageDown, Mod::NOMOD, Command::PageDown),
+            (Keycode::PageUp, Mod::RSHIFTMOD, Command::SelectPageUp),
+            (Keycode::PageDown, Mod::RSHIFTMOD, Command::SelectPageDown),
+            (Keycode::Home, Mod::RSHIFTMOD, Command::SelectHome),
+            (Keycode::End, Mod::RSHIFTMOD, Command::SelectEnd),
+        ] {
+            assert_eq!(bindings.command_for(key, modifiers, false), Some(command));
+            assert_eq!(bindings.command_for(key, modifiers, true), Some(command));
+        }
+        for modifiers in [Mod::RCTRLMOD, Mod::RGUIMOD] {
+            assert_eq!(bindings.command_for(Keycode::A, modifiers, false), Some(Command::SelectAll));
+            assert_eq!(bindings.command_for(Keycode::A, modifiers, true), None);
+        }
+    }
+
+    #[test]
+    fn parses_custom_page_and_word_selection_commands() {
+        let bindings = KeyBindings::from_config(r#"
+            [[bindings]]
+            key = "page_up"
+            modifiers = ["Shift"]
+            command = "select_page_up"
+            [[bindings]]
+            key = "Right"
+            modifiers = ["Ctrl", "Shift"]
+            command = "select_word_right"
+        "#).unwrap();
+        assert_eq!(bindings.command_for(Keycode::PageUp, Mod::LSHIFTMOD, false), Some(Command::SelectPageUp));
+        assert_eq!(bindings.command_for(Keycode::Right, Mod::LCTRLMOD | Mod::LSHIFTMOD, false), Some(Command::SelectWordRight));
     }
 }

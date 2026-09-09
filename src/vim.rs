@@ -129,6 +129,8 @@ pub(crate) struct VimController {
     search_origin: Option<usize>,
     register_linewise: bool,
     suppress_text_input: bool,
+    // Logical anchor/cursor positions for whole-line Visual selections.
+    visual_lines: Option<(usize, usize)>,
 }
 
 impl VimController {
@@ -144,6 +146,7 @@ impl VimController {
             search_origin: None,
             register_linewise: false,
             suppress_text_input: false,
+            visual_lines: None,
         }
     }
 
@@ -155,6 +158,7 @@ impl VimController {
         match self.mode {
             VimMode::Normal => "-- NORMAL --",
             VimMode::Insert => "-- INSERT --",
+            VimMode::Visual if self.visual_lines.is_some() => "-- VISUAL LINE --",
             VimMode::Visual => "-- VISUAL --",
         }
     }
@@ -223,7 +227,43 @@ impl VimController {
         key: Keycode,
         keymod: Mod,
         repeat: bool,
+        page_lines: usize,
     ) -> Result<VimOutcome, String> {
+        if self.mode != VimMode::Insert
+            && let Some((forward, half)) = Self::page_motion(key, keymod)
+        {
+            let explicit_count = self.count;
+            let count = self.take_count();
+            self.cancel_pending();
+            let lines = if half {
+                if explicit_count > 0 { explicit_count } else { (page_lines / 2).max(1) }
+            } else {
+                page_lines.max(1).saturating_mul(count)
+            };
+            if self.mode == VimMode::Normal && shift_pressed(keymod) {
+                self.mode = VimMode::Visual;
+                self.visual_lines = None;
+            }
+            if let Some((_, active)) = self.visual_lines.filter(|_| self.mode == VimMode::Visual) {
+                let desired = editor.document.cursor.desired_column;
+                editor.document.move_cursor(active).map_err(|error| error.to_string())?;
+                editor.document.cursor.desired_column = desired;
+            }
+            editor.document.move_page(
+                forward,
+                lines,
+                self.mode == VimMode::Visual && self.visual_lines.is_none(),
+            ).map_err(|error| error.to_string())?;
+            let desired = editor.document.cursor.desired_column;
+            if self.mode == VimMode::Visual && self.visual_lines.is_some() {
+                self.select_visual_lines(editor, editor.document.cursor.position)?;
+            } else if self.mode == VimMode::Normal {
+                settle_normal_cursor(editor)?;
+            }
+            editor.document.cursor.desired_column = desired;
+            return Ok(VimOutcome::consumed(true));
+        }
+
         if self.mode == VimMode::Insert {
             return self.handle_insert_key(editor, key, keymod, repeat);
         }
@@ -242,7 +282,8 @@ impl VimController {
             self.cancel_pending();
 
             if self.mode == VimMode::Visual {
-                let position = editor.document.cursor.position;
+                let position = self.visual_lines.take()
+                    .map_or(editor.document.cursor.position, |(_, active)| active);
                 editor
                     .document
                     .move_cursor(position)
@@ -268,6 +309,29 @@ impl VimController {
         }
 
         self.handle_normal_key(editor, clipboard, key, keymod)
+    }
+
+    pub(crate) fn page_motion(key: Keycode, keymod: Mod) -> Option<(bool, bool)> {
+        if keymod.intersects(Mod::LALTMOD | Mod::RALTMOD | Mod::LGUIMOD | Mod::RGUIMOD) {
+            return None;
+        }
+        if ctrl_pressed(keymod) && !shift_pressed(keymod) {
+            match key {
+                Keycode::F => Some((true, false)),
+                Keycode::B => Some((false, false)),
+                Keycode::D => Some((true, true)),
+                Keycode::U => Some((false, true)),
+                _ => None,
+            }
+        } else if !ctrl_pressed(keymod) {
+            match key {
+                Keycode::PageDown => Some((true, false)),
+                Keycode::PageUp => Some((false, false)),
+                _ => None,
+            }
+        } else {
+            None
+        }
     }
 
     fn handle_insert_key(
@@ -468,6 +532,11 @@ impl VimController {
 
             Keycode::V => {
                 self.enter_visual(editor)?;
+                if shift_pressed(keymod) {
+                    let start = editor.document.cursor.anchor;
+                    self.visual_lines = Some((start, start));
+                    self.select_visual_lines(editor, start)?;
+                }
                 self.suppress_text_input = true;
                 Ok(VimOutcome::consumed(true))
             }
@@ -624,8 +693,34 @@ impl VimController {
         key: Keycode,
         keymod: Mod,
     ) -> Result<VimOutcome, String> {
+        if self.pending_g {
+            self.pending_g = false;
+            if key == Keycode::G && !shift_pressed(keymod) {
+                return self.apply_motion(editor, Motion::DocumentStart);
+            }
+            self.cancel_pending();
+        }
+        if key == Keycode::G && !shift_pressed(keymod) {
+            self.pending_g = true;
+            self.suppress_text_input = true;
+            return Ok(VimOutcome::consumed(false));
+        }
         if key == Keycode::V {
-            let position = editor.document.cursor.position;
+            if shift_pressed(keymod) && self.visual_lines.is_none() {
+                let anchor = editor.document.cursor.anchor;
+                let active = editor.document.cursor.position;
+                self.visual_lines = Some((anchor, active));
+                self.select_visual_lines(editor, active)?;
+                self.suppress_text_input = true;
+                return Ok(VimOutcome::consumed(true));
+            }
+            if !shift_pressed(keymod) && let Some((anchor, active)) = self.visual_lines.take() {
+                editor.set_cursor_and_anchor(active, anchor).map_err(|error| error.to_string())?;
+                self.suppress_text_input = true;
+                return Ok(VimOutcome::consumed(true));
+            }
+            let position = self.visual_lines.take()
+                .map_or(editor.document.cursor.position, |(_, active)| active);
             editor
                 .document
                 .move_cursor(position)
@@ -648,6 +743,17 @@ impl VimController {
 
         let start = editor.document.selection_start();
         let end = editor.document.selection_end();
+        if let Some((anchor, active)) = self.visual_lines {
+            let (first, _) = editor.document.line_column_at(anchor).map_err(|error| error.to_string())?;
+            let (last, _) = editor.document.line_column_at(active).map_err(|error| error.to_string())?;
+            let count = first.abs_diff(last) + 1;
+            editor.document.move_cursor(start).map_err(|error| error.to_string())?;
+            self.mode = VimMode::Normal;
+            self.visual_lines = None;
+            self.register_linewise = true;
+            self.suppress_text_input = true;
+            return self.apply_operator(editor, clipboard, operator, Motion::Line, count);
+        }
         let selected_characters = editor
             .document
             .read_range(start, end.saturating_sub(start))
@@ -711,9 +817,21 @@ impl VimController {
 
     fn apply_motion(&mut self, editor: &mut Editor, motion: Motion) -> Result<VimOutcome, String> {
         let count = self.take_count();
+        if self.mode == VimMode::Visual && let Some((_, active)) = self.visual_lines {
+            editor.document.move_cursor(active).map_err(|error| error.to_string())?;
+        }
         let target = motion_target(&mut editor.document, motion, count)?;
 
-        if self.mode == VimMode::Visual {
+        if self.mode == VimMode::Visual && self.visual_lines.is_some() {
+            self.select_visual_lines(editor, target)?;
+        } else if self.mode == VimMode::Visual {
+            let target = if motion == Motion::WordEnd {
+                editor.document.next_char_boundary(target).map_err(|error| error.to_string())?
+            } else if motion == Motion::DocumentEnd && count == 1 {
+                editor.document.len()
+            } else {
+                target
+            };
             let anchor = editor.document.cursor.anchor;
             editor
                 .set_cursor_and_anchor(target, anchor)
@@ -727,6 +845,23 @@ impl VimController {
         }
 
         Ok(VimOutcome::consumed(true))
+    }
+
+    fn select_visual_lines(&mut self, editor: &mut Editor, target: usize) -> Result<(), String> {
+        let (anchor, _) = self.visual_lines.expect("line selection must be active");
+        let (anchor_line, _) = editor.document.line_column_at(anchor).map_err(|error| error.to_string())?;
+        let (target_line, _) = editor.document.line_column_at(target).map_err(|error| error.to_string())?;
+        let first = anchor_line.min(target_line);
+        let count = anchor_line.max(target_line) - first + 1;
+        let (start, end, _) = linewise_range(&mut editor.document, first, count)?;
+        let (position, selection_anchor) = if target_line < anchor_line {
+            (start, end)
+        } else {
+            (end, start)
+        };
+        editor.set_cursor_and_anchor(position, selection_anchor).map_err(|error| error.to_string())?;
+        self.visual_lines = Some((anchor, target));
+        Ok(())
     }
 
     fn apply_operator<C: TextClipboard>(
@@ -854,6 +989,7 @@ impl VimController {
 
     fn enter_visual(&mut self, editor: &mut Editor) -> Result<(), String> {
         self.mode = VimMode::Visual;
+        self.visual_lines = None;
         let start = editor.document.cursor.position;
         let end = editor
             .document
@@ -1628,7 +1764,7 @@ mod tests {
     }
 
     fn key(vim: &mut VimController, editor: &mut Editor, clipboard: &Clipboard, key: Keycode) {
-        vim.handle_key(editor, clipboard, key, Mod::NOMOD, false)
+        vim.handle_key(editor, clipboard, key, Mod::NOMOD, false, 10)
             .unwrap();
     }
 
@@ -1638,13 +1774,29 @@ mod tests {
         clipboard: &Clipboard,
         key: Keycode,
     ) -> VimOutcome {
-        vim.handle_key(editor, clipboard, key, Mod::LSHIFTMOD, false)
+        vim.handle_key(editor, clipboard, key, Mod::LSHIFTMOD, false, 10)
             .unwrap()
     }
 
     fn type_text(vim: &mut VimController, editor: &mut Editor, text: &str) {
         editor.insert(text).unwrap();
         vim.record_text(text);
+    }
+
+    #[test]
+    fn save_as_shortcut_passes_through_in_every_vim_mode() {
+        let clipboard = Clipboard::default();
+        for mode in [VimMode::Normal, VimMode::Insert, VimMode::Visual] {
+            let mut editor = editor("keep text");
+            let mut vim = VimController::new();
+            vim.mode = mode;
+            for modifiers in [Mod::LCTRLMOD | Mod::LSHIFTMOD, Mod::LGUIMOD | Mod::LSHIFTMOD] {
+                let outcome = vim.handle_key(&mut editor, &clipboard, Keycode::S, modifiers, false, 10).unwrap();
+                assert!(!outcome.consumed);
+                assert_eq!(vim.mode(), mode);
+                assert_eq!(editor.document.text().unwrap(), "keep text");
+            }
+        }
     }
 
     #[test]
@@ -1758,7 +1910,7 @@ mod tests {
         let mut vim = VimController::new();
 
         let outcome = vim
-            .handle_key(&mut editor, &clipboard, Keycode::Slash, Mod::NOMOD, false)
+            .handle_key(&mut editor, &clipboard, Keycode::Slash, Mod::NOMOD, false, 10)
             .unwrap();
         assert_eq!(
             outcome.ui_action,
@@ -1921,5 +2073,123 @@ mod tests {
         key(&mut vim, &mut editor, &clipboard, Keycode::G);
 
         assert_eq!(editor.document.text().unwrap(), "");
+    }
+
+    #[test]
+    fn vim_pages_half_pages_counts_and_visual_selection() {
+        let mut editor = editor(&"abcdef\n".repeat(40));
+        let clipboard = Clipboard::default();
+        let mut vim = VimController::new();
+        editor.document.move_cursor(4).unwrap();
+        for (key, expected_line) in [(Keycode::F, 10), (Keycode::B, 0), (Keycode::D, 5), (Keycode::U, 0)] {
+            let outcome = vim.handle_key(&mut editor, &clipboard, key, Mod::RCTRLMOD, false, 10).unwrap();
+            assert!(outcome.consumed);
+            assert_eq!(outcome.ui_action, VimUiAction::None);
+            assert_eq!(editor.document.cursor_line_column().unwrap(), (expected_line, 4));
+        }
+        key(&mut vim, &mut editor, &clipboard, Keycode::_2);
+        vim.handle_key(&mut editor, &clipboard, Keycode::F, Mod::LCTRLMOD, false, 10).unwrap();
+        assert_eq!(editor.document.cursor.line, 20);
+        key(&mut vim, &mut editor, &clipboard, Keycode::_3);
+        vim.handle_key(&mut editor, &clipboard, Keycode::U, Mod::LCTRLMOD, false, 10).unwrap();
+        assert_eq!(editor.document.cursor.line, 17);
+        key(&mut vim, &mut editor, &clipboard, Keycode::V);
+        let anchor = editor.document.cursor.anchor;
+        vim.handle_key(&mut editor, &clipboard, Keycode::F, Mod::LCTRLMOD, true, 6).unwrap();
+        assert_eq!(editor.document.cursor.line, 23);
+        assert_eq!(editor.document.cursor.anchor, anchor);
+        assert_eq!(vim.mode(), VimMode::Visual);
+        key(&mut vim, &mut editor, &clipboard, Keycode::PageUp);
+        assert_eq!(editor.document.cursor.line, 13);
+        assert_eq!(editor.document.cursor.anchor, anchor);
+    }
+
+    #[test]
+    fn vim_gg_upper_v_upper_g_selects_every_byte_and_yanks_linewise() {
+        for text in ["", "one", "one\ntwö", "one\ntwö\n"] {
+            let mut editor = editor(text);
+            let clipboard = Clipboard::default();
+            let mut vim = VimController::new();
+            editor.document.move_cursor(text.len()).unwrap();
+            key(&mut vim, &mut editor, &clipboard, Keycode::G);
+            key(&mut vim, &mut editor, &clipboard, Keycode::G);
+            shifted_key(&mut vim, &mut editor, &clipboard, Keycode::V);
+            shifted_key(&mut vim, &mut editor, &clipboard, Keycode::G);
+            assert_eq!(editor.document.selection_start(), 0);
+            assert_eq!(editor.document.selection_end(), text.len());
+            assert_eq!(vim.mode_label(), "-- VISUAL LINE --");
+            key(&mut vim, &mut editor, &clipboard, Keycode::Y);
+            assert_eq!(clipboard.text().unwrap(), text);
+            assert!(vim.register_linewise);
+        }
+    }
+
+    #[test]
+    fn vim_line_selection_pages_from_logical_cursor_and_reverses() {
+        let mut editor = editor("zero\none\ntwo\nthree\nfour\nfive");
+        let clipboard = Clipboard::default();
+        let mut vim = VimController::new();
+        editor.document.move_cursor(5).unwrap();
+        shifted_key(&mut vim, &mut editor, &clipboard, Keycode::V);
+        vim.handle_key(&mut editor, &clipboard, Keycode::PageDown, Mod::NOMOD, false, 2).unwrap();
+        assert_eq!(editor.document.selection_start(), 5);
+        assert_eq!(editor.document.selection_end(), "zero\none\ntwo\nthree\n".len());
+        vim.handle_key(&mut editor, &clipboard, Keycode::PageUp, Mod::NOMOD, false, 2).unwrap();
+        assert_eq!(editor.document.selection_start(), 5);
+        assert_eq!(editor.document.selection_end(), 9);
+        key(&mut vim, &mut editor, &clipboard, Keycode::G);
+        key(&mut vim, &mut editor, &clipboard, Keycode::G);
+        assert_eq!(editor.document.selection_start(), 0);
+        assert_eq!(editor.document.selection_end(), 9);
+        key(&mut vim, &mut editor, &clipboard, Keycode::Escape);
+        assert_eq!(editor.document.cursor.position, 0);
+        assert!(!editor.document.has_selection());
+    }
+
+    #[test]
+    fn vim_shift_page_starts_selection_and_insert_mode_falls_through() {
+        let mut editor = editor("one\ntwo\nthree");
+        let clipboard = Clipboard::default();
+        let mut vim = VimController::new();
+        shifted_key(&mut vim, &mut editor, &clipboard, Keycode::PageDown);
+        assert_eq!(vim.mode(), VimMode::Visual);
+        assert_eq!(editor.document.selection_start(), 0);
+        assert!(editor.document.has_selection());
+        key(&mut vim, &mut editor, &clipboard, Keycode::Escape);
+        key(&mut vim, &mut editor, &clipboard, Keycode::I);
+        let outcome = vim.handle_key(&mut editor, &clipboard, Keycode::PageUp, Mod::NOMOD, false, 10).unwrap();
+        assert!(!outcome.consumed);
+    }
+
+    #[test]
+    fn vim_word_motions_work_in_visual_mode_with_unicode() {
+        let mut editor = editor("héllo 世界 next");
+        let clipboard = Clipboard::default();
+        let mut vim = VimController::new();
+        key(&mut vim, &mut editor, &clipboard, Keycode::V);
+        key(&mut vim, &mut editor, &clipboard, Keycode::W);
+        assert_eq!(editor.document.cursor.position, "héllo ".len());
+        key(&mut vim, &mut editor, &clipboard, Keycode::E);
+        assert_eq!(editor.document.cursor.position, "héllo 世界".len());
+        key(&mut vim, &mut editor, &clipboard, Keycode::B);
+        assert_eq!(editor.document.cursor.position, "héllo ".len());
+        assert_eq!(editor.document.cursor.anchor, 0);
+    }
+
+    #[test]
+    fn vim_line_selection_change_preserves_line_break_and_delete_repeats_by_line() {
+        let mut editor = editor("one\ntwo\nthree\nfour");
+        let clipboard = Clipboard::default();
+        let mut vim = VimController::new();
+        shifted_key(&mut vim, &mut editor, &clipboard, Keycode::V);
+        key(&mut vim, &mut editor, &clipboard, Keycode::C);
+        type_text(&mut vim, &mut editor, "new");
+        key(&mut vim, &mut editor, &clipboard, Keycode::Escape);
+        assert_eq!(editor.document.text().unwrap(), "new\ntwo\nthree\nfour");
+        shifted_key(&mut vim, &mut editor, &clipboard, Keycode::V);
+        key(&mut vim, &mut editor, &clipboard, Keycode::D);
+        assert_eq!(editor.document.text().unwrap(), "two\nthree\nfour");
+        key(&mut vim, &mut editor, &clipboard, Keycode::Period);
+        assert_eq!(editor.document.text().unwrap(), "three\nfour");
     }
 }

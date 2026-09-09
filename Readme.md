@@ -29,6 +29,33 @@ Familiar shortcuts remain available:
 
 - `Ctrl+F` opens `:find `.
 - `Ctrl+H` opens `:replace `.
+- `Ctrl+Shift+S` (also `Cmd+Shift+S` on macOS) opens `:save-as `.
+
+Use `:save-as "path with spaces/file.txt"` to save the focused document
+under a new name. Later saves use that name; the original file, cursor,
+selection, and undo history are preserved. Relative paths use the app's
+working directory. Existing destinations require `:save-as! path` to
+overwrite; files open in the other pane are protected even with `!`.
+Files opened for viewing remain read-only. `Escape` cancels the prompt.
+
+In Vim mode, `:saveas path` (or `:sav path`) does the same thing, and
+`:saveas! path` allows overwriting. `:w` and `:write` save the current file.
+The Save As shortcut also works in Normal, Insert, and Visual modes.
+
+## Navigation and Selection
+
+Quit with `Ctrl+Q` or `Cmd+Q` on macOS. `Escape` closes active panels or leaves Vim modes; it no longer quits the app.
+
+| Action | Default shortcut |
+| --- | --- |
+| Select all | `Ctrl+A` (also `Cmd+A` on macOS) |
+| Previous / next word | `Ctrl+Left/Right` (also `Option+Left/Right` on macOS) |
+| Select by word | Add `Shift` to the word shortcut |
+| Page up / down | `Page Up/Down` |
+| Select by page | `Shift+Page Up/Down` |
+| Select to line start / end | `Shift+Home/End` |
+
+Page movement uses the visible editor height, keeps the preferred column across shorter lines, and stops at the first or last line. Word movement treats Unicode letters, numbers, and underscores as words, with punctuation and whitespace as separate groups. These shortcuts can be changed in `config/keybindings.toml`.
 
 ## Vim-like Keybindings
 
@@ -43,6 +70,10 @@ The Vim mode supports Normal, Insert, and Visual modes; numeric counts;
 operators including `dd`, `cc`, and `yy`. `x`, `u`, `Ctrl+R`, `p`, `P`,
 `D`, `C`, `Y`, `s`, `S`, `X`, and semantic `.` repeat are also available.
 The title bar shows the current Vim mode.
+
+In Normal and Visual modes, `Ctrl+F/B` and `Page Down/Up` move a full page; `Ctrl+D/U` move half a page. Counts repeat full pages or set the number of lines for a half-page movement. In Visual mode these motions extend the selection; `Shift+Page Up/Down` also starts a selection from Normal mode. Insert mode uses the conventional page shortcuts.
+
+Use `v` with `w`, `b`, or `e` to select by word, and `V` for whole-line selection. `ggVG` selects the entire document, including the last line. Whole-line selections also support page motions, `gg`/`G`, and yank/delete/change. In Normal and Visual modes, `Ctrl+F` pages forward; use `/` or `:find` to search.
 
 Search reuses Pötyi's existing search engine: `/` and `?` start forward
 and backward searches, `n` and `N` repeat them, and `*` and `#` search for
@@ -63,6 +94,10 @@ Examples:
 :replace old new
 :replace old new --all
 :goto 120:4
+:goto +3
+:goto -3
+:goto 12 --rel
+:goto -6 --rel
 :open "path with spaces/file.txt"
 :term
 :set font-size 20
@@ -92,6 +127,10 @@ Search options are `--case-sensitive`, `--ignore-case`, `--regex`, and `--backwa
 
 `:set line-numbers normal|relative|dynamic` changes the gutter immediately. `normal` shows absolute line numbers, `relative` shows each line's distance from the cursor (including `0` on the cursor line), and `dynamic` combines relative surrounding lines with an absolute number on the cursor line. Set `line_numbers` under `[editor]` in `config/editor.toml` to choose the style used at startup.
 
+`:goto +3` moves three lines down and `:goto -3` moves three lines up, in every line-number mode. An explicit sign always means a relative move unless overridden with `--abs`. Both `+0` and `-0` stay on the current line. Optional columns work with either direction: `:goto +3:2` moves down three lines to column 2.
+
+Without a sign, `:goto line[:column]` matches the number shown in the gutter. In `normal` mode that is an absolute line number. In `relative` and `dynamic` modes it selects the line carrying that label, above or below the cursor. For example, on the last line of a 12-line document in dynamic mode, `:goto 2` selects actual line 10, while `:goto 12` stays on the current line. If multiple lines carry the requested label, the command shows an error with the signed commands to choose a direction. Use `:goto 3 --rel` to force three lines down or `:goto 3 --abs` to force absolute line 3; `:goto +3 --abs` also selects absolute line 3. Absolute destinations must be positive. Missing labels and out-of-range destinations show an error without moving the cursor or clearing the selection.
+
 `:set keybindings vim|conventional` switches keyboard behavior immediately for the current session. Set `keybinding_mode` under `[editor]` in `config/editor.toml` to choose the mode used at startup.
 
 Pötyi embeds its default editor settings, keybindings, and syntax-highlighting definitions in the executable. Run `:extract-config` to create editable copies under `config/`. Existing files are preserved, so the command never overwrites custom configuration. Pötyi uses an extracted file when available and otherwise falls back to the embedded default.
@@ -113,7 +152,9 @@ help
 exit
 ```
 
-`edit` opens a file normally, while `view` opens it read-only. Relative paths are resolved from the terminal's current directory. File paths printed in terminal output can be clicked, including compiler-style `path:line:column` locations. Pötyi asks you to save current edits before replacing the open document.
+`ls` shows text files in green, folders in blue with a trailing `/`, and binary files in amber. Underlined names are clickable: text files open in the editor, and folders change the terminal directory and show its contents. A clickable `../` entry at the start of each folder listing goes up one folder; it is omitted at the filesystem root. Binary and unreadable files are not links. Listing links remember their original paths, including names with spaces. File types are detected from a small content sample.
+
+`edit` opens a file normally, while `view` opens it read-only. Relative paths are resolved from the terminal's current directory. File paths printed in terminal output can be clicked, including compiler-style `path:line:column` locations. If the current file has unsaved edits, terminal file links open in the other pane and preserve those edits; use `:split` to see both files. Links to an already-open file return to that document without reloading it. If both panes have unsaved edits, save one before opening a third file. Terminal messages appear above the command input and wrap to fit the window. Terminal output, including `ls`, also wraps at word boundaries and reflows when the window or font size changes. Very long words and filenames continue on the next row; links remain clickable on every wrapped part. Scrolling follows the displayed rows, while copied output keeps its original line breaks.
 
 The terminal supports command history with the arrow keys, scrolling, paste with `Ctrl+V`, copying its capped output with `Ctrl+Shift+C`, stopping a running command with `Ctrl+C`, clearing with `Ctrl+L`, and clickable `Stop`/`Again`/`Clear`/`Editor` controls.
 
@@ -129,6 +170,31 @@ SDL3, SDL3_ttf, and their font dependencies are built from source and
 statically linked by Cargo. They do not need to be installed separately.
 
 ---
+
+## Manual GitHub builds
+
+The **Build Potyi** workflow builds release downloads for Linux x64,
+Windows x64, and both Apple Silicon and Intel Macs.
+
+Once `.github/workflows/build.yml` is on the repository's default branch,
+open **Actions → Build Potyi → Run workflow**, choose the branch to build,
+enter a new release tag (for example `v0.1.2`), and start the run. Existing
+tags are rejected. After all four builds succeed, the workflow publishes
+a GitHub Release for that exact commit and marks it as latest. The download
+buttons on the GitHub Pages website pick up its files automatically,
+including separate Apple Silicon and Intel Mac downloads. The website
+changes must also be deployed through the repository's existing Pages setup.
+
+Release downloads remain available on GitHub; additional copies under
+**Artifacts** on the workflow run are retained for 30 days. The workflow
+runs only when started manually. Release publication uses the built-in
+GitHub token, so no additional credentials are required.
+
+Mac downloads contain `Potyi.app`; Windows downloads contain `potyi.exe`;
+Linux downloads contain `potyi` and optional desktop integration files.
+The Mac apps are ad-hoc signed, without Apple notarization. Linux builds
+use Ubuntu 22.04 and still require compatible system/display libraries.
+Each build uses `Cargo.lock` and the embedded default settings and fonts.
 
 ## Windows
 

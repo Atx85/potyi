@@ -517,6 +517,14 @@ all_lines_cached: original_length == 0,
         &self,
         path: &Path,
     ) -> io::Result<()> {
+        self.write_to_destination(path, true)
+    }
+
+    pub fn write_to_new(&self, path: &Path) -> io::Result<()> {
+        self.write_to_destination(path, false)
+    }
+
+    fn write_to_destination(&self, path: &Path, overwrite: bool) -> io::Result<()> {
         let temporary_path =
             Self::temporary_path(path);
 
@@ -626,6 +634,14 @@ all_lines_cached: original_length == 0,
 
         output.sync_all()?;
         drop(output);
+
+        if !overwrite {
+            // Publish the completed file without replacing a destination that
+            // already exists, including one created while we were writing.
+            let result = fs::hard_link(&temporary_path, path);
+            let _ = fs::remove_file(&temporary_path);
+            return result;
+        }
 
         if path.exists() {
             fs::remove_file(path)?;
@@ -1830,6 +1846,114 @@ all_lines_cached: original_length == 0,
     // ---------------------------------------------------------------------
     // Cursor movement
     // ---------------------------------------------------------------------
+
+    /// Move the active end, retaining all anchor coordinates when selecting.
+    fn navigate_to(&mut self, position: usize, selecting: bool) -> io::Result<()> {
+        let anchor = (
+            self.cursor.anchor,
+            self.cursor.anchor_line,
+            self.cursor.anchor_column,
+        );
+        self.move_cursor(position)?;
+        if selecting {
+            self.cursor.anchor = anchor.0;
+            self.cursor.anchor_line = anchor.1;
+            self.cursor.anchor_column = anchor.2;
+        }
+        Ok(())
+    }
+
+    pub fn select_all(&mut self) -> io::Result<()> {
+        self.move_cursor(self.len())?;
+        self.cursor.anchor = 0;
+        self.cursor.anchor_line = 0;
+        self.cursor.anchor_column = 0;
+        Ok(())
+    }
+
+    // Whitespace, identifier characters, and punctuation form separate runs.
+    // Read at most one UTF-8 character without copying the document.
+    fn word_class_at(&self, position: usize) -> io::Result<u8> {
+        let end = self.next_char_boundary(position)?;
+        let bytes = self.read_range(position, end - position)?;
+        let text = std::str::from_utf8(&bytes)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+        let character = text.chars().next().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::UnexpectedEof, "expected a word character")
+        })?;
+        Ok(if character.is_whitespace() {
+            0
+        } else if character.is_alphanumeric() || character == '_' {
+            1
+        } else {
+            2
+        })
+    }
+
+    pub fn move_word(&mut self, forward: bool, selecting: bool) -> io::Result<()> {
+        let mut position = self.cursor.position;
+        if forward && position < self.len() {
+            let class = self.word_class_at(position)?;
+            while position < self.len() && self.word_class_at(position)? == class {
+                position = self.next_char_boundary(position)?;
+            }
+            while position < self.len() && self.word_class_at(position)? == 0 {
+                position = self.next_char_boundary(position)?;
+            }
+        } else if !forward && position > 0 {
+            while position > 0 {
+                let previous = self.previous_char_boundary(position)?;
+                if self.word_class_at(previous)? != 0 {
+                    break;
+                }
+                position = previous;
+            }
+            if position > 0 {
+                let previous = self.previous_char_boundary(position)?;
+                let class = self.word_class_at(previous)?;
+                position = previous;
+                while position > 0 {
+                    let previous = self.previous_char_boundary(position)?;
+                    if self.word_class_at(previous)? != class {
+                        break;
+                    }
+                    position = previous;
+                }
+            }
+        }
+        self.navigate_to(position, selecting)
+    }
+
+    pub fn move_page(
+        &mut self,
+        forward: bool,
+        lines: usize,
+        selecting: bool,
+    ) -> io::Result<()> {
+        let desired = self.cursor.desired_column.unwrap_or(self.cursor.column);
+        let target = if forward {
+            self.cursor.line.saturating_add(lines.max(1))
+        } else {
+            self.cursor.line.saturating_sub(lines.max(1))
+        };
+        self.ensure_line_cached(target)?;
+        let target = target.min(self.line_cache.len().saturating_sub(1));
+        let info = self.line_cache[target];
+        let position = self.position_at_column(info.start, desired.min(info.length))?;
+        self.navigate_to(position, selecting)?;
+        self.cursor.desired_column = Some(desired);
+        Ok(())
+    }
+
+    pub fn select_home(&mut self) -> io::Result<()> {
+        let position = self.current_line_start()?;
+        self.navigate_to(position, true)
+    }
+
+    pub fn select_end(&mut self) -> io::Result<()> {
+        let position = self.current_line_end()?;
+        self.navigate_to(position, true)
+    }
 
 
     fn position_at_column(

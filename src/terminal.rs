@@ -61,6 +61,39 @@ pub(crate) enum TerminalAction {
     None,
     Edit(String),
     View(String),
+    ListedFile(PathBuf),
+    EnterDirectory(PathBuf),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EntryKind {
+    Text,
+    Binary,
+    Directory,
+    Unreadable,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct OutputEntry {
+    pub range: std::ops::Range<usize>,
+    pub path: PathBuf,
+    pub kind: EntryKind,
+}
+
+impl OutputEntry {
+    pub fn action(&self) -> Option<TerminalAction> {
+        match self.kind {
+            EntryKind::Text => Some(TerminalAction::ListedFile(self.path.clone())),
+            EntryKind::Directory => Some(TerminalAction::EnterDirectory(self.path.clone())),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Default)]
+struct DirectoryListing {
+    text: String,
+    entries: Vec<OutputEntry>,
 }
 
 struct RunningProcess {
@@ -80,6 +113,8 @@ enum AnsiState {
 pub(crate) struct Terminal {
     active: bool,
     output: PieceTable,
+    output_generation: u64,
+    entries: Vec<OutputEntry>,
     input: String,
     cursor: usize,
     cwd: PathBuf,
@@ -111,6 +146,8 @@ impl Terminal {
         let mut terminal = Self {
             active: false,
             output: PieceTable::empty()?,
+            output_generation: 0,
+            entries: Vec::new(),
             input: String::new(),
             cursor: 0,
             cwd,
@@ -131,7 +168,8 @@ impl Terminal {
         terminal.append_text(
             "Pötyi command terminal\n\
 Built-ins: cd, pwd, ls, edit, view, clear, help, exit\n\
-Ctrl+` switches between terminal and editor\n"
+Ctrl+` switches between terminal and editor\n\
+ls links: green = edit file, blue = enter folder; amber = binary\n"
         )?;
 
         Ok(terminal)
@@ -176,13 +214,6 @@ Ctrl+` switches between terminal and editor\n"
         self.cursor
     }
 
-    pub fn prompt(&self) -> String {
-        format!(
-            "{} >",
-            compact_path(&self.cwd),
-        )
-    }
-
     pub fn status(&self) -> Option<&str> {
         self.status.as_deref()
     }
@@ -220,6 +251,47 @@ Ctrl+` switches between terminal and editor\n"
 
     pub fn scroll_back(&self) -> usize {
         self.scroll_back
+    }
+
+    pub fn set_scroll_back(&mut self, rows: usize) {
+        self.scroll_back = rows;
+    }
+
+    pub fn output_generation(&self) -> u64 {
+        self.output_generation
+    }
+
+    /// Resolve the original output offset, even when the visible row contains
+    /// only part of a filename or compiler location.
+    pub fn action_at_output_offset(&mut self, position: usize) -> io::Result<Option<TerminalAction>> {
+        if let Some(entry) = self.entries_in(position..position.saturating_add(1)).first() {
+            return Ok(entry.action());
+        }
+        if position >= self.output.len() {
+            return Ok(None);
+        }
+        let (line, _) = self.output.line_column_at(position)?;
+        let line_start = self.output.line_start(line)?;
+        let text = self.output.line_text(line)?;
+        let local = position - line_start;
+        if local >= text.len() || !text.is_char_boundary(local)
+            || text[local..].chars().next().is_none_or(char::is_whitespace)
+        {
+            return Ok(None);
+        }
+        let start = text[..local].char_indices().rev()
+            .find(|(_, character)| character.is_whitespace())
+            .map_or(0, |(index, character)| index + character.len_utf8());
+        let end = text[local..].char_indices()
+            .find(|(_, character)| character.is_whitespace())
+            .map_or(text.len(), |(index, _)| local + index);
+        let candidate = text[start..end].trim_matches(|character| {
+            matches!(character, '(' | ')' | '[' | ']' | '{' | '}' | '<' | '>' | ',' | ';' | '"' | '\'')
+        });
+        let looks_like_path = candidate.contains('/') || candidate.contains('\\')
+            || candidate.contains('.')
+            || candidate.rsplit_once(':').is_some_and(|(_, suffix)| suffix.parse::<usize>().is_ok());
+        Ok(looks_like_path.then(|| TerminalAction::Edit(candidate.to_string())))
     }
 
     pub fn set_cursor(
@@ -391,6 +463,8 @@ Ctrl+` switches between terminal and editor\n"
 
     pub fn clear(&mut self) -> io::Result<()> {
         self.output = PieceTable::empty()?;
+        self.output_generation = self.output_generation.wrapping_add(1);
+        self.entries.clear();
         self.scroll_back = 0;
         self.status = None;
         Ok(())
@@ -450,7 +524,8 @@ Ctrl+` switches between terminal and editor\n"
                     arguments,
                     &self.cwd,
                 )?;
-                self.append_text(&listing)?;
+                self.append_listing(listing)?;
+                self.status = None;
                 Ok(TerminalAction::None)
             }
 
@@ -464,6 +539,7 @@ Ctrl+` switches between terminal and editor\n"
                     "cd PATH        change directory\n\
 pwd            show current directory\n\
 ls [OPTIONS] [PATH]  list directory contents\n\
+Underlined names are clickable: green text files, blue folders; amber = binary\n\
 edit PATH[:LINE[:COLUMN]]  edit a file\n\
 view PATH[:LINE[:COLUMN]]  open read-only\n\
 clear          clear terminal output\n\
@@ -561,20 +637,6 @@ exit           return to the editor\n"
                             break,
                     };
 
-                    let line_count = bytes.iter()
-                        .filter(|byte| {
-                            **byte == b'\n'
-                        })
-                        .count();
-
-                    if self.scroll_back > 0 {
-                        self.scroll_back =
-                            self.scroll_back
-                                .saturating_add(
-                                    line_count
-                                );
-                    }
-
                     let text =
                         self.clean_output(&bytes);
 
@@ -663,6 +725,41 @@ exit           return to the editor\n"
         } else {
             TerminalAction::Edit(value)
         })
+    }
+
+    pub fn entries_in(&self, range: std::ops::Range<usize>) -> &[OutputEntry] {
+        let start = self.entries.partition_point(|entry| entry.range.end <= range.start);
+        let end = self.entries.partition_point(|entry| entry.range.start < range.end);
+        &self.entries[start..end]
+    }
+
+    fn append_listing(&mut self, listing: DirectoryListing) -> io::Result<()> {
+        let offset = self.output.len();
+        self.output.insert(offset, &listing.text)?;
+        self.entries.extend(listing.entries.into_iter().map(|mut entry| {
+            entry.range = entry.range.start + offset..entry.range.end + offset;
+            entry
+        }));
+        self.trim_output()
+    }
+
+    pub fn enter_directory(&mut self, path: &Path) -> io::Result<()> {
+        if self.is_running() {
+            self.set_status("Wait for the running command before entering a folder");
+            return Ok(());
+        }
+        let target = path.canonicalize()?;
+        if !target.is_dir() {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Not a directory"));
+        }
+        let listing = list_directory("", &target)?;
+        self.ensure_output_newline()?;
+        self.append_text(&format!("{}:\n", target.display()))?;
+        self.append_listing(listing)?;
+        self.cwd = target;
+        self.scroll_back = 0;
+        self.status = None;
+        Ok(())
     }
 
     fn change_directory(
@@ -966,6 +1063,14 @@ exit           return to the editor\n"
             });
 
         self.output.delete(0, remove)?;
+        self.output_generation = self.output_generation.wrapping_add(1);
+        self.entries.retain_mut(|entry| {
+            if entry.range.start < remove {
+                return false;
+            }
+            entry.range = entry.range.start - remove..entry.range.end - remove;
+            true
+        });
         Ok(())
     }
 
@@ -1167,7 +1272,7 @@ struct LsOptions {
 fn list_directory(
     arguments: &str,
     cwd: &Path,
-) -> io::Result<String> {
+) -> io::Result<DirectoryListing> {
     let mut options = LsOptions::default();
     let mut paths = Vec::new();
     let mut parse_options = true;
@@ -1227,10 +1332,10 @@ fn list_directory(
         paths.push(".".to_string());
     }
 
-    let mut output = String::new();
+    let mut output = DirectoryListing::default();
     for (index, value) in paths.iter().enumerate() {
         if index > 0 {
-            output.push('\n');
+            output.text.push('\n');
         }
 
         let path = resolve_ls_path(value, cwd);
@@ -1243,8 +1348,8 @@ fn list_directory(
         )?;
     }
 
-    if !output.ends_with('\n') {
-        output.push('\n');
+    if !output.text.ends_with('\n') {
+        output.text.push('\n');
     }
 
     Ok(output)
@@ -1263,7 +1368,7 @@ fn resolve_ls_path(
 }
 
 fn append_ls_path(
-    output: &mut String,
+    output: &mut DirectoryListing,
     path: &Path,
     display_name: &str,
     options: &LsOptions,
@@ -1277,13 +1382,18 @@ fn append_ls_path(
     }
 
     if show_header {
-        output.push_str(display_name);
-        output.push_str(":\n");
+        output.text.push_str(display_name);
+        output.text.push_str(":\n");
     }
 
     let mut entries = fs::read_dir(path)?
         .collect::<Result<Vec<_>, io::Error>>()?;
     entries.sort_by_key(|entry| entry.file_name());
+
+    let directory = path.canonicalize()?;
+    if let Some(parent) = directory.parent() {
+        append_ls_entry(output, parent, "..", options)?;
+    }
 
     for entry in &entries {
         let name = entry.file_name();
@@ -1310,7 +1420,7 @@ fn append_ls_path(
             }
 
             if entry.file_type()?.is_dir() {
-                output.push('\n');
+                output.text.push('\n');
                 append_ls_path(
                     output,
                     &entry.path(),
@@ -1326,30 +1436,69 @@ fn append_ls_path(
 }
 
 fn append_ls_entry(
-    output: &mut String,
+    output: &mut DirectoryListing,
     path: &Path,
     display_name: &str,
     options: &LsOptions,
 ) -> io::Result<()> {
+    let metadata = fs::metadata(path)?;
+    let kind = classify_entry(path, &metadata);
     if options.long {
-        let metadata = fs::metadata(path)?;
-        let kind = if metadata.is_dir() { 'd' } else { '-' };
+        let marker = if metadata.is_dir() { 'd' } else { '-' };
         let size = if options.human_readable {
             format_ls_size(metadata.len())
         } else {
             metadata.len().to_string()
         };
-
-        output.push_str(&format!(
-            "{kind} {:>12} {display_name}\n",
-            size,
-        ));
-    } else {
-        output.push_str(display_name);
-        output.push(if options.one_per_line { '\n' } else { '\t' });
+        output.text.push_str(&format!("{marker} {size:>12} "));
     }
-
+    let start = output.text.len();
+    // Keep a filename on one visual line so it has one unambiguous click target.
+    for character in display_name.chars() {
+        if character.is_control() {
+            output.text.extend(character.escape_default());
+        } else {
+            output.text.push(character);
+        }
+    }
+    if kind == EntryKind::Directory && !display_name.ends_with('/') {
+        output.text.push('/');
+    }
+    output.entries.push(OutputEntry {
+        range: start..output.text.len(),
+        path: path.to_path_buf(),
+        kind,
+    });
+    output.text.push_str(if options.long || options.one_per_line { "\n" } else { "    " });
     Ok(())
+}
+
+fn classify_entry(path: &Path, metadata: &fs::Metadata) -> EntryKind {
+    if metadata.is_dir() {
+        return EntryKind::Directory;
+    }
+    // Never open devices or pipes to sniff their contents.
+    if !metadata.is_file() {
+        return EntryKind::Unreadable;
+    }
+    let mut sample = Vec::new();
+    let result = fs::File::open(path)
+        .and_then(|file| file.take(8192).read_to_end(&mut sample));
+    if result.is_err() {
+        return EntryKind::Unreadable;
+    }
+    let utf8 = match std::str::from_utf8(&sample) {
+        Ok(_) => true,
+        Err(error) => error.error_len().is_none()
+            && sample.len() == 8192 && metadata.len() > 8192,
+    };
+    if utf8 && !sample.iter().any(|byte| {
+        *byte < 32 && !matches!(*byte, b'\t' | b'\n' | b'\r' | 12)
+    }) {
+        EntryKind::Text
+    } else {
+        EntryKind::Binary
+    }
 }
 
 fn format_ls_size(size: u64) -> String {
@@ -1456,23 +1605,6 @@ fn expand_home(value: &str) -> PathBuf {
     PathBuf::from(value)
 }
 
-fn compact_path(path: &Path) -> String {
-    if let Some(home) = home_directory()
-        && let Ok(relative) =
-            path.strip_prefix(home)
-    {
-        if relative.as_os_str().is_empty() {
-            return "~".to_string();
-        }
-
-        return format!(
-            "~/{}",
-            relative.display(),
-        );
-    }
-
-    path.display().to_string()
-}
 
 fn previous_char_boundary(
     text: &str,
@@ -1497,7 +1629,6 @@ fn next_char_boundary(
         })
         .unwrap_or(text.len())
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -1580,8 +1711,163 @@ mod tests {
             &cwd,
         ).unwrap();
 
-        assert!(listing.contains("Cargo.toml"));
-        assert!(listing.ends_with('\n'));
+        assert!(listing.text.contains("Cargo.toml"));
+        assert!(listing.text.ends_with('\n'));
+    }
+
+    struct Fixture(PathBuf);
+
+    impl Fixture {
+        fn new() -> Self {
+            let path = env::temp_dir().join(format!(
+                "potyi-listing-{}-{}", std::process::id(),
+                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+                    .unwrap().as_nanos(),
+            ));
+            fs::create_dir(&path).unwrap();
+            Self(path.canonicalize().unwrap())
+        }
+    }
+
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn listing_types_and_links_use_content_and_exact_paths() {
+        let root = Fixture::new();
+        let name = if cfg!(windows) { "notes é file" } else { "notes é:12" };
+        fs::write(root.0.join(name), "hello\n").unwrap();
+        fs::write(root.0.join("looks-like-text.txt"), b"hello\0world").unwrap();
+        fs::write(root.0.join("empty"), "").unwrap();
+        fs::create_dir(root.0.join("a folder")).unwrap();
+        fs::write(root.0.join("a folder/child"), "text").unwrap();
+        for options in ["", "-1", "-lh", "-R"] {
+            let listing = list_directory(options, &root.0).unwrap();
+            let note = listing.entries.iter().find(|entry| entry.path.ends_with(name)).unwrap();
+            assert_eq!(note.kind, EntryKind::Text);
+            assert_eq!(&listing.text[note.range.clone()], name);
+            assert_eq!(note.action(), Some(TerminalAction::ListedFile(root.0.join(name))));
+            let binary = listing.entries.iter().find(|entry| entry.path.ends_with("looks-like-text.txt")).unwrap();
+            assert_eq!(binary.kind, EntryKind::Binary);
+            assert_eq!(binary.action(), None);
+            let folder = listing.entries.iter().find(|entry| entry.path.ends_with("a folder")).unwrap();
+            assert_eq!(&listing.text[folder.range.clone()], "a folder/");
+            assert_eq!(folder.action(), Some(TerminalAction::EnterDirectory(root.0.join("a folder"))));
+        }
+    }
+
+    #[test]
+    fn folder_click_lists_contents_and_preserves_old_targets() {
+        let root = Fixture::new();
+        fs::create_dir(root.0.join("a folder")).unwrap();
+        fs::write(root.0.join("a folder/child"), "text").unwrap();
+        fs::write(root.0.join("original"), "text").unwrap();
+        let mut terminal = Terminal::new(root.0.clone()).unwrap();
+        terminal.append_listing(list_directory("", &root.0).unwrap()).unwrap();
+        terminal.enter_directory(&root.0.join("a folder")).unwrap();
+        assert_eq!(terminal.cwd, root.0.join("a folder"));
+        assert!(terminal.output_text().unwrap().contains("child"));
+        assert!(terminal.entries.iter().any(|entry| entry.action() == Some(TerminalAction::ListedFile(root.0.join("original")))));
+        assert!(terminal.enter_directory(&root.0.join("original")).is_err());
+        assert_eq!(terminal.cwd, root.0.join("a folder"));
+    }
+
+    #[test]
+    fn listing_offsets_survive_trimming_and_clear() {
+        let root = Fixture::new();
+        fs::write(root.0.join("note"), "text").unwrap();
+        let mut terminal = Terminal::new(root.0.clone()).unwrap();
+        terminal.clear().unwrap();
+        terminal.append_listing(list_directory("", &root.0).unwrap()).unwrap();
+        terminal.append_text(&"x\n".repeat(MAX_OUTPUT_BYTES / 2 - 32)).unwrap();
+        terminal.append_listing(list_directory("", &root.0).unwrap()).unwrap();
+        terminal.append_text(&"z\n".repeat(64)).unwrap();
+        assert_eq!(terminal.entries.len(), 2);
+        let entry = terminal.entries.iter().find(|entry| entry.path.ends_with("note")).unwrap();
+        assert_eq!(&terminal.output_text().unwrap()[entry.range.clone()], "note");
+        assert_eq!(terminal.entries_in(entry.range.clone()).len(), 1);
+        terminal.clear().unwrap();
+        assert!(terminal.entries.is_empty());
+    }
+
+    #[test]
+    fn parent_link_in_empty_folder_navigates_up_and_refreshes_listing() {
+        let root = Fixture::new();
+        let child = root.0.join("empty folder");
+        fs::create_dir(&child).unwrap();
+        fs::write(root.0.join("sibling.txt"), "text").unwrap();
+        for options in ["", "-1", "-alh", "-R"] {
+            let listing = list_directory(options, &child.join(".")).unwrap();
+            assert_eq!(listing.entries.len(), 1);
+            let parent = &listing.entries[0];
+            assert_eq!(&listing.text[parent.range.clone()], "../");
+            assert_eq!(parent.action(), Some(TerminalAction::EnterDirectory(root.0.clone())));
+        }
+        let mut terminal = Terminal::new(child).unwrap();
+        let listing = list_directory("", &terminal.cwd).unwrap();
+        let Some(TerminalAction::EnterDirectory(parent)) = listing.entries[0].action() else {
+            panic!("parent entry must be a folder link");
+        };
+        terminal.append_listing(listing).unwrap();
+        terminal.enter_directory(&parent).unwrap();
+        assert_eq!(terminal.cwd, root.0);
+        assert!(terminal.output_text().unwrap().contains("sibling.txt"));
+    }
+
+    #[test]
+    fn wrapped_listing_fragments_keep_exact_click_targets() {
+        use crate::terminal_layout::{TerminalLayout, WrapMetrics};
+        let root = Fixture::new();
+        let name = "long filename with spaces 東京.txt";
+        fs::write(root.0.join(name), "text").unwrap();
+        fs::write(root.0.join("binary.file"), b"\0").unwrap();
+        let mut terminal = Terminal::new(root.0.clone()).unwrap();
+        terminal.clear().unwrap();
+        terminal.append_listing(list_directory("", &root.0).unwrap()).unwrap();
+        let original = terminal.output_text().unwrap();
+        let mut layout = TerminalLayout::default();
+        layout.update(&terminal.output, terminal.output_generation(), WrapMetrics {
+            width: 6, cell_width: 1, tab_width: 4, font_size: 18,
+        }, |_| 1).unwrap();
+        let mut text_fragments = 0;
+        for row in 0..layout.len() {
+            let range = layout.row_range(row, &terminal.output).unwrap().unwrap();
+            for entry in terminal.entries_in(range.clone()).to_vec() {
+                let clicked = range.start.max(entry.range.start);
+                assert_eq!(terminal.action_at_output_offset(clicked).unwrap(), entry.action());
+                if entry.path.ends_with(name) { text_fragments += 1; }
+            }
+        }
+        assert!(text_fragments > 2);
+        assert_eq!(terminal.output_text().unwrap(), original);
+    }
+
+    #[test]
+    fn wrapped_compiler_location_resolves_the_entire_original_token() {
+        let mut terminal = Terminal::new(env::current_dir().unwrap()).unwrap();
+        terminal.clear().unwrap();
+        let path = "src/a_very_long_東京_filename.rs:42:7";
+        terminal.append_text(&format!("error ({path}), failed\n")).unwrap();
+        for (offset, _) in path.char_indices() {
+            assert_eq!(terminal.action_at_output_offset("error (".len() + offset).unwrap(),
+                Some(TerminalAction::Edit(path.to_string())));
+        }
+        assert_eq!(terminal.action_at_output_offset(5).unwrap(), None);
+    }
+
+    #[test]
+    fn text_sample_allows_utf8_split_at_sample_boundary() {
+        let root = Fixture::new();
+        let path = root.0.join("text");
+        fs::write(&path, format!("{}é", "a".repeat(8191))).unwrap();
+        assert_eq!(classify_entry(&path, &fs::metadata(&path).unwrap()), EntryKind::Text);
+        fs::write(&path, [vec![b'a'; 8191], vec![0xc3]].concat()).unwrap();
+        assert_eq!(classify_entry(&path, &fs::metadata(&path).unwrap()), EntryKind::Binary);
+        fs::write(&path, b"\xff").unwrap();
+        assert_eq!(classify_entry(&path, &fs::metadata(&path).unwrap()), EntryKind::Binary);
     }
 
     #[test]

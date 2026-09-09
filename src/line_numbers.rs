@@ -25,7 +25,7 @@ use crate::config::LineNumberMode;
 pub struct LineNumbers;
 
 impl LineNumbers {
-    fn display_number(
+    pub(crate) fn display_number(
         mode: LineNumberMode,
         line: usize,
         cursor_line: usize,

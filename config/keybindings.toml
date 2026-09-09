@@ -129,8 +129,14 @@ repeatable = false
 # ---------------------------------------------------------
 
 [[bindings]]
-key = "Escape"
-modifiers = []
+key = "Q"
+modifiers = ["Ctrl"]
+command = "Quit"
+repeatable = false
+
+[[bindings]]
+key = "Q"
+modifiers = ["Gui"]
 command = "Quit"
 repeatable = false
 
@@ -144,6 +150,18 @@ repeatable = false
 key = "S"
 modifiers = ["Ctrl"]
 command = "Save"
+repeatable = false
+
+[[bindings]]
+key = "S"
+modifiers = ["Ctrl", "Shift"]
+command = "SaveAs"
+repeatable = false
+
+[[bindings]]
+key = "S"
+modifiers = ["Gui", "Shift"]
+command = "SaveAs"
 repeatable = false
 
 [[bindings]]
@@ -175,3 +193,101 @@ key = "V"
 modifiers = ["Ctrl"]
 command = "Paste"
 repeatable = false
+
+# Word and page navigation, including selection variants.
+
+[[bindings]]
+key = "A"
+modifiers = ["Ctrl"]
+command = "SelectAll"
+repeatable = false
+
+[[bindings]]
+key = "A"
+modifiers = ["Gui"]
+command = "SelectAll"
+repeatable = false
+
+[[bindings]]
+key = "Left"
+modifiers = ["Ctrl"]
+command = "MoveWordLeft"
+repeatable = true
+
+[[bindings]]
+key = "Right"
+modifiers = ["Ctrl"]
+command = "MoveWordRight"
+repeatable = true
+
+[[bindings]]
+key = "Left"
+modifiers = ["Alt"]
+command = "MoveWordLeft"
+repeatable = true
+
+[[bindings]]
+key = "Right"
+modifiers = ["Alt"]
+command = "MoveWordRight"
+repeatable = true
+
+[[bindings]]
+key = "Left"
+modifiers = ["Ctrl", "Shift"]
+command = "SelectWordLeft"
+repeatable = true
+
+[[bindings]]
+key = "Right"
+modifiers = ["Ctrl", "Shift"]
+command = "SelectWordRight"
+repeatable = true
+
+[[bindings]]
+key = "Left"
+modifiers = ["Alt", "Shift"]
+command = "SelectWordLeft"
+repeatable = true
+
+[[bindings]]
+key = "Right"
+modifiers = ["Alt", "Shift"]
+command = "SelectWordRight"
+repeatable = true
+
+[[bindings]]
+key = "PageUp"
+modifiers = []
+command = "PageUp"
+repeatable = true
+
+[[bindings]]
+key = "PageDown"
+modifiers = []
+command = "PageDown"
+repeatable = true
+
+[[bindings]]
+key = "PageUp"
+modifiers = ["Shift"]
+command = "SelectPageUp"
+repeatable = true
+
+[[bindings]]
+key = "PageDown"
+modifiers = ["Shift"]
+command = "SelectPageDown"
+repeatable = true
+
+[[bindings]]
+key = "Home"
+modifiers = ["Shift"]
+command = "SelectHome"
+repeatable = true
+
+[[bindings]]
+key = "End"
+modifiers = ["Shift"]
+command = "SelectEnd"
+repeatable = true

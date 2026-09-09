@@ -68,6 +68,324 @@ fn temporary_path() -> std::path::PathBuf {
         format!("potyi_test_{}.txt", id)
     )
 }
+
+#[test]
+fn save_as_preserves_original_cursor_history_and_uses_new_path_for_later_saves() {
+    let source = temporary_path();
+    let target = temporary_path().with_extension("é saved.rs");
+    fs::write(&source, "original").unwrap();
+    let mut editor = test_editor("");
+    editor.open(source.to_str().unwrap()).unwrap();
+    editor.insert("new ").unwrap();
+    editor.document.select_right().unwrap();
+    let cursor = editor.cursor_state();
+    let history = editor.undo_stack.len();
+
+    editor.save_as(target.to_str().unwrap(), false).unwrap();
+    assert_eq!(fs::read_to_string(&source).unwrap(), "original");
+    assert_eq!(fs::read_to_string(&target).unwrap(), "new original");
+    assert_eq!(editor.path.as_ref(), Some(&target));
+    assert!(!editor.dirty);
+    assert_eq!(editor.cursor_state().position, cursor.position);
+    assert_eq!(editor.cursor_state().anchor, cursor.anchor);
+    assert_eq!(editor.undo_stack.len(), history);
+
+    editor.undo().unwrap();
+    assert_eq!(editor.document.text().unwrap(), "original");
+    editor.save().unwrap();
+    assert_eq!(fs::read_to_string(&target).unwrap(), "original");
+    editor.redo().unwrap();
+    assert_eq!(editor.document.text().unwrap(), "new original");
+    assert_eq!(fs::read_to_string(&source).unwrap(), "original");
+    fs::remove_file(source).unwrap();
+    fs::remove_file(target).unwrap();
+}
+
+#[test]
+fn save_as_failure_preserves_document_and_requires_explicit_overwrite() {
+    let target = temporary_path();
+    fs::write(&target, "existing").unwrap();
+    let mut editor = test_editor("");
+    editor.insert("draft").unwrap();
+    for destination in [target.clone(), temporary_path().join("missing.txt")] {
+        assert!(editor.save_as(destination.to_str().unwrap(), false).is_err());
+        assert!(editor.path.is_none());
+        assert!(editor.dirty);
+        assert_eq!(editor.document.text().unwrap(), "draft");
+        assert_eq!(editor.undo_stack.len(), 1);
+    }
+    assert_eq!(fs::read_to_string(&target).unwrap(), "existing");
+    editor.save_as(target.to_str().unwrap(), true).unwrap();
+    assert_eq!(fs::read_to_string(&target).unwrap(), "draft");
+    // Saving to the active filename is also allowed without a bang.
+    editor.save_as(target.to_str().unwrap(), false).unwrap();
+    fs::remove_file(target).unwrap();
+}
+
+#[test]
+fn save_as_protects_other_pane_and_read_only_documents() {
+    let target = temporary_path();
+    fs::write(&target, "other pane").unwrap();
+    let mut other = test_editor("");
+    other.open(target.to_str().unwrap()).unwrap();
+    let mut editor = test_editor("draft");
+    assert!(save_as_in_pane(&mut editor, &other, target.to_str().unwrap(), true).is_err());
+    assert_eq!(fs::read_to_string(&target).unwrap(), "other pane");
+    assert!(editor.path.is_none());
+
+    editor.read_only = true;
+    assert!(editor.save_as(target.to_str().unwrap(), true).is_err());
+    assert_eq!(fs::read_to_string(&target).unwrap(), "other pane");
+    fs::remove_file(target).unwrap();
+}
+
+#[test]
+fn goto_respects_line_number_mode_and_overrides() {
+    for (configured, mode, start, label, expected) in [
+        (LineNumberMode::Normal, GotoMode::Automatic, 12, 2, 2),
+        (LineNumberMode::Relative, GotoMode::Automatic, 12, 2, 10),
+        (LineNumberMode::Dynamic, GotoMode::Automatic, 12, 2, 10),
+        (LineNumberMode::Dynamic, GotoMode::Automatic, 1, 2, 3),
+        (LineNumberMode::Dynamic, GotoMode::Automatic, 12, 12, 12),
+        (LineNumberMode::Relative, GotoMode::Automatic, 12, 0, 12),
+        (LineNumberMode::Normal, GotoMode::Relative, 7, 2, 9),
+        (LineNumberMode::Dynamic, GotoMode::Relative, 7, -2, 5),
+        (LineNumberMode::Relative, GotoMode::Absolute, 12, 2, 2),
+    ] {
+        let mut editor = test_editor(&["text"; 12].join("\n"));
+        editor.document.move_cursor_to_line_column(start - 1, 0).unwrap();
+        assert_eq!(
+            goto_line_index(&mut editor.document, label, mode, configured),
+            Ok(expected - 1),
+            "{configured:?}, {mode:?}, label {label}, from {start}",
+        );
+    }
+}
+
+#[test]
+fn goto_dynamic_commands_move_to_expected_document_lines() {
+    // These cases use one-based document lines, as a user sees them.
+    for (input, start_line, expected_line, expected_column) in [
+        (":goto 1", 10, 9, 1),
+        (":goto +3", 7, 10, 1),
+        (":goto -3", 7, 4, 1),
+        (":goto +3:3", 7, 10, 3),
+        (":goto +0", 7, 7, 1),
+        (":goto -0", 7, 7, 1),
+        (":goto -1", 7, 6, 1),
+        (":goto -1", 8, 7, 1),
+        (":goto 0 --rel", 7, 7, 1),
+        (":goto 7", 7, 7, 1),
+        (":goto 1 --abs", 7, 1, 1),
+        (":goto 7 --abs", 7, 7, 1),
+        (":goto 1 --rel", 7, 8, 1),
+        (":goto -1:3", 7, 6, 3),
+    ] {
+        let mut editor = test_editor(
+            &vec!["aé中z"; 10].join("\n")
+        );
+        editor.document
+            .move_cursor_to_line_column(start_line - 1, 1)
+            .unwrap();
+        editor.document.select_right().unwrap();
+
+        let mut bar = CommandBar::new();
+        bar.open(input);
+        let ParsedCommand::Goto { line, column, mode } =
+            bar.parse().unwrap()
+        else {
+            panic!("Expected goto: {input}");
+        };
+
+        let destination = goto_line_index(
+            &mut editor.document,
+            line,
+            mode,
+            editor.config.line_numbers,
+        ).unwrap();
+        editor.document
+            .move_cursor_to_line_column(
+                destination,
+                column.unwrap_or(1) - 1,
+            )
+            .unwrap();
+
+        assert_eq!(
+            (
+                editor.document.cursor.line + 1,
+                editor.document.cursor.column + 1,
+            ),
+            (expected_line, expected_column),
+            "{input} from line {start_line}",
+        );
+        assert_eq!(
+            editor.document.cursor.anchor,
+            editor.document.cursor.position,
+            "{input} should clear the selection",
+        );
+    }
+}
+
+#[test]
+#[ignore = "Run with SDL_VIDEODRIVER=dummy and --ignored --test-threads=1"]
+fn goto_executes_command_and_renders_destination() {
+    let sdl = sdl3::init().unwrap();
+    let video = sdl.video().unwrap();
+    let window = video.window("goto test", 800, 600)
+        .hidden().build().unwrap();
+    let ttf = sdl3::ttf::init().unwrap();
+    let font = || {
+        ttf.load_font_from_iostream(
+            sdl3::iostream::IOStream::from_bytes(FONT_DATA).unwrap(),
+            18.0,
+        ).unwrap()
+    };
+    let mut renderer = Renderer::new(
+        window.into_canvas(), font(), font(), 18.0,
+        window::WindowHitTestState::new(800, 1.0),
+    ).unwrap();
+    let mut other = test_editor("");
+    let mut search = SearchUi::new();
+    let mut bar = CommandBar::new();
+    let mut terminal = Terminal::new(std::env::temp_dir()).unwrap();
+
+    for configured in [
+        LineNumberMode::Normal,
+        LineNumberMode::Relative,
+        LineNumberMode::Dynamic,
+    ] {
+        for (input, line_count, expected_line, expected_column) in [
+            (":goto +3", 40, 10, 1),
+            (":goto -3", 40, 4, 1),
+            (":goto +3:3", 40, 10, 3),
+            (":goto +0", 40, 7, 1),
+            (":goto -0", 40, 7, 1),
+            (":goto 3 --rel", 40, 10, 1),
+            (":goto 3 --abs", 40, 3, 1),
+            (":goto +3 --abs", 40, 3, 1),
+        ] {
+            let mut editor = test_editor("");
+            editor.config.line_numbers = configured;
+            renderer.set_line_number_mode(configured);
+            editor.document = test_table(
+                &(1..=line_count).map(|line| format!("Line {line}"))
+                    .collect::<Vec<_>>().join("\n")
+            );
+            editor.document.move_cursor_to_line_column(6, 0).unwrap();
+            renderer.ensure_cursor_visible(&mut editor.document);
+            bar.open(":");
+            bar.insert_text(&input[1..]);
+            sync_command_search(&bar, &mut search, &mut editor.document, None).unwrap();
+            renderer.render(&mut editor.document, &search, &bar).unwrap();
+
+            let outcome = execute_command_bar(
+                &mut bar, &mut search, &mut editor, &mut other,
+                &mut renderer, &mut terminal, false,
+            );
+            assert!(outcome.cursor_changed, "{input}: {:?}", bar.status());
+            assert!(!bar.is_active(), "{input}: {:?}", bar.status());
+            renderer.ensure_cursor_visible(&mut editor.document);
+            renderer.render(&mut editor.document, &search, &bar).unwrap();
+            assert_eq!(editor.document.cursor.line + 1, expected_line, "{input}");
+            assert_eq!(editor.document.cursor.column + 1, expected_column, "{input}");
+        }
+
+        // Unsigned numbers retain their label meaning, even though +3 and -3
+        // explicitly choose a direction. Failed commands must preserve selection.
+        let mut editor = test_editor(&["text"; 40].join("\n"));
+        editor.config.line_numbers = configured;
+        editor.document.move_cursor_to_line_column(6, 0).unwrap();
+        editor.document.select_right().unwrap();
+        let original_cursor = (editor.document.cursor.position, editor.document.cursor.anchor);
+        bar.open(":goto 3");
+        let outcome = execute_command_bar(
+            &mut bar, &mut search, &mut editor, &mut other,
+            &mut renderer, &mut terminal, false,
+        );
+        if configured == LineNumberMode::Normal {
+            assert!(outcome.cursor_changed);
+            assert!(!bar.is_active());
+            assert_eq!(editor.document.cursor.line + 1, 3);
+        } else {
+            assert!(!outcome.cursor_changed);
+            assert!(bar.is_active());
+            let status = bar.status().unwrap();
+            assert!(status.contains(":goto -3") && status.contains(":goto +3"));
+            assert_eq!(
+                (editor.document.cursor.position, editor.document.cursor.anchor),
+                original_cursor,
+            );
+        }
+    }
+
+    // Reproduce the screenshot: the cursor is on the empty twelfth line.
+    let mut editor = test_editor("a\nsdf\nasdf\nas\ndf\nasdf\nas\n\nsdaf\nas\ndf\n");
+    editor.document.move_cursor_to_line_column(11, 0).unwrap();
+    let original_position = editor.document.cursor.position;
+    for input in [":goto +2", ":goto 2 --rel", ":goto 14 --abs"] {
+        bar.open(input);
+        let outcome = execute_command_bar(
+            &mut bar, &mut search, &mut editor, &mut other,
+            &mut renderer, &mut terminal, false,
+        );
+        assert!(!outcome.cursor_changed, "{input}");
+        assert!(bar.is_active(), "{input}");
+        assert_eq!(bar.status(), Some("Line 14 is past the last line (12)."));
+        assert_eq!(editor.document.cursor.position, original_position);
+        renderer.render(&mut editor.document, &search, &bar).unwrap();
+    }
+
+    bar.open(":goto 2");
+    let outcome = execute_command_bar(
+        &mut bar, &mut search, &mut editor, &mut other,
+        &mut renderer, &mut terminal, false,
+    );
+    assert!(outcome.cursor_changed);
+    assert!(!bar.is_active());
+    assert_eq!(editor.document.cursor.line + 1, 10);
+    assert_eq!(editor.document.cursor.column, 0);
+}
+
+#[test]
+fn goto_rejects_invalid_absolute_and_relative_lines() {
+    let mut editor = test_editor(&["text"; 12].join("\n"));
+    editor.document.move_cursor_to_line_column(3, 0).unwrap();
+    assert_eq!(
+        goto_line_index(
+            &mut editor.document,
+            0,
+            GotoMode::Absolute,
+            LineNumberMode::Relative,
+        )
+        .unwrap_err(),
+        "line numbers start at 1",
+    );
+
+    assert_eq!(
+        goto_line_index(
+            &mut editor.document,
+            -4,
+            GotoMode::Relative,
+            LineNumberMode::Normal,
+        )
+        .unwrap_err(),
+        "Relative line is before the start of the document",
+    );
+
+    for configured in [LineNumberMode::Relative, LineNumberMode::Dynamic] {
+        assert!(goto_line_index(
+            &mut editor.document, 2, GotoMode::Automatic, configured,
+        ).unwrap_err().contains("matches multiple lines"));
+        assert_eq!(goto_line_index(
+            &mut editor.document, 99, GotoMode::Automatic, configured,
+        ).unwrap_err(), "No line is labelled 99.");
+    }
+    assert_eq!(goto_line_index(
+        &mut editor.document, 0, GotoMode::Automatic, LineNumberMode::Dynamic,
+    ).unwrap_err(), "No line is labelled 0.");
+    assert_eq!(editor.document.cursor.line, 3);
+}
+
 #[test]
 fn insert_hello() {
     let mut table = empty_table();
@@ -2085,4 +2403,150 @@ fn open_file_detection_prevents_duplicate_pane_documents() {
     ));
 
     fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn navigation_select_all_replaces_and_undo_restores_utf8_selection() {
+    let mut editor = test_editor("árvíz\n東京🙂");
+    editor.execute(Command::SelectAll, 5).unwrap();
+    assert_eq!(editor.document.selection_start(), 0);
+    assert_eq!(editor.document.selection_end(), "árvíz\n東京🙂".len());
+    assert_eq!(editor.document.cursor_line_column().unwrap(), (1, 3));
+    assert_eq!((editor.document.cursor.anchor_line, editor.document.cursor.anchor_column), (0, 0));
+    assert!(!editor.dirty);
+    assert!(editor.undo_stack.is_empty());
+    editor.insert("replacement").unwrap();
+    editor.undo().unwrap();
+    assert_eq!(editor.document.text().unwrap(), "árvíz\n東京🙂");
+    assert_eq!(editor.document.selection_end(), "árvíz\n東京🙂".len());
+}
+
+#[test]
+fn navigation_words_cross_unicode_punctuation_whitespace_and_piece_boundaries() {
+    let mut editor = test_editor("héllo_");
+    editor.document.insert(editor.document.len(), "世界,\t\r\n next🙂").unwrap();
+    editor.document.move_cursor(0).unwrap();
+    for prefix in ["héllo_世界", "héllo_世界,\t\r\n ", "héllo_世界,\t\r\n next", "héllo_世界,\t\r\n next🙂"] {
+        editor.execute(Command::MoveWordRight, 5).unwrap();
+        assert_eq!(editor.document.cursor.position, prefix.len());
+        assert!(!editor.document.has_selection());
+    }
+    for prefix in ["héllo_世界,\t\r\n next", "héllo_世界,\t\r\n ", "héllo_世界", ""] {
+        editor.execute(Command::SelectWordLeft, 5).unwrap();
+        assert_eq!(editor.document.cursor.position, prefix.len());
+        assert_eq!(editor.document.cursor.anchor, editor.document.len());
+    }
+    editor.execute(Command::MoveWordLeft, 5).unwrap();
+    assert!(!editor.document.has_selection());
+    editor.execute(Command::SelectWordRight, 5).unwrap();
+    assert_eq!(editor.document.selection_end(), "héllo_世界".len());
+    assert_eq!(editor.document.cursor.anchor, 0);
+}
+
+#[test]
+fn navigation_pages_preserve_column_anchor_and_clamp_to_document() {
+    let mut editor = test_editor("abcdef\nx\n東京🙂\nx\nabcdef\nx\nabcdef");
+    editor.document.move_cursor(5).unwrap();
+    editor.execute(Command::SelectPageDown, 2).unwrap();
+    assert_eq!(editor.document.cursor_line_column().unwrap(), (2, 3));
+    assert_eq!(editor.document.cursor.anchor, 5);
+    editor.execute(Command::SelectPageDown, 2).unwrap();
+    assert_eq!(editor.document.cursor_line_column().unwrap(), (4, 5));
+    editor.execute(Command::SelectPageUp, 2).unwrap();
+    assert_eq!(editor.document.cursor_line_column().unwrap(), (2, 3));
+    assert_eq!((editor.document.cursor.anchor_line, editor.document.cursor.anchor_column), (0, 5));
+    editor.execute(Command::PageDown, usize::MAX).unwrap();
+    assert_eq!(editor.document.cursor_line_column().unwrap(), (6, 5));
+    assert!(!editor.document.has_selection());
+    editor.execute(Command::PageUp, usize::MAX).unwrap();
+    assert_eq!(editor.document.cursor_line_column().unwrap(), (0, 5));
+    editor.execute(Command::PageDown, 0).unwrap();
+    assert_eq!(editor.document.cursor_line_column().unwrap(), (1, 1));
+}
+
+#[test]
+fn navigation_home_end_keep_the_original_selection_anchor() {
+    let mut editor = test_editor("abc\nárvíz");
+    editor.document.move_cursor("abc\ná".len()).unwrap();
+    editor.execute(Command::SelectHome, 5).unwrap();
+    assert_eq!(editor.document.cursor.position, 4);
+    editor.execute(Command::SelectEnd, 5).unwrap();
+    assert_eq!(editor.document.cursor.position, editor.document.len());
+    assert_eq!(editor.document.cursor.anchor, "abc\ná".len());
+    assert_eq!((editor.document.cursor.anchor_line, editor.document.cursor.anchor_column), (1, 1));
+}
+
+#[test]
+fn navigation_is_safe_for_empty_and_single_line_documents() {
+    for text in ["", "🙂", "abc\n"] {
+        let mut editor = test_editor(text);
+        for command in [Command::SelectAll, Command::SelectWordLeft, Command::SelectWordRight,
+            Command::SelectPageUp, Command::SelectPageDown, Command::SelectHome, Command::SelectEnd,
+            Command::MoveWordLeft, Command::MoveWordRight, Command::PageUp, Command::PageDown] {
+            editor.execute(command, 20).unwrap();
+            assert!(editor.document.cursor.position <= text.len());
+            assert!(text.is_char_boundary(editor.document.cursor.position));
+        }
+    }
+}
+
+#[test]
+fn terminal_file_click_preserves_unsaved_document_in_other_pane() {
+    let path = temporary_path();
+    fs::write(&path, "clicked file").unwrap();
+    let mut editor = test_editor("draft");
+    editor.insert("unsaved ").unwrap();
+    let original = editor.document.text().unwrap();
+    let history_len = editor.undo_stack.len();
+    let mut other = test_editor("");
+    assert!(open_terminal_document(path.to_str().unwrap(), false, &mut editor, &mut other).unwrap());
+    assert_eq!(editor.document.text().unwrap(), original);
+    assert!(editor.dirty);
+    assert_eq!(editor.undo_stack.len(), history_len);
+    assert_eq!(other.document.text().unwrap(), "clicked file");
+    assert_eq!(other.path.as_deref(), Some(path.as_path()));
+    drop(other);
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn terminal_file_click_reuses_open_files_even_when_both_are_dirty() {
+    let path = temporary_path();
+    fs::write(&path, "disk version").unwrap();
+    let mut editor = test_editor("");
+    editor.open(path.to_str().unwrap()).unwrap();
+    editor.insert("unsaved ").unwrap();
+    let changed = editor.document.text().unwrap();
+    let mut other = test_editor("");
+    other.insert("another unsaved document").unwrap();
+    assert!(!open_terminal_document(path.to_str().unwrap(), false, &mut editor, &mut other).unwrap());
+    assert_eq!(editor.document.text().unwrap(), changed);
+    assert!(editor.dirty);
+    assert!(open_terminal_document(path.to_str().unwrap(), false, &mut other, &mut editor).unwrap());
+    assert_eq!(editor.document.text().unwrap(), changed);
+    drop(editor);
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn terminal_file_click_cannot_discard_two_unsaved_documents() {
+    let mut editor = test_editor("");
+    editor.insert("first draft").unwrap();
+    let mut other = test_editor("");
+    other.insert("second draft").unwrap();
+    let error = open_terminal_document("new-file.txt", false, &mut editor, &mut other).unwrap_err();
+    assert!(error.to_string().contains("Both panes have unsaved changes"));
+    assert_eq!(editor.document.text().unwrap(), "first draft");
+    assert_eq!(other.document.text().unwrap(), "second draft");
+}
+
+#[test]
+fn terminal_failed_open_preserves_both_documents() {
+    let mut editor = test_editor("");
+    editor.insert("unsaved draft").unwrap();
+    let mut other = test_editor("existing clean file");
+    let missing = temporary_path();
+    assert!(open_terminal_document(missing.to_str().unwrap(), false, &mut editor, &mut other).is_err());
+    assert_eq!(editor.document.text().unwrap(), "unsaved draft");
+    assert_eq!(other.document.text().unwrap(), "existing clean file");
 }

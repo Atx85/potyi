@@ -41,7 +41,8 @@ use crate::line_numbers::LineNumbers;
 use crate::piece_table::PieceTable;
 use crate::search_ui::{SearchField, SearchUi};
 use crate::syntax::SyntaxDefinition;
-use crate::terminal::Terminal;
+use crate::terminal::{EntryKind, Terminal, TerminalAction};
+use crate::terminal_layout::{TerminalLayout, WrapMetrics};
 use crate::window::{
     logical_render_size,
     window_coordinate_scale,
@@ -140,6 +141,7 @@ pub struct Renderer<'a> {
     window_width: i32,
     window_height: i32,
     bottom_inset: i32,
+    terminal_layout: TerminalLayout,
 
     tab_width: usize,
     line_number_mode: LineNumberMode,
@@ -224,6 +226,7 @@ impl<'a> Renderer<'a> {
             window_width: window_width as i32,
             window_height: window_height as i32,
             bottom_inset: 0,
+            terminal_layout: TerminalLayout::default(),
 
             tab_width: 4,
             line_number_mode:
@@ -706,6 +709,7 @@ impl<'a> Renderer<'a> {
         .and_then(|extension| {
             SyntaxDefinition::for_extension(extension)
         });
+    self.invalidate_scroll_cache();
 }
     // ----------------------------------------------------------------------
     // Cursor
@@ -1538,7 +1542,7 @@ impl<'a> Renderer<'a> {
         }
     }
 
-    fn visible_line_count(
+    pub fn visible_line_count(
         &self,
     ) -> usize {
         self.visible_line_count_with_inset(
@@ -1809,9 +1813,16 @@ impl<'a> Renderer<'a> {
         &mut self,
         terminal: &mut Terminal,
     ) -> Result<(), String> {
+        let status_lines = terminal.status()
+            .map(|status| self.terminal_status_lines(status))
+            .unwrap_or_default();
+        let status_height = if status_lines.is_empty() { 0 } else {
+            status_lines.len() as i32 * self.font.height().max(1) + 8
+        };
         self.bottom_inset =
             TERMINAL_BAR_HEIGHT
-                + TERMINAL_BAR_MARGIN;
+                + TERMINAL_BAR_MARGIN
+                + status_height;
 
         self.canvas.set_draw_color(
             Color::RGB(30, 30, 30),
@@ -1819,44 +1830,9 @@ impl<'a> Renderer<'a> {
         self.canvas.clear();
         self.render_title_bar()?;
 
-        let visible =
-            self.visible_line_count();
-
-        let scroll_back =
-            terminal.scroll_back();
-
-        let output = terminal.output_mut();
-        let total_lines = output.line_count()
-            .map_err(|error| {
-                error.to_string()
-            })?;
-
-        let scroll_back = scroll_back.min(
-            total_lines.saturating_sub(
-                visible
-            )
-        );
-
-        let first_line =
-            total_lines.saturating_sub(
-                visible.saturating_add(
-                    scroll_back
-                )
-            );
-
-        let last_line =
-            first_line
-                .saturating_add(visible)
-                .min(total_lines);
-
-        if last_line > 0 {
-            output.ensure_line_cached(
-                last_line - 1
-            )
-            .map_err(|error| {
-                error.to_string()
-            })?;
-        }
+        self.update_terminal_layout(terminal)?;
+        let visible = self.visible_line_count();
+        let rows = self.terminal_layout.visible_rows(visible, terminal.scroll_back());
 
         let clip = Rect::new(
             10,
@@ -1879,42 +1855,57 @@ impl<'a> Renderer<'a> {
         let line_height =
             self.font.height().max(1);
 
-        let terminal_line_bytes =
-            terminal_visible_byte_limit(
-                self.window_width,
-                self.char_width,
-            );
-
-        for line in first_line..last_line {
-            let text = terminal_line_preview(
-                output,
-                line,
-                terminal_line_bytes,
-            )
-                .map_err(|error| {
-                    error.to_string()
-                })?;
-
+        for row in rows.clone() {
+            let range = self.terminal_layout.row_range(row, terminal.output_mut())
+                .map_err(|error| error.to_string())?.expect("visible row must exist");
+            let start = range.start;
+            let text = String::from_utf8(terminal.output_mut().read_range(start, range.len())
+                .map_err(|error| error.to_string())?).map_err(|error| error.to_string())?;
             if text.is_empty() {
                 continue;
             }
-
-            let y = TITLE_BAR_HEIGHT
-                + 8
-                + (line - first_line) as i32
-                    * line_height;
-
+            let y = TITLE_BAR_HEIGHT + 8 + (row - rows.start) as i32 * line_height;
+            let mut rendered_to = 0;
+            for entry in terminal.entries_in(start..start + text.len()) {
+                let from = entry.range.start.saturating_sub(start);
+                let to = (entry.range.end - start).min(text.len());
+                self.render_text_chunk(
+                    &text[rendered_to..from],
+                    12 + self.terminal_text_width(&text[..rendered_to]),
+                    Self::visual_column_after_text(&text[..rendered_to], 0, self.tab_width),
+                    y, Color::RGB(215, 220, 215),
+                )?;
+                let left = self.terminal_text_width(&text[..from]);
+                let right = self.terminal_text_width(&text[..to]);
+                let color = match entry.kind {
+                    EntryKind::Text => Color::RGB(150, 220, 165),
+                    EntryKind::Directory => Color::RGB(120, 185, 255),
+                    EntryKind::Binary => Color::RGB(225, 185, 115),
+                    EntryKind::Unreadable => Color::RGB(155, 160, 155),
+                };
+                self.render_text_chunk(
+                    &text[from..to], 12 + left,
+                    Self::visual_column_after_text(&text[..from], 0, self.tab_width), y, color,
+                )?;
+                rendered_to = to;
+                if matches!(entry.kind, EntryKind::Text | EntryKind::Directory) {
+                    self.canvas.set_draw_color(color);
+                    self.canvas.fill_rect(Rect::new(
+                        12 + left, y + line_height - 2,
+                        (right - left).max(1) as u32, 1,
+                    )).map_err(|error| error.to_string())?;
+                }
+            }
             self.render_text_chunk(
-                &text,
-                12,
-                0,
-                y,
-                Color::RGB(215, 220, 215),
+                &text[rendered_to..],
+                12 + self.terminal_text_width(&text[..rendered_to]),
+                Self::visual_column_after_text(&text[..rendered_to], 0, self.tab_width),
+                y, Color::RGB(215, 220, 215),
             )?;
         }
 
         self.canvas.set_clip_rect(None);
-        self.render_terminal_bar(terminal)?;
+        self.render_terminal_bar(terminal, &status_lines)?;
         self.canvas.present();
         Ok(())
     }
@@ -1936,6 +1927,9 @@ impl<'a> Renderer<'a> {
             - TERMINAL_BAR_HEIGHT;
 
         if y < bar_top {
+            if y >= self.window_height - self.bottom_inset {
+                return TerminalHit::Outside;
+            }
             return TerminalHit::Output;
         }
 
@@ -1967,19 +1961,7 @@ impl<'a> Renderer<'a> {
         terminal: &Terminal,
         x: i32,
     ) -> usize {
-        let prompt = terminal.prompt();
-        let prompt_width = self.font
-            .size_of(&prompt)
-            .map(|(width, _)| width as i32)
-            .unwrap_or_else(|_| {
-                prompt.chars().count() as i32
-                    * self.char_width
-            });
-
-        let text_x = TERMINAL_BAR_MARGIN
-            + 10
-            + prompt_width
-            + 10;
+        let text_x = TERMINAL_BAR_MARGIN + 10;
 
         if x <= text_x {
             return 0;
@@ -2053,135 +2035,90 @@ impl<'a> Renderer<'a> {
         input.len()
     }
 
-    pub(crate) fn terminal_path_at(
+    pub(crate) fn terminal_action_at(
         &mut self,
         terminal: &mut Terminal,
         x: i32,
         y: i32,
-    ) -> Result<Option<String>, String> {
+    ) -> Result<Option<TerminalAction>, String> {
         if self.terminal_hit_at(x, y)
             != TerminalHit::Output
         {
             return Ok(None);
         }
 
-        let visible = self.visible_line_count();
-        let scroll_back = terminal.scroll_back();
-        let output = terminal.output_mut();
-        let total_lines = output.line_count()
-            .map_err(|error| error.to_string())?;
-        let scroll_back = scroll_back.min(
-            total_lines.saturating_sub(visible)
-        );
-        let first_line = total_lines
-            .saturating_sub(
-                visible.saturating_add(scroll_back)
-            );
+        self.update_terminal_layout(terminal)?;
+        let rows = self.terminal_layout.visible_rows(self.visible_line_count(), terminal.scroll_back());
         let row_y = y - TITLE_BAR_HEIGHT - 8;
-
-        if row_y < 0 {
-            return Ok(None);
-        }
-
-        let row = row_y as usize
-            / self.font.height().max(1) as usize;
-        let line = first_line.saturating_add(row);
-
-        if line >= total_lines {
-            return Ok(None);
-        }
-
-        let byte_limit =
-            terminal_visible_byte_limit(
-                self.window_width,
-                self.char_width,
-            );
-        let text = terminal_line_preview(
-            output,
-            line,
-            byte_limit,
-        )
-            .map_err(|error| error.to_string())?;
         let target_x = x - 12;
-
-        if target_x < 0 {
+        if row_y < 0 || target_x < 0 {
             return Ok(None);
         }
-
-        let mut token_start = None;
-
-        for (index, character) in text
-            .char_indices()
-            .chain(std::iter::once((
-                text.len(),
-                ' ',
-            )))
-        {
-            if character.is_whitespace() {
-                if let Some(start) =
-                    token_start.take()
-                {
-                    let left = self.font
-                        .size_of(&text[..start])
-                        .map(|(width, _)| {
-                            width as i32
-                        })
-                        .unwrap_or(
-                            start as i32
-                                * self.char_width
-                        );
-                    let right = self.font
-                        .size_of(&text[..index])
-                        .map(|(width, _)| {
-                            width as i32
-                        })
-                        .unwrap_or(
-                            index as i32
-                                * self.char_width
-                        );
-
-                    if target_x >= left
-                        && target_x <= right
-                    {
-                        let candidate = text[start..index]
-                            .trim_matches(|character| {
-                                matches!(
-                                    character,
-                                    '(' | ')' | '[' | ']'
-                                        | '{' | '}' | '<' | '>'
-                                        | ',' | ';' | '"' | '\''
-                                )
-                            });
-
-                        let looks_like_path =
-                            candidate.contains('/')
-                            || candidate.contains('\\')
-                            || candidate.contains('.')
-                            || candidate.rsplit_once(':')
-                                .is_some_and(|(_, suffix)| {
-                                    suffix.parse::<usize>()
-                                        .is_ok()
-                                });
-
-                        return Ok(
-                            looks_like_path
-                                .then(|| {
-                                    candidate.to_string()
-                                })
-                        );
-                    }
-                }
-            } else if token_start.is_none() {
-                token_start = Some(index);
+        let row = rows.start + row_y as usize / self.font.height().max(1) as usize;
+        if row >= rows.end {
+            return Ok(None);
+        }
+        let range = self.terminal_layout.row_range(row, terminal.output_mut())
+            .map_err(|error| error.to_string())?.expect("visible row must exist");
+        let text = String::from_utf8(terminal.output_mut().read_range(range.start, range.len())
+            .map_err(|error| error.to_string())?).map_err(|error| error.to_string())?;
+        for (index, character) in text.char_indices() {
+            let end = index + character.len_utf8();
+            if target_x < self.terminal_text_width(&text[..end]) {
+                return terminal.action_at_output_offset(range.start + index)
+                    .map_err(|error| error.to_string());
             }
         }
-
         Ok(None)
+    }
+
+    fn update_terminal_layout(&mut self, terminal: &mut Terminal) -> Result<(), String> {
+        let metrics = WrapMetrics {
+            width: (self.window_width - 24).max(1),
+            cell_width: self.char_width.max(1),
+            tab_width: self.tab_width,
+            font_size: self.logical_font_size.to_bits(),
+        };
+        let generation = terminal.output_generation();
+        let mut layout = std::mem::take(&mut self.terminal_layout);
+        let update = layout.update(terminal.output_mut(), generation, metrics, |character| {
+            self.logical_text_size(&character.to_string()).0.ceil() as i32
+        });
+        self.terminal_layout = layout;
+        let added_rows = update.map_err(|error| error.to_string())?;
+        let scroll_back = terminal.scroll_back();
+        let scroll_back = if scroll_back > 0 { scroll_back.saturating_add(added_rows) } else { 0 };
+        terminal.set_scroll_back(scroll_back.min(
+            self.terminal_layout.len().saturating_sub(self.visible_line_count())
+        ));
+        Ok(())
+    }
+
+    fn terminal_text_width(&self, text: &str) -> i32 {
+        let mut width = 0;
+        let mut column = 0;
+        let mut segments = text.split('\t').peekable();
+        while let Some(segment) = segments.next() {
+            width += self.logical_text_size(segment).0 as i32;
+            column = Self::visual_column_after_text(segment, column, self.tab_width);
+            if segments.peek().is_some() {
+                let advance = Self::visual_advance('\t', column, self.tab_width);
+                width += advance as i32 * self.char_width.max(1);
+                column += advance;
+            }
+        }
+        width
+    }
+
+    fn terminal_status_lines(&self, status: &str) -> Vec<String> {
+        let width = (self.window_width - 2 * (TERMINAL_BAR_MARGIN + 10)).max(1);
+        wrap_terminal_status(status, width, |text| self.terminal_text_width(text))
     }
 
     fn render_terminal_bar(
         &mut self,
         terminal: &Terminal,
+        status_lines: &[String],
     ) -> Result<(), String> {
         let y = self.window_height
             - TERMINAL_BAR_MARGIN
@@ -2189,6 +2126,16 @@ impl<'a> Renderer<'a> {
 
         let width = self.window_width
             - TERMINAL_BAR_MARGIN * 2;
+
+        let status_y = y - status_lines.len() as i32 * self.font.height().max(1) - 8;
+        for (index, line) in status_lines.iter().enumerate() {
+            self.render_dpi_text(
+                line,
+                (TERMINAL_BAR_MARGIN + 10) as f32,
+                (status_y + index as i32 * self.font.height().max(1)) as f32,
+                Color::RGB(225, 205, 150),
+            )?;
+        }
 
         self.canvas.set_draw_color(
             Color::RGB(40, 43, 43),
@@ -2238,22 +2185,11 @@ impl<'a> Renderer<'a> {
             false,
         )?;
 
-        let prompt = terminal.prompt();
         let text_y = y
             + (TERMINAL_BAR_HEIGHT
                 - self.font.height()) / 2;
 
-        let prompt_width = self.render_dpi_text(
-            &prompt,
-            (TERMINAL_BAR_MARGIN + 10) as f32,
-            text_y as f32,
-            Color::RGB(120, 205, 155),
-        )? as i32;
-
-        let text_x = TERMINAL_BAR_MARGIN
-            + 10
-            + prompt_width
-            + 10;
+        let text_x = TERMINAL_BAR_MARGIN + 10;
 
         let field_right =
             action_left - 8;
@@ -2334,26 +2270,6 @@ impl<'a> Renderer<'a> {
         }
 
         self.canvas.set_clip_rect(None);
-
-        if let Some(status) = terminal.status()
-            && self.window_width >= 720
-            && terminal.input().is_empty()
-        {
-            let status_width = self.font
-                .size_of(status)
-                .map(|(width, _)| width as i32)
-                .unwrap_or(0);
-
-            let status_x = field_right
-                .saturating_sub(status_width);
-
-            self.render_dpi_text(
-                status,
-                status_x as f32,
-                text_y as f32,
-                Color::RGB(190, 190, 150),
-            )?;
-        }
 
         Ok(())
     }
@@ -4363,22 +4279,51 @@ impl<'a> Renderer<'a> {
     }
 }
 
-fn terminal_visible_byte_limit(
-    window_width: i32,
-    char_width: i32,
-) -> usize {
-    let width = window_width.max(1);
-    let cell = char_width.max(1);
-    let visible_characters = width
-        .saturating_add(cell - 1)
-        / cell
-        + 16;
-    let visible_characters =
-        visible_characters as usize;
+fn wrap_terminal_status(
+    status: &str,
+    width: i32,
+    measure: impl Fn(&str) -> i32,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    for character in status.chars() {
+        if character == '\n' {
+            lines.push(std::mem::take(&mut line));
+            continue;
+        }
+        let previous_len = line.len();
+        line.push(character);
+        if previous_len > 0 && measure(&line) > width.max(1) {
+            line.truncate(previous_len);
+            lines.push(std::mem::take(&mut line));
+            line.push(character);
+        }
+    }
+    if !line.is_empty() {
+        lines.push(line);
+    }
+    lines
+}
 
-    visible_characters
-        .saturating_mul(4)
-        .min(64 * 1024)
+#[cfg(test)]
+mod terminal_status_tests {
+    use super::wrap_terminal_status;
+
+    #[test]
+    fn wraps_long_errors_without_losing_unicode_text() {
+        let status = "Could not open 東京/árvíz.txt: Both panes have unsaved changes.";
+        let lines = wrap_terminal_status(status, 12, |text| text.chars().count() as i32);
+        assert_eq!(lines.concat(), status);
+        assert!(lines.iter().all(|line| line.chars().count() <= 12));
+        assert!(lines.len() > 1);
+    }
+
+    #[test]
+    fn status_handles_empty_text_newlines_and_tiny_windows() {
+        assert!(wrap_terminal_status("", 10, |_| 0).is_empty());
+        assert_eq!(wrap_terminal_status("first\nsecond", 80, |text| text.len() as i32), ["first", "second"]);
+        assert_eq!(wrap_terminal_status("🙂é", 0, |_| 8), ["🙂", "é"]);
+    }
 }
 
 fn fixed_split_pane_bounds(
@@ -4398,31 +4343,6 @@ fn fixed_split_pane_bounds(
                 .max(1),
         )
     }
-}
-
-fn terminal_line_preview(
-    output: &mut PieceTable,
-    line: usize,
-    byte_limit: usize,
-) -> Result<String, String> {
-    let start = output.line_start(line)
-        .map_err(|error| error.to_string())?;
-    let length = output.line_length(line)
-        .map_err(|error| error.to_string())?
-        .min(byte_limit);
-    let mut bytes = output.read_range(
-        start,
-        length,
-    ).map_err(|error| error.to_string())?;
-
-    if let Err(error) = std::str::from_utf8(&bytes) {
-        if error.error_len().is_none() {
-            bytes.truncate(error.valid_up_to());
-        }
-    }
-
-    String::from_utf8(bytes)
-        .map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
