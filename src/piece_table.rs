@@ -1486,22 +1486,6 @@ all_lines_cached: original_length == 0,
         &mut self,
         start: usize,
     ) -> io::Result<Option<usize>> {
-        self.ensure_position_cached(
-            start
-        )?;
-
-        for info in &self.line_cache {
-            if info.start == start {
-                if info.end < self.len() {
-                    return Ok(
-                        Some(info.end + 1)
-                    );
-                }
-
-                return Ok(None);
-            }
-        }
-
         let mut position =
             start;
 
@@ -1538,10 +1522,6 @@ all_lines_cached: original_length == 0,
         &mut self,
         start: usize,
     ) -> io::Result<usize> {
-        self.ensure_position_cached(
-            start
-        )?;
-
         if start == 0 {
             return Ok(0);
         }
@@ -3981,6 +3961,25 @@ mod tests {
             .unwrap();
 
         table
+    }
+
+    #[test]
+    fn scroll_line_boundary_lookups_do_not_materialize_line_cache() {
+        let mut table =
+            table_with_text("one\ntwo\nthree\n");
+
+        assert!(table.line_cache.is_empty());
+        assert_eq!(
+            table.next_line_start_from(0).unwrap(),
+            Some(4),
+        );
+        assert!(table.line_cache.is_empty());
+
+        assert_eq!(
+            table.previous_line_start_from(8).unwrap(),
+            4,
+        );
+        assert!(table.line_cache.is_empty());
     }
 
     #[test]
