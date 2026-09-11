@@ -1,0 +1,40 @@
+# Lightweight, line-based highlighting; see docs/syntax-highlighting.md.
+
+[syntax]
+name = "Go"
+extensions = ["go"]
+
+[[syntax.rules]]
+name = "comment"
+pattern = "//.*$|/\\*.*?(?:\\*/|$)"
+color = "#6A9955"
+
+[[syntax.rules]]
+name = "string"
+pattern = "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'"
+color = "#CE9178"
+
+[[syntax.rules]]
+name = "string"
+pattern = "`[^`]*`"
+color = "#CE9178"
+
+[[syntax.rules]]
+name = "constant"
+pattern = "\\b(?:true|false|nil|iota)\\b"
+color = "#4FC1FF"
+
+[[syntax.rules]]
+name = "number"
+pattern = "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b"
+color = "#B5CEA8"
+
+[[syntax.rules]]
+name = "keyword"
+pattern = "\\b(?:break|case|chan|const|continue|default|defer|else|fallthrough|for|func|go|goto|if|import|interface|map|package|range|return|select|struct|switch|type|var)\\b"
+color = "#569CD6"
+
+[[syntax.rules]]
+name = "type"
+pattern = "\\b(?:any|bool|byte|comparable|complex64|complex128|error|float32|float64|int|int8|int16|int32|int64|rune|string|uint|uint8|uint16|uint32|uint64|uintptr)\\b"
+color = "#4EC9B0"

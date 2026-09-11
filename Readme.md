@@ -105,9 +105,107 @@ Examples:
 :set keybindings vim
 :split
 :extract-config
+:format
+:format rustfmt
+:formatters
 :save
 :quit
 ```
+
+## Language Server Support (LSP)
+
+Optional LSP support provides `:hover`, `:definition`, and `:lsp-back` through
+the command bar, including in Vim mode. It is disabled by default. Run
+`:extract-config`, enable `config/lsp.toml`, and configure a separately
+installed stdio language server. `:lsp-status` shows configuration and
+`:lsp-stop` stops background sessions.
+
+Servers start only when help is requested. Current unsaved text is synchronized
+on each request, using incremental updates when supported. Server communication
+runs in the background; definition jumps preserve unsaved buffers and undo
+history. This initial version supports saved UTF-8 documents up to 2 MiB and
+does not yet provide completion or diagnostics. See the [LSP web guide](https://atx85.github.io/potyi/lsp/)
+or its [Markdown version](docs/lsp.md)
+for setup, behavior, and limitations.
+
+## Code Formatting
+
+Run `:format` or press `Ctrl+Shift+I` (`Cmd+Shift+I` on macOS) to format
+the focused document, including unsaved edits. `:format NAME` selects a
+specific provider. `:formatters` shows matching providers and whether their
+executables are available; an untitled document shows all providers. To format
+an untitled document, select a provider explicitly; its first configured
+extension supplies a virtual filename for language detection.
+
+Formatting is a foreground operation: the editor waits for it to finish.
+There is no format-on-save, background worker, watcher, daemon, startup probe,
+or idle formatting activity. It never saves the formatted document for you.
+Successful changes form one undo step; unchanged output preserves cursor,
+selection, dirty state, and redo history. Cursor and selection endpoints retain
+their line and column where possible and clamp to shorter lines/documents.
+Read-only documents cannot be formatted.
+In Vim insert mode, formatting stays separate from the typing before and after
+it in undo history. A linewise visual selection becomes a character selection
+at the mapped endpoints.
+
+The embedded configuration includes these standalone tool presets:
+
+| Provider | File types |
+| --- | --- |
+| rustfmt | Rust |
+| Ruff | Python |
+| gofmt | Go |
+| clang-format | C, C++, Objective-C, Java, C#, Protobuf |
+| shfmt | Shell scripts |
+| StyLua | Lua, Luau |
+| Taplo | TOML |
+| Biome | JavaScript, TypeScript, JSX/TSX, JSON/JSONC, CSS |
+
+Install the tools you want separately. Pötyi does not download tools or invoke
+package managers. Availability checks only inspect executables on `PATH`.
+On Windows, use native `.exe` binaries rather than `.cmd`/`.bat` launchers.
+See the [formatter installation guide](docs/formatters.md) for macOS, Linux,
+and Windows setup, installation checks, and troubleshooting.
+
+Run `:extract-config` to get `config/formatters.toml`. Existing extracted
+configuration files are preserved. Formatter configuration is read on each
+explicit request, so edits take effect without restarting. The first installed
+matching provider in the file wins; reorder entries to change preference.
+A selected provider's failure is reported without trying another tool.
+
+Custom providers use the same stdin/stdout contract:
+
+```toml
+[[providers]]
+name = "my-formatter"
+command = "/absolute/path/to/my-formatter"
+args = ["--stdin-filename", "{filepath}", "-"]
+extensions = ["my-language"]
+filenames = ["Specialfile"]
+```
+
+Arguments are passed directly without shell expansion. `{filepath}` expands
+to the absolute source filename within an argument. Commands run from the
+source file's directory; project configuration discovery follows each tool's
+stdin rules. Rustfmt's preset uses edition 2024; change its arguments for a
+project requiring another edition. Configure trusted commands that read stdin
+and write only formatted source to stdout. Do not configure in-place writes,
+directory formatting, watch/server modes, or package-manager launchers.
+
+To bound Pötyi's overhead, formatting accepts at most 2 MiB of input and 4 MiB
+of output, stops after three seconds of process runtime, and rejects more than
+64 KiB of diagnostics (only the first 1 KiB is retained). Configuration is
+limited to 64 KiB and 32 providers. These limits cannot be raised through
+formatter configuration. Transfers use fixed-size buffers and temporary files;
+the piece table stores formatted text on disk and retains piece references for
+undo. Temporary files are removed when the operation ends. Missing tools,
+timeouts, failed commands, malformed UTF-8, binary output, and unexpectedly
+empty output preserve the document.
+
+The resource policy covers Pötyi's own overhead: bounded text handling, no
+idle formatting work, and a limited operation duration. Third-party formatters
+manage their own CPU and memory use. Pötyi requests one worker through
+`RAYON_NUM_THREADS=1` and `GOMAXPROCS=1` where those settings are supported.
 
 ## Split View
 
@@ -135,6 +233,13 @@ Without a sign, `:goto line[:column]` matches the number shown in the gutter. In
 
 Pötyi embeds its default editor settings, keybindings, and syntax-highlighting definitions in the executable. Run `:extract-config` to create editable copies under `config/`. Existing files are preserved, so the command never overwrites custom configuration. Pötyi uses an extracted file when available and otherwise falls back to the embedded default.
 
+Syntax highlighting includes C, C++, C#, Python, PHP, Rust, JavaScript,
+TypeScript, Go, Java, shell, Lua, JSON, TOML, YAML, HTML, CSS, and SQL.
+See the [syntax highlighting guide](docs/syntax-highlighting.md) for extensions,
+customization, and the limits of lightweight, line-based highlighting.
+The [browser syntax designer](docs/designer/index.html) provides a visual editor,
+sample preview, TOML import, and downloads for these definitions.
+
 ## Command Terminal
 
 Run `:term` to open Pötyi's lightweight command terminal. `Ctrl+\`` switches between the terminal and editor; `Escape`, the `Editor` button, and the `exit` command also return to the editor.
@@ -155,6 +260,18 @@ exit
 `ls` shows text files in green, folders in blue with a trailing `/`, and binary files in amber. Underlined names are clickable: text files open in the editor, and folders change the terminal directory and show its contents. A clickable `../` entry at the start of each folder listing goes up one folder; it is omitted at the filesystem root. Binary and unreadable files are not links. Listing links remember their original paths, including names with spaces. File types are detected from a small content sample.
 
 `edit` opens a file normally, while `view` opens it read-only. Relative paths are resolved from the terminal's current directory. File paths printed in terminal output can be clicked, including compiler-style `path:line:column` locations. If the current file has unsaved edits, terminal file links open in the other pane and preserve those edits; use `:split` to see both files. Links to an already-open file return to that document without reloading it. If both panes have unsaved edits, save one before opening a third file. Terminal messages appear above the command input and wrap to fit the window. Terminal output, including `ls`, also wraps at word boundaries and reflows when the window or font size changes. Very long words and filenames continue on the next row; links remain clickable on every wrapped part. Scrolling follows the displayed rows, while copied output keeps its original line breaks.
+
+`grep` runs through the system shell with its arguments unchanged, so all flags supported by the installed `grep` are available. For example:
+
+```sh
+grep -rin --include='*.rs' 'pattern' src
+grep -nE 'error|warning' build.log
+ls | grep -i 'readme'
+```
+
+Pipelines, redirects, and command lists use the system shell, even when they start with a built-in such as `ls` or `cd`. For example, `cd src && grep -n 'main' main.rs` changes directory for that command only; use standalone `cd src` to change the terminal's persistent directory. Quote paths containing shell operators, such as `edit "a&b.txt"`.
+
+Pötyi does not bundle `grep`: it must be available on the shell's PATH (including on Windows). GNU and BSD grep have different flag sets. Supply files, a pipe, or input redirection when searching; interactive standard input is unavailable. The terminal displays plain text and strips ANSI colors and control bytes such as NUL; pipe or redirect output when those bytes need to be preserved.
 
 The terminal supports command history with the arrow keys, scrolling, paste with `Ctrl+V`, copying its capped output with `Ctrl+Shift+C`, stopping a running command with `Ctrl+C`, clearing with `Ctrl+L`, and clickable `Stop`/`Again`/`Clear`/`Editor` controls.
 

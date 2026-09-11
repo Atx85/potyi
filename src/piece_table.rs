@@ -20,7 +20,7 @@ use std::fs::{
     File,
     OpenOptions,
 };
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{
     AtomicU64,
@@ -322,6 +322,7 @@ struct LineInfo {
 // ==========================================================================
 
 pub struct PieceTable {
+    revision: u64,
     original: File,
     original_length: usize,
 
@@ -335,7 +336,16 @@ pub struct PieceTable {
     pub(crate) cursor: Cursor,
 }
 
+fn next_document_revision() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
+
 impl PieceTable {
+    /// Changes on every text mutation, including undo, redo and batch edits.
+    /// Globally unique across documents, so reopening a path invalidates replies.
+    pub(crate) fn revision(&self) -> u64 { self.revision }
+
     // ---------------------------------------------------------------------
     // Basic
     // ---------------------------------------------------------------------
@@ -395,6 +405,7 @@ impl PieceTable {
             };
 
         let table = Self {
+            revision: next_document_revision(),
             original,
             original_length,
 
@@ -450,6 +461,7 @@ all_lines_cached: original_length == 0,
         };
 
         Ok(Self {
+            revision: next_document_revision(),
             original,
             original_length: 0,
 
@@ -3336,6 +3348,81 @@ all_lines_cached: original_length == 0,
         )
     }
 
+    /// Stage a bounded UTF-8 stream in the edit store, then replace the
+    /// document atomically. Neither text nor undo history holds a second
+    /// document-sized heap allocation. Failed and identical imports reclaim
+    /// their staged bytes and leave the piece layout and line cache intact.
+    pub(crate) fn replace_from_reader(
+        &mut self,
+        reader: &mut impl Read,
+        max_bytes: usize,
+    ) -> io::Result<Option<PieceTableSnapshot>> {
+        let add_start = self.add.len();
+        let staged = (|| {
+            let mut buffer = vec![0; PIECE_TABLE_CHUNK_SIZE + 3];
+            let mut pending = 0;
+            let mut length = 0usize;
+            loop {
+                let read = match reader.read(&mut buffer[pending..PIECE_TABLE_CHUNK_SIZE]) {
+                    Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                    result => result?,
+                };
+                if read == 0 {
+                    if pending != 0 {
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, "Formatter output ends inside a UTF-8 character"));
+                    }
+                    break;
+                }
+                length = length.checked_add(read).filter(|length| *length <= max_bytes)
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Formatter output exceeds the size limit"))?;
+                let end = pending + read;
+                let valid = match std::str::from_utf8(&buffer[..end]) {
+                    Ok(_) => end,
+                    Err(error) if error.error_len().is_none() => error.valid_up_to(),
+                    Err(error) => return Err(io::Error::new(io::ErrorKind::InvalidData, error)),
+                };
+                self.add.append(&buffer[..valid])?;
+                buffer.copy_within(valid..end, 0);
+                pending = end - valid;
+            }
+
+            let mut identical = length == self.len();
+            if identical {
+                let mut offset = add_start;
+                self.visit_chunks(|bytes| {
+                    let read = self.add.read_into(offset, &mut buffer[..bytes.len()])?;
+                    if read != bytes.len() {
+                        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Incomplete formatter output"));
+                    }
+                    identical &= bytes == &buffer[..bytes.len()];
+                    offset += bytes.len();
+                    Ok(())
+                })?;
+            }
+            Ok((length, identical))
+        })();
+
+        match staged {
+            Ok((_, true)) | Err(_) => {
+                // Appends are not visible in the document until the swap below.
+                self.add.file().set_len(add_start as u64)?;
+                self.add.length = add_start;
+                staged.map(|_| None)
+            }
+            Ok((length, false)) => {
+                let pieces = if length == 0 { Vec::new() } else {
+                    vec![Piece { start: add_start, length, original: false }]
+                };
+                let snapshot = PieceTableSnapshot {
+                    pieces: std::mem::replace(&mut self.pieces, pieces),
+                    length: std::mem::replace(&mut self.length, length),
+                };
+                self.invalidate_line_cache_from_position(0);
+                Ok(Some(snapshot))
+            }
+        }
+    }
+
     /// Swaps the current logical state with a snapshot returned by
     /// [`Self::replace_ranges`]. Calling this repeatedly toggles undo/redo.
     pub(crate) fn swap_snapshot(
@@ -3856,6 +3943,7 @@ all_lines_cached: original_length == 0,
     &mut self,
     _position: usize,
 ) {
+    self.revision = next_document_revision();
     self.line_cache.clear();
 
     if self.len() == 0 {
@@ -3943,6 +4031,58 @@ all_lines_cached: original_length == 0,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn streamed_formatting_is_file_backed_and_snapshot_undoable() {
+        let mut table = PieceTable::empty().unwrap();
+        table.insert(0, "original").unwrap();
+        let formatted = format!("{}🙂\n{}", "a".repeat(PIECE_TABLE_CHUNK_SIZE - 1), "line\n".repeat(100_000));
+        let mut snapshot = table.replace_from_reader(&mut io::Cursor::new(formatted.as_bytes()), formatted.len()).unwrap().unwrap();
+        assert_eq!(table.pieces.len(), 1);
+        assert!(table.cached_line_count() <= 1); // At most the lazy first-line placeholder.
+        assert_eq!(table.text().unwrap(), formatted);
+        table.swap_snapshot(&mut snapshot);
+        assert_eq!(table.text().unwrap(), "original");
+        table.swap_snapshot(&mut snapshot);
+        assert_eq!(table.text().unwrap(), formatted);
+    }
+
+    #[test]
+    fn streamed_formatting_reclaims_identical_and_invalid_staging() {
+        let mut table = PieceTable::empty().unwrap();
+        table.insert(0, "é original\n").unwrap();
+        let before = table.add.len();
+        for _ in 0..3 {
+            assert!(table.replace_from_reader(&mut io::Cursor::new("é original\n".as_bytes()), 100).unwrap().is_none());
+            assert_eq!(table.add.len(), before);
+            assert_eq!(table.add.file().metadata().unwrap().len(), before as u64);
+        }
+        for bytes in [vec![b'x'; 101], vec![b'x', 0xff], vec![b'x', 0xe2, 0x82]] {
+            assert!(table.replace_from_reader(&mut io::Cursor::new(bytes), 100).is_err());
+            assert_eq!(table.text().unwrap(), "é original\n");
+            assert_eq!(table.add.len(), before);
+            assert_eq!(table.add.file().metadata().unwrap().len(), before as u64);
+        }
+    }
+
+    #[test]
+    fn streamed_formatting_read_failure_is_atomic() {
+        struct FailingReader(bool);
+        impl Read for FailingReader {
+            fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
+                if self.0 { return Err(io::Error::other("fixture read failure")); }
+                self.0 = true;
+                bytes[..4].copy_from_slice(b"good");
+                Ok(4)
+            }
+        }
+        let mut table = PieceTable::empty().unwrap();
+        table.insert(0, "original").unwrap();
+        let before = table.add.len();
+        assert!(table.replace_from_reader(&mut FailingReader(false), 100).is_err());
+        assert_eq!(table.text().unwrap(), "original");
+        assert_eq!(table.add.len(), before);
+    }
     use std::io::Write;
     use std::sync::atomic::{
         AtomicUsize,

@@ -1,0 +1,45 @@
+# Lightweight, line-based highlighting; see docs/syntax-highlighting.md.
+
+[syntax]
+name = "PHP"
+extensions = ["php", "phtml", "php3", "php4", "php5", "php7", "php8", "phps"]
+
+[[syntax.rules]]
+name = "comment"
+pattern = "//.*$|#[^\\[].*$|#$|/\\*.*?(?:\\*/|$)"
+color = "#6A9955"
+
+[[syntax.rules]]
+name = "string"
+pattern = "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'"
+color = "#CE9178"
+
+[[syntax.rules]]
+name = "directive"
+pattern = "<\\?(?:php\\b|=)?|\\?>|#\\["
+color = "#C586C0"
+
+[[syntax.rules]]
+name = "variable"
+pattern = "\\$[A-Za-z_\\x{80}-\\x{10ffff}][\\w]*"
+color = "#9CDCFE"
+
+[[syntax.rules]]
+name = "constant"
+pattern = "(?i:\\b(?:true|false|null)\\b)"
+color = "#4FC1FF"
+
+[[syntax.rules]]
+name = "number"
+pattern = "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b"
+color = "#B5CEA8"
+
+[[syntax.rules]]
+name = "keyword"
+pattern = "\\b(?:(?i:abstract|and|array|as|break|callable|case|catch|class|clone|const|continue|declare|default|die|do|echo|else|elseif|empty|enddeclare|endfor|endforeach|endif|endswitch|endwhile|enum|eval|exit|extends|final|finally|fn|for|foreach|function|global|goto|if|implements|include|include_once|instanceof|insteadof|interface|isset|list|match|namespace|new|or|print|private|protected|public|readonly|require|require_once|return|static|switch|throw|trait|try|unset|use|var|while|xor|yield))\\b"
+color = "#569CD6"
+
+[[syntax.rules]]
+name = "type"
+pattern = "\\b(?:bool|float|int|iterable|mixed|never|object|string|void)\\b"
+color = "#4EC9B0"

@@ -68,12 +68,15 @@ jobs:
     defaults:
       run:
         shell: bash
+        # Exercise native dependency builds from paths containing spaces.
+        working-directory: potyi build
 
     steps:
       - name: Check out source
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+          path: potyi build
 
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
@@ -105,8 +108,9 @@ jobs:
         run: |
           package="potyi-$BUILD_PLATFORM"
           stage="$RUNNER_TEMP/$package"
-          mkdir -p "$stage/fonts" dist
+          mkdir -p "$stage/fonts" "$stage/docs" dist
           cp LICENSE Readme.md "$stage/"
+          cp docs/formatters.md docs/syntax-highlighting.md docs/lsp.md "$stage/docs/"
           cp fonts/LICENSE-DejaVuSans.md "$stage/fonts/"
 
           case "$RUNNER_OS" in
@@ -136,7 +140,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: potyi-${{ matrix.platform }}
-          path: dist/*
+          path: potyi build/dist/*
           if-no-files-found: error
           compression-level: 0
           retention-days: 30

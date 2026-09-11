@@ -1,0 +1,30 @@
+# Lightweight, line-based highlighting; see docs/syntax-highlighting.md.
+
+[syntax]
+name = "Shell"
+extensions = ["sh", "bash", "zsh", "ksh", "bats"]
+
+[[syntax.rules]]
+name = "comment"
+pattern = "(?:^|\\s)#.*$"
+color = "#6A9955"
+
+[[syntax.rules]]
+name = "string"
+pattern = "\"(?:[^\"\\\\]|\\\\.)*\"|'[^']*'|`[^`]*`"
+color = "#CE9178"
+
+[[syntax.rules]]
+name = "variable"
+pattern = "\\$(?:\\{[^}]*\\}|[A-Za-z_][A-Za-z0-9_]*|[0-9@*#?$!_-])"
+color = "#9CDCFE"
+
+[[syntax.rules]]
+name = "number"
+pattern = "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b"
+color = "#B5CEA8"
+
+[[syntax.rules]]
+name = "keyword"
+pattern = "\\b(?:if|then|else|elif|fi|case|esac|for|select|while|until|do|done|in|function|time|coproc|break|continue|return|exit|export|local|readonly|declare|typeset|unset|shift|source)\\b"
+color = "#569CD6"

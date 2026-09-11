@@ -12,9 +12,16 @@ sdl3 = { version = "0.18", features = ["build-from-source-static", "ttf"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.9"
 regex = "1"
+serde_json = "1"
+url = "2"
+
+# Preserve native library paths when the checkout contains spaces.
+[patch.crates-io]
+sdl3-sys = { path = "vendor/sdl3-sys" }
+sdl3-ttf-sys = { path = "vendor/sdl3-ttf-sys" }
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser"] }
+winapi = { version = "0.3", features = ["winuser", "namedpipeapi", "jobapi2", "handleapi"] }
 
 [profile.dev]
 opt-level = 1

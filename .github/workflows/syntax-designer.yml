@@ -1,0 +1,49 @@
+name: Check syntax designer
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "docs/designer/**"
+      - "tools/syntax-designer/**"
+      - "config/syntax/**"
+      - "src/syntax_core.rs"
+      - "Cargo.lock"
+      - ".github/workflows/syntax-designer.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/designer/**"
+      - "tools/syntax-designer/**"
+      - "config/syntax/**"
+      - "src/syntax_core.rs"
+      - "Cargo.lock"
+      - ".github/workflows/syntax-designer.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Check the shipped engine and exported definitions
+        run: node tools/syntax-designer/test.mjs
+      - name: Install WebAssembly target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Rebuild the browser assets
+        run: python3 tools/syntax-designer/build.py
+      - name: Check regenerated presets
+        run: git diff --exit-code -- docs/designer/presets.json
+      - name: Test the rebuilt engine
+        run: node tools/syntax-designer/test.mjs
+      - name: Test Rust validation
+        run: cargo test --locked --manifest-path tools/syntax-designer/Cargo.toml -j 2

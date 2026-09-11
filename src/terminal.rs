@@ -500,6 +500,13 @@ ls links: green = edit file, blue = enter folder; amber = binary\n"
         )?;
         self.scroll_back = 0;
 
+        // Built-ins handle standalone commands only. Let the shell interpret
+        // pipelines, redirects and command lists, including `ls | grep ...`.
+        if has_shell_operators(&command) {
+            self.spawn_command(&command, events)?;
+            return Ok(TerminalAction::None);
+        }
+
         let (name, arguments) =
             split_command(&command);
 
@@ -543,7 +550,9 @@ Underlined names are clickable: green text files, blue folders; amber = binary\n
 edit PATH[:LINE[:COLUMN]]  edit a file\n\
 view PATH[:LINE[:COLUMN]]  open read-only\n\
 clear          clear terminal output\n\
-exit           return to the editor\n"
+exit           return to the editor\n\
+grep [OPTIONS] PATTERN [FILE...]  run installed grep with its supported flags\n\
+Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
                 )?;
                 Ok(TerminalAction::None)
             }
@@ -1518,6 +1527,44 @@ fn format_ls_size(size: u64) -> String {
     }
 }
 
+fn has_shell_operators(command: &str) -> bool {
+    let mut quote = None;
+    let mut escaped = false;
+
+    for character in command.chars() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+
+        // cmd.exe uses caret escapes and only double quotes; Unix shells
+        // also support single quotes and backslash escapes.
+        if (cfg!(windows) && character == '^' && quote.is_none())
+            || (!cfg!(windows) && character == '\\' && quote != Some('\''))
+        {
+            escaped = true;
+            continue;
+        }
+
+        if let Some(delimiter) = quote {
+            if character == delimiter {
+                quote = None;
+            }
+            continue;
+        }
+
+        match character {
+            '"' => quote = Some(character),
+            '\'' if !cfg!(windows) => quote = Some(character),
+            '|' | '&' | '<' | '>' | '\n' | '(' | ')' => return true,
+            ';' if !cfg!(windows) => return true,
+            _ => {}
+        }
+    }
+
+    false
+}
+
 fn split_command(
     command: &str,
 ) -> (&str, &str) {
@@ -1885,6 +1932,112 @@ mod tests {
             terminal.cwd,
             cwd.join("terminal-session")
         );
+    }
+
+    #[test]
+    fn shell_operators_bypass_standalone_builtins() {
+        for command in [
+            "ls | grep -i src",
+            "ls|grep src",
+            "cd src && grep -n main main.rs",
+            "ls missing || pwd",
+            "ls > files.txt",
+            "ls 2>> errors.txt",
+            "ls < input.txt",
+            "pwd\ngrep pattern file.txt",
+        ] {
+            assert!(has_shell_operators(command), "{command}");
+        }
+
+        for command in ["ls -la", "cd src", "edit \"a|b & c.txt\"", "ls \"a>b\""] {
+            assert!(!has_shell_operators(command), "{command}");
+        }
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn unix_shell_operators_respect_quotes_and_escapes() {
+        for command in [r"edit 'a|b.txt'", r"edit a\|b.txt", r#"edit "a\"|b.txt""#] {
+            assert!(!has_shell_operators(command), "{command}");
+        }
+        for command in ["pwd; grep pattern file.txt", r#"ls "a\"b" | grep b"#, r"ls 'a\' | grep a"] {
+            assert!(has_shell_operators(command), "{command}");
+        }
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn windows_shell_operators_respect_cmd_escaping() {
+        assert!(!has_shell_operators("edit a^&b.txt"));
+        assert!(!has_shell_operators("cd C:\\work\\"));
+        assert!(!has_shell_operators("edit a;b.txt"));
+        assert!(has_shell_operators("ls 'a|b'"));
+        assert!(has_shell_operators("cd \"C:\\work\\\" && grep pattern file.txt"));
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn shell_preserves_grep_options_patterns_and_exit_codes() {
+        let root = Fixture::new();
+        fs::write(root.0.join("sample file.txt"), "Alpha one\nbeta.two\nALPHA three\ngamma\n").unwrap();
+        fs::write(root.0.join("patterns.txt"), "gamma\n").unwrap();
+        fs::create_dir(root.0.join("nested")).unwrap();
+        fs::write(root.0.join("nested/child.txt"), "Alpha child\n").unwrap();
+
+        for (command, expected, code) in [
+            ("grep -in -e 'alpha one' -e gamma 'sample file.txt'", "1:Alpha one\n4:gamma\n", 0),
+            ("grep -En '^(beta|gamma)' 'sample file.txt'", "2:beta.two\n4:gamma\n", 0),
+            ("grep -F -e 'beta.two' -- 'sample file.txt'", "beta.two\n", 0),
+            ("grep -ivc alpha 'sample file.txt'", "2\n", 0),
+            ("grep -n -A 1 -B 1 beta 'sample file.txt'", "1-Alpha one\n2:beta.two\n3-ALPHA three\n", 0),
+            ("grep -n -f patterns.txt 'sample file.txt'", "4:gamma\n", 0),
+            ("grep -rn Alpha nested", "nested/child.txt:1:Alpha child\n", 0),
+            ("grep -q missing 'sample file.txt'", "", 1),
+            ("grep -q Alpha 'sample file.txt'", "", 0),
+            ("ls | grep -F 'sample file'", "sample file.txt\n", 0),
+            ("cd nested && grep -n Alpha child.txt", "1:Alpha child\n", 0),
+            ("grep -in alpha < 'sample file.txt' | grep -v three > matches.txt; cat matches.txt", "1:Alpha one\n", 0),
+        ] {
+            let output = spawn_shell(command, &root.0).unwrap().wait_with_output().unwrap();
+            assert_eq!(output.status.code(), Some(code), "{command}: {}", String::from_utf8_lossy(&output.stderr));
+            assert_eq!(String::from_utf8(output.stdout).unwrap(), expected, "{command}");
+        }
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    #[ignore = "Uses SDL events; run with --ignored --test-threads=1"]
+    fn submit_runs_grep_pipeline_and_preserves_navigation_builtins() {
+        let sdl = sdl3::init().unwrap();
+        let events = sdl.event().unwrap();
+        events.register_custom_event::<TerminalEvent>().unwrap();
+        let mut pump = sdl.event_pump().unwrap();
+        let root = Fixture::new();
+        fs::write(root.0.join("sample file.txt"), "hello\n").unwrap();
+        let mut terminal = Terminal::new(root.0.clone()).unwrap();
+        terminal.insert_text("ls | grep -F 'sample file'");
+        assert_eq!(terminal.submit(&events).unwrap(), TerminalAction::None);
+        assert!(terminal.is_running());
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while terminal.is_running() {
+            assert!(std::time::Instant::now() < deadline, "Pipeline did not finish");
+            if let Some(event) = pump.wait_event_timeout(std::time::Duration::from_millis(100))
+                && let Some(event) = event.as_user_event_type::<TerminalEvent>()
+            {
+                terminal.handle_event(event).unwrap();
+            }
+        }
+        let output = terminal.output_text().unwrap();
+        assert!(output.contains("\nsample file.txt\n"), "{output}");
+        assert!(output.contains("[finished successfully]"), "{output}");
+
+        terminal.insert_text("ls");
+        terminal.submit(&events).unwrap();
+        assert!(!terminal.is_running());
+        assert!(terminal.entries.iter().any(|entry| entry.path.ends_with("sample file.txt")));
+        terminal.insert_text("edit 'a|b.txt'");
+        assert_eq!(terminal.submit(&events).unwrap(), TerminalAction::Edit("a|b.txt".into()));
     }
 
     #[test]

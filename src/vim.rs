@@ -192,6 +192,27 @@ impl VimController {
         self.reset();
     }
 
+    /// Keep a successful format command separate from surrounding insert
+    /// sessions, without moving the mapped cursor or materializing line caches.
+    pub(crate) fn finish_formatting(&mut self, editor: &mut Editor) {
+        if self.insert_session.is_some() {
+            let formatting = editor.undo_stack.pop().expect("formatting recorded an undo step");
+            self.finish_insert_history(editor);
+            editor.undo_stack.push(formatting);
+            self.insert_session = Some(InsertSession {
+                history_start: editor.begin_history_group(),
+                placement: InsertPlacement::Before,
+                change: None,
+                text: String::new(),
+            });
+        }
+        self.cancel_pending();
+        self.search_origin = None;
+        // The mapped selection remains valid, but old linewise byte offsets
+        // do not. Continue visual mode with the mapped character selection.
+        self.visual_lines = None;
+    }
+
     pub(crate) fn consume_suppressed_text_input(&mut self) -> bool {
         std::mem::take(&mut self.suppress_text_input)
     }
@@ -961,12 +982,17 @@ impl VimController {
     }
 
     fn finish_insert(&mut self, editor: &mut Editor) {
+        if self.insert_session.is_none() { return; }
+        self.finish_insert_history(editor);
+        let _ = settle_normal_cursor(editor);
+    }
+
+    fn finish_insert_history(&mut self, editor: &mut Editor) {
         let Some(session) = self.insert_session.take() else {
             return;
         };
 
         editor.end_history_group(session.history_start);
-        let _ = settle_normal_cursor(editor);
 
         if let Some((motion, count)) = session.change {
             self.last_change = Some(EditCommand::Change {
@@ -1842,6 +1868,34 @@ mod tests {
         assert_eq!(editor.document.text().unwrap(), "start");
         editor.redo().unwrap();
         assert_eq!(editor.document.text().unwrap(), "abstart");
+    }
+
+    #[test]
+    fn formatting_separates_surrounding_insert_sessions_in_undo_history() {
+        let mut editor = editor("start");
+        let clipboard = Clipboard::default();
+        let mut vim = VimController::new();
+        key(&mut vim, &mut editor, &clipboard, Keycode::I);
+        for text in ["a", "b"] {
+            editor.insert(text).unwrap();
+            vim.record_text(text);
+        }
+        assert!(editor.apply_formatted(&mut std::io::Cursor::new(b"ab start")).unwrap());
+        vim.finish_formatting(&mut editor);
+        assert_eq!(vim.mode(), VimMode::Insert);
+        assert_eq!(editor.undo_stack.len(), 2);
+        editor.insert("x").unwrap();
+        vim.record_text("x");
+        key(&mut vim, &mut editor, &clipboard, Keycode::Escape);
+        assert_eq!(editor.undo_stack.len(), 3);
+        for expected in ["ab start", "abstart", "start"] {
+            editor.undo().unwrap();
+            assert_eq!(editor.document.text().unwrap(), expected);
+        }
+        for expected in ["abstart", "ab start", "abx start"] {
+            editor.redo().unwrap();
+            assert_eq!(editor.document.text().unwrap(), expected);
+        }
     }
 
     #[test]

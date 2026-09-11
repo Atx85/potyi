@@ -1,0 +1,19 @@
+# LSP is opt-in. Install the server separately, then set enabled = true.
+# Servers start only when :hover or :definition is requested.
+enabled = false
+
+[[servers]]
+name = "rust"
+command = "rust-analyzer"
+args = []
+extensions = ["rs"]
+language_id = "rust"
+root_markers = ["Cargo.toml", ".git"]
+
+# Optional server-specific options, passed in the initialize request.
+[servers.initialization_options]
+cachePriming = { enable = false }
+checkOnSave = false
+
+# Add more [[servers]] entries for other installed stdio language servers.
+# Each entry needs name, command, extensions, and language_id.

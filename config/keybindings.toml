@@ -147,6 +147,18 @@ repeatable = false
 # ---------------------------------------------------------
 
 [[bindings]]
+key = "I"
+modifiers = ["Ctrl", "Shift"]
+command = "FormatDocument"
+repeatable = false
+
+[[bindings]]
+key = "I"
+modifiers = ["Gui", "Shift"]
+command = "FormatDocument"
+repeatable = false
+
+[[bindings]]
 key = "S"
 modifiers = ["Ctrl"]
 command = "Save"

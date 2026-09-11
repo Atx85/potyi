@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Set up language servers in Pötyi: enable LSP, find installation and configuration recipes for your language, and use hover and go-to-definition.">
+    <meta name="theme-color" content="#161817">
+    <title>Language server setup · Pötyi</title>
+    <link rel="icon" href="../favicon.svg?v=2" type="image/svg+xml">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="guide.css">
+  </head>
+  <body class="guide-page">
+    <a class="skip-link" href="#main">Skip to guide</a>
+    <header class="site-header">
+      <a class="wordmark" href="../" aria-label="Pötyi home">
+        <img class="wordmark-mark" src="../favicon.svg?v=2" alt="" width="35" height="35">
+        <span>Pötyi</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="../">Home</a>
+        <a href="./" aria-current="page">LSP guide</a>
+        <a href="https://github.com/Atx85/potyi">Source</a>
+      </nav>
+    </header>
+
+    <main id="main" class="guide-layout">
+      <aside class="guide-sidebar">
+        <p class="eyebrow">User guide</p>
+        <nav aria-label="On this page">
+          <a href="#quick-start">Quick start</a>
+          <a href="#configuration">Choose your language</a>
+          <a href="#commands">Using the commands</a>
+          <a href="#behavior">How it works</a>
+          <a href="#troubleshooting">Troubleshooting</a>
+          <a href="#limits">Current limits</a>
+        </nav>
+        <a class="plain-link" href="../lsp.md" download>Download the text guide <span aria-hidden="true">↓</span></a>
+      </aside>
+
+      <article class="guide-content">
+        <header class="guide-heading">
+          <p class="eyebrow">Optional language support</p>
+          <h1>Set up a<br>language server.</h1>
+          <p class="intro">Get documentation at the cursor and jump to definitions, using the language tools you choose.</p>
+          <p class="version-note"><strong>Initial LSP version.</strong> This guide covers the development version with LSP support. Older release downloads may not include these commands. Completion and diagnostics are not available yet.</p>
+        </header>
+
+        <section id="quick-start" aria-labelledby="quick-start-heading">
+          <h2 id="quick-start-heading">Quick start</h2>
+          <p>LSP connects the editor to a separate program that understands your code. It is <strong>disabled by default</strong>. Pötyi does not download or install language servers.</p>
+          <ol class="steps">
+            <li>
+              <h3>Install a language server</h3>
+              <p>Choose a server from the <a href="#configuration">language recipes</a> below. Each recipe includes installation steps, settings, and project notes. Install the server itself; an extension for another editor is not enough.</p>
+              <p>Check that it runs from a terminal, for example <code>rust-analyzer --version</code> or <code>clangd --version</code>.</p>
+            </li>
+            <li>
+              <h3>Extract your settings</h3>
+              <p>In Pötyi, press <kbd>Ctrl</kbd> + <kbd>P</kbd>, enter <code>:extract-config</code>, and press <kbd>Enter</kbd>. Existing configuration files are preserved.</p>
+              <p>This creates <code>config/lsp.toml</code> beneath Pötyi’s working directory—the folder it was launched from. Configuration is not stored relative to each document.</p>
+            </li>
+            <li>
+              <h3>Enable LSP and configure the server</h3>
+              <p>Open <code>config/lsp.toml</code>, change the top-level setting to <code>enabled = true</code>, and add an appropriate <a href="#configuration">server entry below</a>. Save the configuration. If a server was already running, use <code>:lsp-stop</code>.</p>
+            </li>
+            <li>
+              <h3>Try it in a saved code file</h3>
+              <p>Place the document cursor on a variable or function name, open the command bar, and run <code>:hover</code>. The server starts in the background. Try <code>:definition</code> to follow a definition, then <code>:lsp-back</code> to return.</p>
+            </li>
+          </ol>
+        </section>
+
+<section id="configuration" aria-labelledby="configuration-heading">
+<h2 id="configuration-heading">Choose your language</h2>
+<p>Keep <code>enabled = true</code> at the top of <code>config/lsp.toml</code>, before any <code>[[servers]]</code> entries. Add the entries for the languages you use. Names must be unique, and the first entry matching a file extension wins. Extensions have no leading dot. Root markers are exact file or directory names, not wildcard patterns.</p>
+<p>This guide covers all 18 language families in the bundled syntax configuration, with additional dialect notes. Highlighting and language-server compatibility are separate: clangd has been tested with Pötyi; the other recipes follow upstream setup instructions and still need end-to-end verification. Only hover and definition navigation are available in this editor version, even when a server offers more features.</p><nav class="language-index" aria-label="Language recipes"><a href="#rust">Rust</a><a href="#c-cpp">C and C++</a><a href="#csharp">C#</a><a href="#python">Python</a><a href="#javascript-typescript">JavaScript and TypeScript</a><a href="#go">Go</a><a href="#java">Java</a><a href="#php">PHP</a><a href="#shell">Shell</a><a href="#lua">Lua</a><a href="#luau">Luau</a><a href="#html-css-json">HTML, CSS, JSON and JSONC</a><a href="#yaml">YAML</a><a href="#toml">TOML</a><a href="#sql">SQL</a><a href="#vue">Vue: integration status</a></nav><h3 id="paths">Paths, Windows, and checking your setup</h3><p>Use an absolute executable path when the server is not on Pötyi’s PATH. Installation commands run in your terminal; put only the server executable in <code>command</code> and its individual arguments in <code>args</code>. Pötyi does not expand <code>~</code>, environment variables, or shell commands in these fields. Replace example absolute paths before use.</p><p>On Windows, native servers use their <code>.exe</code> executable. TOML literal strings make paths easy to write, for example <code>command = &#x27;C:\Tools\LLVM\bin\clangd.exe&#x27;</code>. For npm-installed servers, do not point to a <code>.cmd</code> or <code>.bat</code> launcher. Set <code>command = &quot;node&quot;</code> (or the absolute <code>node.exe</code> path), then put the server’s JavaScript entry file first in <code>args</code>, followed by its usual arguments.</p><p>To find that script, run <code>npm root -g</code>, open the server package’s <code>package.json</code> below that directory, and find the <code>bin</code> entry matching the command name. Resolve that entry relative to the package directory. For example, a Node launch has the shape <code>args = [&#x27;C:\absolute\package\server.js&#x27;, &#x27;--stdio&#x27;]</code>; replace the script path with the actual bin entry. Keep <code>start</code> instead of <code>--stdio</code> for Bash Language Server. A desktop shortcut may inherit a different PATH from your terminal.</p><p>After adding a recipe, save the configuration and run <code>:lsp-stop</code>. Open a saved file with a matching extension, place the document cursor on a symbol or documented property, and run <code>:hover</code>. Try <code>:definition</code> on a symbol whose source exists locally, then <code>:lsp-back</code>. Use <code>:lsp-status</code> to check configuration and active sessions. Installing a package alone does not verify that it can analyze your project.</p><section class="language-recipe" id="rust" aria-labelledby="rust-heading"><h3 id="rust-heading">Rust · rust-analyzer</h3><p>Install a Rust toolchain with rustup, then add the server and standard-library sources. Check the installed server:</p><pre tabindex="0"><code class="language-sh">rustup component add rust-analyzer rust-src
+rust-analyzer --version</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;rust&quot;
+command = &quot;rust-analyzer&quot;
+args = []
+extensions = [&quot;rs&quot;]
+language_id = &quot;rust&quot;
+root_markers = [&quot;Cargo.toml&quot;, &quot;.git&quot;]
+
+[servers.initialization_options]
+cachePriming = { enable = false }
+checkOnSave = false</code></pre><p>Open an <code>.rs</code> file inside a Cargo project. This is the server entry included in the extracted defaults; edit that entry instead of adding a duplicate. The example disables cache warming and checks on save to reduce background work.</p><p><a href="https://rust-analyzer.github.io/book/rust_analyzer_binary.html">rust-analyzer installation</a>.</p></section>
+<section class="language-recipe" id="c-cpp" aria-labelledby="c-cpp-heading"><h3 id="c-cpp-heading">C and C++ · clangd</h3><p>Install clangd using the upstream instructions: LLVM packages on Windows, Homebrew LLVM on macOS, or your Linux package manager. Use the installed clangd executable path if it is not on PATH. Check:</p><pre tabindex="0"><code class="language-sh">clangd --version</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;clangd-c&quot;
+command = &quot;clangd&quot;
+args = [&quot;--background-index=false&quot;]
+extensions = [&quot;c&quot;, &quot;h&quot;]
+language_id = &quot;c&quot;
+root_markers = [&quot;compile_commands.json&quot;, &quot;CMakeLists.txt&quot;, &quot;.git&quot;]</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;clangd-cpp&quot;
+command = &quot;clangd&quot;
+args = [&quot;--background-index=false&quot;]
+extensions = [&quot;cc&quot;, &quot;cpp&quot;, &quot;cxx&quot;, &quot;c++&quot;, &quot;hh&quot;, &quot;hpp&quot;, &quot;hxx&quot;, &quot;h++&quot;]
+language_id = &quot;cpp&quot;
+root_markers = [&quot;compile_commands.json&quot;, &quot;CMakeLists.txt&quot;, &quot;.git&quot;]</code></pre><p>Provide <code>compile_commands.json</code> with your build flags; CMake projects can generate it with <code>-DCMAKE_EXPORT_COMPILE_COMMANDS=ON</code>. Follow the upstream project setup instructions for locating the database. The examples treat <code>.h</code> as C; move it to the C++ entry for C++ headers. Disabling background indexing reduces background work but can limit navigation across unopened files.</p><p><a href="https://clangd.llvm.org/installation">clangd installation and project setup</a>.</p></section>
+<section class="language-recipe" id="csharp" aria-labelledby="csharp-heading"><h3 id="csharp-heading">C# · csharp-ls</h3><p>Install .NET 10 SDK or newer for the current server, then install the global tool. The project itself may target an older framework.</p><pre tabindex="0"><code class="language-sh">dotnet tool install --global csharp-ls
+csharp-ls --version</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;csharp&quot;
+command = &quot;csharp-ls&quot;
+args = []
+extensions = [&quot;cs&quot;, &quot;csx&quot;]
+language_id = &quot;csharp&quot;
+root_markers = [&quot;global.json&quot;, &quot;Directory.Build.props&quot;, &quot;.git&quot;]</code></pre><p>Restore the project dependencies with <code>dotnet restore</code>. For a non-Git project, add your exact solution or project filename to <code>root_markers</code>, such as <code>MyApp.sln</code> or <code>MyApp.csproj</code>. With multiple solutions, use <code>args = [&quot;--solution&quot;, &quot;/absolute/path/MyApp.sln&quot;]</code>. Standalone <code>.csx</code> scripts depend on the server’s project support. Keep metadata URI mode disabled; Pötyi opens local files only.</p><p><a href="https://github.com/razzmatazz/csharp-language-server">csharp-ls setup</a>.</p></section>
+<section class="language-recipe" id="python" aria-labelledby="python-heading"><h3 id="python-heading">Python · python-lsp-server</h3><p>Activate your project’s Python environment, install the server there, and check it:</p><pre tabindex="0"><code class="language-sh">python -m pip install python-lsp-server
+pylsp --help</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;python&quot;
+command = &quot;pylsp&quot;
+args = []
+extensions = [&quot;py&quot;, &quot;pyw&quot;, &quot;pyi&quot;]
+language_id = &quot;python&quot;
+root_markers = [&quot;pyproject.toml&quot;, &quot;setup.py&quot;, &quot;setup.cfg&quot;, &quot;.git&quot;]</code></pre><p>Install your project dependencies in the same environment. Launch Pötyi from that activated terminal, or set <code>command</code> to the environment’s absolute <code>bin/pylsp</code> path (Windows: <code>Scripts/pylsp.exe</code>). The base package uses Jedi for hover and definitions; the optional linting extras are unnecessary for these two features.</p><p><a href="https://github.com/python-lsp/python-lsp-server">python-lsp-server installation</a>.</p></section>
+<section class="language-recipe" id="javascript-typescript" aria-labelledby="javascript-typescript-heading"><h3 id="javascript-typescript-heading">JavaScript and TypeScript · typescript-language-server</h3><p>Install Node.js with npm. The upstream server currently specifies TypeScript 6 as its companion package:</p><pre tabindex="0"><code class="language-sh">npm install -g typescript-language-server typescript@6
+typescript-language-server --version</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;javascript&quot;
+command = &quot;typescript-language-server&quot;
+args = [&quot;--stdio&quot;]
+extensions = [&quot;js&quot;, &quot;mjs&quot;, &quot;cjs&quot;]
+language_id = &quot;javascript&quot;
+root_markers = [&quot;tsconfig.json&quot;, &quot;jsconfig.json&quot;, &quot;package.json&quot;, &quot;.git&quot;]</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;jsx&quot;
+command = &quot;typescript-language-server&quot;
+args = [&quot;--stdio&quot;]
+extensions = [&quot;jsx&quot;]
+language_id = &quot;javascriptreact&quot;
+root_markers = [&quot;tsconfig.json&quot;, &quot;jsconfig.json&quot;, &quot;package.json&quot;, &quot;.git&quot;]</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;typescript&quot;
+command = &quot;typescript-language-server&quot;
+args = [&quot;--stdio&quot;]
+extensions = [&quot;ts&quot;, &quot;mts&quot;, &quot;cts&quot;]
+language_id = &quot;typescript&quot;
+root_markers = [&quot;tsconfig.json&quot;, &quot;jsconfig.json&quot;, &quot;package.json&quot;, &quot;.git&quot;]</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;tsx&quot;
+command = &quot;typescript-language-server&quot;
+args = [&quot;--stdio&quot;]
+extensions = [&quot;tsx&quot;]
+language_id = &quot;typescriptreact&quot;
+root_markers = [&quot;tsconfig.json&quot;, &quot;jsconfig.json&quot;, &quot;package.json&quot;, &quot;.git&quot;]</code></pre><p>Use the entries you need. JSX and TSX require separate language identifiers. Install the project’s npm dependencies and keep its <code>tsconfig.json</code> or <code>jsconfig.json</code> in place so imports resolve. <code>.vue</code> files need the separate integration described below. On Windows, follow the Node launcher instructions above.</p><p><a href="https://github.com/typescript-language-server/typescript-language-server">TypeScript language server setup</a>.</p></section>
+<section class="language-recipe" id="go" aria-labelledby="go-heading"><h3 id="go-heading">Go · gopls</h3><p>Install a current Go toolchain, then install and check gopls:</p><pre tabindex="0"><code class="language-sh">go install golang.org/x/tools/gopls@latest
+gopls version</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;go&quot;
+command = &quot;gopls&quot;
+args = []
+extensions = [&quot;go&quot;]
+language_id = &quot;go&quot;
+root_markers = [&quot;go.work&quot;, &quot;go.mod&quot;, &quot;.git&quot;]</code></pre><p>Make the Go tool installation directory available to Pötyi: <code>GOBIN</code> if set, otherwise the <code>bin</code> directory beneath <code>GOPATH</code>. Use an absolute executable path if needed. Open a file in your Go module or workspace, with dependencies available through <code>go.mod</code> or <code>go.work</code>.</p><p><a href="https://go.dev/gopls/">gopls installation and workspaces</a>.</p></section>
+<section class="language-recipe" id="java" aria-labelledby="java-heading"><h3 id="java-heading">Java · Eclipse JDT Language Server</h3><p>Install Java 21 or newer and Python 3.9 or newer for the launcher. Download and extract a JDT LS milestone distribution from the upstream instructions. Check <code>java -version</code>, then run the extracted <code>bin/jdtls --help</code> launcher. Set JAVA_HOME to the JDK before starting Pötyi.</p><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;java&quot;
+command = &quot;/absolute/path/jdtls/bin/jdtls&quot;
+args = [&quot;-configuration&quot;, &quot;/absolute/path/cache/jdtls/config&quot;, &quot;-data&quot;, &quot;/absolute/path/cache/jdtls/my-project&quot;]
+extensions = [&quot;java&quot;]
+language_id = &quot;java&quot;
+root_markers = [&quot;pom.xml&quot;, &quot;build.gradle&quot;, &quot;build.gradle.kts&quot;, &quot;.git&quot;]</code></pre><p>Replace every absolute path. Use a different <code>-data</code> directory for each Java project; never share it between concurrent sessions. For multiple projects, launch Pötyi from each project with its own <code>config/lsp.toml</code>. On Windows, use <code>command = &quot;python&quot;</code> and put the absolute <code>bin/jdtls</code> script path first in <code>args</code>. Maven/Gradle dependencies must resolve. Definitions inside JARs may use virtual documents that Pötyi cannot open.</p><p><a href="https://github.com/eclipse-jdtls/eclipse.jdt.ls">JDT LS downloads and launcher setup</a>.</p></section>
+<section class="language-recipe" id="php" aria-labelledby="php-heading"><h3 id="php-heading">PHP · Intelephense</h3><p>Install Node.js with npm, then install the standalone server. Check the package is installed:</p><pre tabindex="0"><code class="language-sh">npm install -g intelephense
+npm list -g intelephense --depth=0</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;php&quot;
+command = &quot;intelephense&quot;
+args = [&quot;--stdio&quot;]
+extensions = [&quot;php&quot;, &quot;phtml&quot;, &quot;php3&quot;, &quot;php4&quot;, &quot;php5&quot;, &quot;php7&quot;, &quot;php8&quot;, &quot;phps&quot;]
+language_id = &quot;php&quot;
+root_markers = [&quot;composer.json&quot;, &quot;.git&quot;]</code></pre><p>Install your project’s Composer dependencies so their source files are available. Hover and go-to-definition are available without a paid licence. For legacy file suffixes, also configure Intelephense’s file associations when workspace indexing needs them. On Windows, use the Node launcher instructions above.</p><p><a href="https://github.com/bmewburn/intelephense-docs/blob/master/installation.md">Intelephense installation for other editors</a>.</p></section>
+<section class="language-recipe" id="shell" aria-labelledby="shell-heading"><h3 id="shell-heading">Shell · Bash Language Server</h3><p>Install Node.js 20 or newer with npm, then install and check the server:</p><pre tabindex="0"><code class="language-sh">npm install -g bash-language-server
+bash-language-server --help</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;bash&quot;
+command = &quot;bash-language-server&quot;
+args = [&quot;start&quot;]
+extensions = [&quot;sh&quot;, &quot;bash&quot;, &quot;bats&quot;]
+language_id = &quot;shellscript&quot;
+root_markers = [&quot;.git&quot;]</code></pre><p>Try hover on a documented function or go-to-definition on a shell function call. ShellCheck and shfmt are optional upstream integrations; Pötyi does not expose LSP diagnostics or formatting. This recipe targets Bash and compatible shell syntax. Highlighting <code>.zsh</code> and <code>.ksh</code> does not guarantee this Bash server understands those dialects. Extensionless scripts currently cannot select an LSP entry.</p><p><a href="https://github.com/bash-lsp/bash-language-server">Bash Language Server installation</a>.</p></section>
+<section class="language-recipe" id="lua" aria-labelledby="lua-heading"><h3 id="lua-heading">Lua · Lua Language Server</h3><p>Download the distribution for your operating system from the upstream releases and extract the whole directory. On macOS, <code>brew install lua-language-server</code> is another option. Check:</p><pre tabindex="0"><code class="language-sh">lua-language-server --version</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;lua&quot;
+command = &quot;lua-language-server&quot;
+args = []
+extensions = [&quot;lua&quot;]
+language_id = &quot;lua&quot;
+root_markers = [&quot;.luarc.json&quot;, &quot;.luarc.jsonc&quot;, &quot;.git&quot;]</code></pre><p>Set <code>command</code> to the extracted <code>bin/lua-language-server</code> executable (Windows: <code>.exe</code>) if needed. Keep its bundled scripts beside the installation; copying only the executable is insufficient. Configure the project’s Lua version and library paths in <code>.luarc.json</code>. Use the separate Luau server for <code>.luau</code> files.</p><p><a href="https://github.com/LuaLS/lua-language-server/wiki/Getting-Started">Lua Language Server setup and downloads</a>.</p></section>
+<section class="language-recipe" id="luau" aria-labelledby="luau-heading"><h3 id="luau-heading">Luau · luau-lsp</h3><p>Download and extract the native luau-lsp binary for your platform from the upstream releases. Put it on PATH or use its absolute executable path. Check:</p><pre tabindex="0"><code class="language-sh">luau-lsp --help</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;luau&quot;
+command = &quot;luau-lsp&quot;
+args = [&quot;lsp&quot;]
+extensions = [&quot;luau&quot;]
+language_id = &quot;luau&quot;
+root_markers = [&quot;.luaurc&quot;, &quot;.git&quot;]</code></pre><p>Use <code>.luaurc</code> for language settings and require aliases. The recipe is for ordinary Luau source files. Custom runtimes need their own type definitions and documentation as described upstream. If your Luau project uses <code>.lua</code> files, move that extension from the Lua entry to this one.</p><p><a href="https://github.com/JohnnyMorganz/luau-lsp/blob/main/editors/README.md">luau-lsp client setup and downloads</a>.</p></section>
+<section class="language-recipe" id="html-css-json" aria-labelledby="html-css-json-heading"><h3 id="html-css-json-heading">HTML, CSS, JSON and JSONC · VS Code language servers</h3><p>Install Node.js with npm. One package provides the three standalone servers. Check the package after installation:</p><pre tabindex="0"><code class="language-sh">npm install -g vscode-langservers-extracted
+npm list -g vscode-langservers-extracted --depth=0</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;html&quot;
+command = &quot;vscode-html-language-server&quot;
+args = [&quot;--stdio&quot;]
+extensions = [&quot;html&quot;, &quot;htm&quot;, &quot;xhtml&quot;]
+language_id = &quot;html&quot;
+root_markers = [&quot;package.json&quot;, &quot;.git&quot;]</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;css&quot;
+command = &quot;vscode-css-language-server&quot;
+args = [&quot;--stdio&quot;]
+extensions = [&quot;css&quot;]
+language_id = &quot;css&quot;
+root_markers = [&quot;package.json&quot;, &quot;.git&quot;]</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;json&quot;
+command = &quot;vscode-json-language-server&quot;
+args = [&quot;--stdio&quot;]
+extensions = [&quot;json&quot;]
+language_id = &quot;json&quot;
+root_markers = [&quot;package.json&quot;, &quot;.git&quot;]</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;jsonc&quot;
+command = &quot;vscode-json-language-server&quot;
+args = [&quot;--stdio&quot;]
+extensions = [&quot;jsonc&quot;]
+language_id = &quot;jsonc&quot;
+root_markers = [&quot;package.json&quot;, &quot;.git&quot;]</code></pre><p>Add only the entries you need. Try hover on an HTML tag or CSS property. JSON hover descriptions depend on a matching JSON Schema; arbitrary JSON keys may have no documentation. JSONC uses its own language identifier. These servers do not replace the JavaScript/TypeScript server for standalone scripts. Definition availability varies by server and document.</p><p><a href="https://github.com/hrsh7th/vscode-langservers-extracted">Standalone HTML/CSS/JSON server installation</a>.</p></section>
+<section class="language-recipe" id="yaml" aria-labelledby="yaml-heading"><h3 id="yaml-heading">YAML · YAML Language Server</h3><p>Install Node.js with npm, then install and check the package:</p><pre tabindex="0"><code class="language-sh">npm install -g yaml-language-server
+npm list -g yaml-language-server --depth=0</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;yaml&quot;
+command = &quot;yaml-language-server&quot;
+args = [&quot;--stdio&quot;]
+extensions = [&quot;yaml&quot;, &quot;yml&quot;]
+language_id = &quot;yaml&quot;
+root_markers = [&quot;.git&quot;]</code></pre><p>Hover is driven by schema descriptions. Associate your file with a schema by adding a comment such as <code># yaml-language-server: $schema=./schema.json</code> at its top, pointing to your actual schema. Relative paths resolve from the YAML file. A plain YAML key without a schema description may return no hover text.</p><p><a href="https://github.com/redhat-developer/yaml-language-server">YAML server installation and schema association</a>.</p></section>
+<section class="language-recipe" id="toml" aria-labelledby="toml-heading"><h3 id="toml-heading">TOML · Taplo</h3><p>With a Rust toolchain installed, build Taplo with its LSP feature enabled, then check that the LSP subcommand exists:</p><pre tabindex="0"><code class="language-sh">cargo install taplo-cli --locked --features lsp
+taplo lsp --help</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;toml&quot;
+command = &quot;taplo&quot;
+args = [&quot;lsp&quot;, &quot;stdio&quot;]
+extensions = [&quot;toml&quot;]
+language_id = &quot;toml&quot;
+root_markers = [&quot;taplo.toml&quot;, &quot;.taplo.toml&quot;, &quot;.git&quot;]</code></pre><p>Add Cargo’s executable directory to PATH or use the absolute Taplo path. The npm build does not include the language server. On Linux, building may also require OpenSSL development packages. Configure schema associations through Taplo’s configuration for useful property descriptions; generic TOML keys may have no hover documentation.</p><p><a href="https://taplo.tamasfe.dev/cli/installation/cargo.html">Taplo installation with optional features</a>.</p></section>
+<section class="language-recipe" id="sql" aria-labelledby="sql-heading"><h3 id="sql-heading">SQL · sqls</h3><p>Install Go, then install and check sqls (building its SQLite driver may also require a C compiler):</p><pre tabindex="0"><code class="language-sh">go install github.com/sqls-server/sqls@latest
+sqls -h</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
+name = &quot;sql&quot;
+command = &quot;sqls&quot;
+args = [&quot;-config&quot;, &quot;/absolute/path/sqls/config.yml&quot;]
+extensions = [&quot;sql&quot;]
+language_id = &quot;sql&quot;
+root_markers = [&quot;.git&quot;]</code></pre><p>Replace the configuration path with your own sqls YAML file. Follow the upstream database configuration instructions to connect it to your database; schema-aware hover needs that connection. Keep credentials in your local server configuration. Pötyi does not expose sqls query execution, connection switching, or completion. This recipe is primarily useful for hover; do not expect source-file definition navigation for database objects.</p><p><a href="https://github.com/sqls-server/sqls">sqls installation and database configuration</a>.</p></section>
+<section class="language-recipe" id="vue"><h3>Vue: integration status</h3><p>Pötyi highlights <code>.vue</code> files, but the current Vue language server uses custom <code>tsserver/request</code> and <code>tsserver/response</code> messages to communicate with its TypeScript plugin. Pötyi does not implement that bridge yet, so there is no verified Vue recipe for this client. Do not add <code>.vue</code> to the plain JavaScript entry and expect Vue type information. Ordinary <code>.js</code>, <code>.jsx</code>, <code>.ts</code>, and <code>.tsx</code> files can use the recipes above. See the <a href="https://github.com/vuejs/language-tools/blob/master/packages/language-server/README.md">Vue language server integration instructions</a>.</p></section></section>
+
+        <section id="commands" aria-labelledby="commands-heading">
+          <h2 id="commands-heading">Using the commands</h2>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="LSP command reference">
+            <table>
+              <thead><tr><th scope="col">Command</th><th scope="col">What it does</th></tr></thead>
+              <tbody>
+                <tr><th scope="row"><code>:hover</code></th><td>Shows documentation or type information at the document cursor.</td></tr>
+                <tr><th scope="row"><code>:definition</code></th><td>Jumps to the first definition returned by the server.</td></tr>
+                <tr><th scope="row"><code>:lsp-back</code></th><td>Returns to the previous definition-jump location.</td></tr>
+                <tr><th scope="row"><code>:lsp-status</code></th><td>Shows configuration and the number of background sessions.</td></tr>
+                <tr><th scope="row"><code>:lsp-stop</code></th><td>Cancels pending work and stops all language-server sessions.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>The commands work in conventional and Vim modes. Existing shortcuts are unchanged. Hover information appears as plain text in the command bar; use <kbd>↑</kbd> / <kbd>↓</kbd> to scroll and <kbd>Escape</kbd> to dismiss it. Markdown returned by a server is shown literally.</p>
+        </section>
+
+        <section id="behavior" aria-labelledby="behavior-heading">
+          <h2 id="behavior-heading">How it works</h2>
+          <h3>Starts when you ask</h3>
+          <p>A server starts on your first <code>:hover</code> or <code>:definition</code> request. Current unsaved text in matching documents from both panes is synchronized before the request. Later requests use incremental changes when supported, or full-document updates when required. <strong>Typing alone does not trigger synchronization.</strong></p>
+          <h3>Background work, bounded resources</h3>
+          <p>Server startup, communication, and shutdown run on background threads. An explicit request copies at most 2 MiB per document on the editor thread. Language servers may still index dependencies or run build tools according to their own settings, so they add memory and CPU usage while running.</p>
+          <p>Pötyi allows at most two sessions, one per configured server and project. A configured <code>.git</code> marker takes precedence; otherwise the nearest root marker is used, falling back to the file’s directory. A session stops when no matching documents remain open.</p>
+          <h3>Your edits stay protected</h3>
+          <p>Definition jumps reuse open buffers and preserve unsaved text, read-only state, and undo history. A new file uses a clean pane. If both panes have unsaved changes, the jump is refused. Returned locations are checked before replacing a pane.</p>
+          <p>Results are discarded if either document changes, the requesting cursor moves, the file changes, or the command bar is dismissed or edited. LSP does not save files, apply refactoring edits, run server-requested commands, or change your formatter or keybindings.</p>
+          <p>After editing the server settings, run <code>:lsp-stop</code>; the next request starts a fresh session. To disable LSP, also set <code>enabled = false</code>.</p>
+        </section>
+
+        <section id="troubleshooting" aria-labelledby="troubleshooting-heading">
+          <h2 id="troubleshooting-heading">Troubleshooting</h2>
+          <details open>
+            <summary>“LSP is disabled” or no matching server</summary>
+            <p>Check that you edited <code>config/lsp.toml</code> under the editor’s working directory and saved it. Put <code>enabled = true</code> before all server entries. Confirm that the document’s extension appears in a server’s <code>extensions</code> list. Run <code>:lsp-status</code> to check the selected configuration.</p>
+          </details>
+          <details>
+            <summary>The server cannot start</summary>
+            <p>Run the configured executable from a terminal. If it cannot be found, install it or use an absolute path in <code>command</code>. Apps launched from a desktop shortcut can have a different <code>PATH</code> from your terminal. Verify that the configured arguments start the server in stdio LSP mode.</p>
+          </details>
+          <details>
+            <summary>No hover information or definition</summary>
+            <p>Place the document cursor on a symbol, rather than whitespace, and try again. Confirm that the server supports the requested feature and can load your project’s dependencies and build configuration. Large projects can take time to analyze. Generated or decompiled definitions are not supported in this version.</p>
+          </details>
+          <details>
+            <summary>The server times out or keeps waiting</summary>
+            <p>Initialization has a 30-second limit and feature requests have a 15-second limit. Run <code>:lsp-stop</code> to interrupt pending work, then retry. Pötyi attempts a brief shutdown before terminating an unresponsive server.</p>
+          </details>
+          <details>
+            <summary>The command disappears or a jump is refused</summary>
+            <p>Moving the cursor, editing, switching files, or dismissing the command bar can make a pending result outdated. Run the command again at the intended location. If both panes have unsaved edits and a definition needs another file, save one pane first.</p>
+          </details>
+          <details>
+            <summary>The document is not supported</summary>
+            <p>Save the file before requesting LSP help. Open documents must contain valid UTF-8 and be no larger than 2 MiB. Files outside these limits remain editable with Pötyi’s existing features. If the LSP commands themselves are unknown, your editor build predates LSP support.</p>
+          </details>
+        </section>
+
+        <section id="limits" aria-labelledby="limits-heading">
+          <h2 id="limits-heading">Current limits</h2>
+          <p>This first version provides hover, definition navigation, and return navigation. It does not yet display diagnostics, completion menus, signature help, references, rename, code actions, or semantic highlighting. Dynamic capability registration, project file watchers, and virtual documents are also not implemented.</p>
+          <p>For implementation details and test coverage, see the <a href="../lsp.md">text guide</a>. The automated checks cover protocol framing, Unicode, incremental updates, unsaved buffers, navigation safety, timeouts, cancellation, and server crashes.</p>
+        </section>
+        <p class="guide-end"><a href="#main">Back to top ↑</a></p>
+      </article>
+    </main>
+    <footer>
+      <div class="footer-inner">
+        <p>© 2026 Attila Banko · Pötyi</p>
+        <p><a href="../">Back to the editor homepage</a></p>
+      </div>
+    </footer>
+  </body>
+</html>

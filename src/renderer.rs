@@ -3273,6 +3273,19 @@ impl<'a> Renderer<'a> {
                 y + index as i32
                     * COMMAND_SUGGESTION_HEIGHT;
 
+            if command_bar.is_info() {
+                let clip = Rect::new(x + 12, row_y, (width - 24).max(1) as u32, COMMAND_SUGGESTION_HEIGHT as u32);
+                let text_width = self.font.size_of(suggestion.label).map(|(w, _)| w as i32).unwrap_or(0);
+                self.canvas.set_clip_rect(Some(clip));
+                self.render_clipped_single_line_text(
+                    suggestion.label, x + 12,
+                    row_y + (COMMAND_SUGGESTION_HEIGHT - self.font.height()) / 2,
+                    clip, text_width, Color::RGB(235, 235, 235),
+                )?;
+                self.canvas.set_clip_rect(None);
+                continue;
+            }
+
             if index == command_bar.selected() {
                 self.canvas.set_draw_color(
                     Color::RGB(55, 75, 95),
@@ -3487,13 +3500,17 @@ impl<'a> Renderer<'a> {
         let text_x = x + 12;
         let status_gap = 16;
         let right = run_x - 12;
+        // Formatter diagnostics can be much longer than the command field.
+        // Reserve at most half the available width and render through the
+        // existing bounded texture path, keeping the input visible.
+        let status_space = status_width.min(((right - text_x) / 2).max(0));
 
         let text_right =
             if status.is_some()
                 && width >= 420
             {
                 right
-                    - status_width
+                    - status_space
                     - status_gap
             } else {
                 right
@@ -3566,10 +3583,14 @@ impl<'a> Renderer<'a> {
             .as_deref()
             .filter(|_| width >= 420)
         {
-            self.render_dpi_text(
+            let status_clip = Rect::new(right - status_space, input_y, status_space.max(1) as u32, COMMAND_INPUT_HEIGHT as u32);
+            self.canvas.set_clip_rect(Some(status_clip));
+            self.render_clipped_single_line_text(
                 status,
-                (right - status_width) as f32,
-                text_y as f32,
+                right - status_space,
+                text_y,
+                status_clip,
+                status_width,
                 if command_bar.status().is_some()
                     || search_ui.pattern_error()
                         .is_some()
@@ -3580,6 +3601,7 @@ impl<'a> Renderer<'a> {
                     Color::RGB(150, 210, 165)
                 },
             )?;
+            self.canvas.set_clip_rect(None);
         }
 
         Ok(())

@@ -16,6 +16,73 @@
 
 use super::*;
 
+#[test]
+fn formatting_preserves_selection_and_is_one_undo_step() {
+    let mut editor = test_editor("fn main(){\nlet café=1;\n}\n");
+    editor.set_cursor_and_anchor(17, 11).unwrap();
+    let before = editor.cursor_state();
+    let original = editor.document.text().unwrap();
+    let formatted = "fn main() {\n    let café = 1;\n}\n";
+    assert!(editor.apply_formatted(&mut io::Cursor::new(formatted.as_bytes())).unwrap());
+    assert_eq!(editor.undo_stack.len(), 1);
+    assert!(editor.dirty);
+    assert_eq!(editor.document.cursor.line, before.line);
+    assert_eq!(editor.document.cursor.column, before.column);
+    assert_eq!(editor.document.cursor.anchor_line, before.anchor_line);
+    assert_eq!(editor.document.cursor.anchor_column, before.anchor_column);
+    editor.undo().unwrap();
+    assert_eq!(editor.document.text().unwrap(), original);
+    assert_eq!(editor.document.cursor.position, before.position);
+    assert_eq!(editor.document.cursor.anchor, before.anchor);
+    editor.redo().unwrap();
+    assert_eq!(editor.document.text().unwrap(), formatted);
+}
+
+#[test]
+fn formatting_noop_preserves_redo_dirty_and_cursor() {
+    let mut editor = test_editor("original\n");
+    editor.insert_text("x").unwrap();
+    editor.undo().unwrap();
+    editor.dirty = false;
+    let before = editor.cursor_state();
+    assert!(!editor.apply_formatted(&mut io::Cursor::new(b"original\n")).unwrap());
+    assert!(!editor.dirty);
+    assert_eq!(editor.undo_stack.len(), 0);
+    assert_eq!(editor.redo_stack.len(), 1);
+    assert_eq!(editor.document.cursor.position, before.position);
+    editor.redo().unwrap();
+    assert!(editor.document.text().unwrap().contains('x'));
+}
+
+#[test]
+fn formatting_rejects_readonly_empty_and_invalid_output_without_changes() {
+    let mut editor = test_editor("original");
+    for bytes in [vec![], vec![0xff], vec![0], vec![b'x'; formatting::MAX_OUTPUT_BYTES + 1]] {
+        assert!(editor.apply_formatted(&mut io::Cursor::new(bytes)).is_err());
+        assert_eq!(editor.document.text().unwrap(), "original");
+        assert!(editor.undo_stack.is_empty());
+        assert!(!editor.dirty);
+    }
+    editor.read_only = true;
+    assert!(editor.apply_formatted(&mut io::Cursor::new(b"changed")).is_err());
+    assert!(editor.format_document(Some("rustfmt")).is_err());
+    assert_eq!(editor.document.text().unwrap(), "original");
+}
+
+#[test]
+fn formatting_only_changes_the_target_pane_and_preserves_older_history() {
+    let mut editor = test_editor("one");
+    let other = test_editor("two");
+    editor.insert_text("x").unwrap();
+    let typed = editor.document.text().unwrap();
+    assert!(editor.apply_formatted(&mut io::Cursor::new(b"formatted")).unwrap());
+    assert_eq!(other.document.text().unwrap(), "two");
+    editor.undo().unwrap();
+    assert_eq!(editor.document.text().unwrap(), typed);
+    editor.undo().unwrap();
+    assert_eq!(editor.document.text().unwrap(), "one");
+}
+
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::config::{EditorConfig, LineNumberMode};
 use crate::search::SearchMode;
@@ -248,6 +315,8 @@ fn goto_executes_command_and_renders_destination() {
     let mut search = SearchUi::new();
     let mut bar = CommandBar::new();
     let mut terminal = Terminal::new(std::env::temp_dir()).unwrap();
+    let mut formatting_vim = VimController::new();
+    let mut lsp_ui = lsp_ui::LspUi::new(sdl.event().unwrap());
 
     for configured in [
         LineNumberMode::Normal,
@@ -280,7 +349,7 @@ fn goto_executes_command_and_renders_destination() {
 
             let outcome = execute_command_bar(
                 &mut bar, &mut search, &mut editor, &mut other,
-                &mut renderer, &mut terminal, false,
+                &mut renderer, &mut terminal, &mut formatting_vim, false, &mut lsp_ui,
             );
             assert!(outcome.cursor_changed, "{input}: {:?}", bar.status());
             assert!(!bar.is_active(), "{input}: {:?}", bar.status());
@@ -300,7 +369,7 @@ fn goto_executes_command_and_renders_destination() {
         bar.open(":goto 3");
         let outcome = execute_command_bar(
             &mut bar, &mut search, &mut editor, &mut other,
-            &mut renderer, &mut terminal, false,
+            &mut renderer, &mut terminal, &mut formatting_vim, false, &mut lsp_ui,
         );
         if configured == LineNumberMode::Normal {
             assert!(outcome.cursor_changed);
@@ -326,7 +395,7 @@ fn goto_executes_command_and_renders_destination() {
         bar.open(input);
         let outcome = execute_command_bar(
             &mut bar, &mut search, &mut editor, &mut other,
-            &mut renderer, &mut terminal, false,
+            &mut renderer, &mut terminal, &mut formatting_vim, false, &mut lsp_ui,
         );
         assert!(!outcome.cursor_changed, "{input}");
         assert!(bar.is_active(), "{input}");
@@ -338,12 +407,33 @@ fn goto_executes_command_and_renders_destination() {
     bar.open(":goto 2");
     let outcome = execute_command_bar(
         &mut bar, &mut search, &mut editor, &mut other,
-        &mut renderer, &mut terminal, false,
+        &mut renderer, &mut terminal, &mut formatting_vim, false, &mut lsp_ui,
     );
     assert!(outcome.cursor_changed);
     assert!(!bar.is_active());
     assert_eq!(editor.document.cursor.line + 1, 10);
     assert_eq!(editor.document.cursor.column, 0);
+
+    // Information rows use bounded rendering and do not modify the document.
+    let original = editor.document.text().unwrap();
+    bar.open(":hover");
+    bar.show_info(&"Unicode help: café 🦀 and a deliberately long signature. ".repeat(100));
+    renderer.render(&mut editor.document, &search, &bar).unwrap();
+    bar.move_selection(1);
+    renderer.render(&mut editor.document, &search, &bar).unwrap();
+    assert_eq!(editor.document.text().unwrap(), original);
+    bar.close();
+    renderer.render(&mut editor.document, &search, &bar).unwrap();
+
+    bar.open(":hover");
+    let outcome = execute_command_bar(
+        &mut bar, &mut search, &mut editor, &mut other,
+        &mut renderer, &mut terminal, &mut formatting_vim, false, &mut lsp_ui,
+    );
+    assert!(!outcome.document_changed);
+    assert!(!outcome.cursor_changed);
+    assert!(bar.suggestion(0).unwrap().label.contains("disabled"));
+    assert!(lsp_ui.status(&editor).contains("0 background session(s)"));
 }
 
 #[test]

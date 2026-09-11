@@ -15,7 +15,6 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-use serde::Deserialize;
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -25,32 +24,9 @@ use sdl3::pixels::Color;
 
 use crate::embedded_config::SYNTAX_DEFINITIONS;
 
-// ==========================================================================
-// Syntax file configuration
-// ==========================================================================
-//
-// These structures represent the TOML file directly.
-// They contain only values that serde/toml can deserialize.
-//
-
-#[derive(Debug, Deserialize)]
-struct SyntaxFileConfig {
-    syntax: SyntaxDefinitionConfig,
-}
-
-#[derive(Debug, Deserialize)]
-struct SyntaxDefinitionConfig {
-    name: String,
-    extensions: Vec<String>,
-    rules: Vec<SyntaxRuleConfig>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SyntaxRuleConfig {
-    name: String,
-    pattern: String,
-    color: String,
-}
+use crate::syntax_core::{self, SyntaxDefinitionConfig, SyntaxFileConfig};
+#[cfg(test)]
+use crate::syntax_core::{MAX_HIGHLIGHT_BYTES, MAX_HIGHLIGHT_MATCHES, resolve_overlaps};
 
 // ==========================================================================
 // Runtime syntax definition
@@ -82,28 +58,23 @@ pub struct SyntaxRule {
 // Syntax match
 // ==========================================================================
 
-#[derive(Debug, Clone, Copy)]
-pub struct SyntaxMatch {
-    /// UTF-8 byte offset within the line.
-    pub start: usize,
-
-    /// UTF-8 byte offset within the line.
-    pub end: usize,
-
-    pub color: Color,
-}
+pub type SyntaxMatch = syntax_core::SyntaxMatch<Color>;
 
 // ==========================================================================
 // Loading
 // ==========================================================================
 
 impl SyntaxDefinition {
-    pub fn load<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+    fn load_for_extension(
+        path: &Path,
+        extension: &str,
+    ) -> io::Result<Option<Self>> {
         let contents = fs::read_to_string(path)?;
 
-        Self::from_toml(&contents)
+        Self::from_toml_for_extension(&contents, extension)
     }
 
+    #[cfg(test)]
     fn from_toml(contents: &str) -> io::Result<Self> {
         let file: SyntaxFileConfig =
             toml::from_str(contents)
@@ -115,6 +86,22 @@ impl SyntaxDefinition {
                 })?;
 
         Self::from_config(file.syntax)
+    }
+
+    fn from_toml_for_extension(
+        contents: &str,
+        extension: &str,
+    ) -> io::Result<Option<Self>> {
+        let file: SyntaxFileConfig = toml::from_str(contents)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+        if !file.syntax.extensions.iter().any(|value| {
+            value.eq_ignore_ascii_case(extension.trim_start_matches('.'))
+        }) {
+            return Ok(None);
+        }
+
+        // Selecting a language must not compile other languages' regexes.
+        Self::from_config(file.syntax).map(Some)
     }
 
     fn from_config(
@@ -185,39 +172,15 @@ impl SyntaxDefinition {
     //
     // The renderer is responsible for drawing normal text in the gaps.
     //
-    // Earlier syntax rules have priority over later syntax rules.
+    // Earlier positions win, followed by longer matches at the same position.
+    // Rule order breaks ties between identical spans.
     //
 
     pub fn matches_line(
         &self,
         line: &str,
     ) -> Vec<SyntaxMatch> {
-        let mut matches =
-            Vec::<SyntaxMatch>::new();
-
-        for rule in &self.rules {
-            for found in rule.regex.find_iter(line) {
-                let start =
-                    found.start();
-
-                let end =
-                    found.end();
-
-                if start >= end {
-                    continue;
-                }
-
-                matches.push(
-                    SyntaxMatch {
-                        start,
-                        end,
-                        color: rule.color,
-                    }
-                );
-            }
-        }
-
-        resolve_overlaps(matches)
+        syntax_core::matches_line(line, self.rules.iter().map(|rule| (&rule.regex, rule.color)))
     }
 
     // ----------------------------------------------------------------------
@@ -268,8 +231,9 @@ pub fn for_extension(
                     continue;
                 }
 
-                let syntax = match Self::load(&path) {
-                    Ok(syntax) => syntax,
+                let syntax = match Self::load_for_extension(&path, &extension) {
+                    Ok(Some(syntax)) => syntax,
+                    Ok(None) => continue,
                     Err(error) => {
                         println!(
                             "Failed to load syntax definition {}: {}",
@@ -299,14 +263,14 @@ pub fn for_extension(
     }
 
     for (name, contents) in SYNTAX_DEFINITIONS {
-        let syntax = Self::from_toml(contents)
+        let syntax = Self::from_toml_for_extension(contents, &extension)
             .unwrap_or_else(|error| {
                 panic!(
                     "embedded syntax definition {name} is invalid: {error}"
                 )
             });
 
-        if syntax.supports_extension(&extension) {
+        if let Some(syntax) = syntax {
             return Some(syntax);
         }
     }
@@ -327,105 +291,11 @@ pub fn for_extension(
 // Colour parsing
 // ==========================================================================
 
-fn parse_color(
-    value: &str,
-) -> Color {
-    let value =
-        value
-            .trim()
-            .trim_start_matches('#');
-
-    if value.len() != 6 {
-        return Color::RGB(
-            220,
-            220,
-            220,
-        );
-    }
-
-    let r =
-        u8::from_str_radix(
-            &value[0..2],
-            16,
-        )
-        .unwrap_or(220);
-
-    let g =
-        u8::from_str_radix(
-            &value[2..4],
-            16,
-        )
-        .unwrap_or(220);
-
-    let b =
-        u8::from_str_radix(
-            &value[4..6],
-            16,
-        )
-        .unwrap_or(220);
-
-    Color::RGB(
-        r,
-        g,
-        b,
-    )
+fn parse_color(value: &str) -> Color {
+    let [r, g, b] = syntax_core::parse_rgb(value);
+    Color::RGB(r, g, b)
 }
 
-// ==========================================================================
-// Overlap resolution
-// ==========================================================================
-//
-// Multiple syntax rules can match the same characters.
-//
-// Example:
-//
-//     rule 1:  "let"
-//     rule 2:  "let foo"
-//
-// Both can produce matches:
-//
-//     [0,3]
-//     [0,7]
-//
-// We need to select one colour for every byte range.
-//
-// Rules appearing earlier in the syntax file have priority.
-//
-// This function therefore:
-//
-// 1. Sorts matches by start position.
-// 2. Keeps the first match covering each region.
-// 3. Splits later matches around already-covered regions.
-// 4. Never produces overlapping spans.
-//
-// This is important because the renderer can then safely draw each span
-// exactly once without normal text being rendered across a coloured span.
-//
-
-fn resolve_overlaps(
-    mut matches: Vec<SyntaxMatch>,
-) -> Vec<SyntaxMatch> {
-    matches.sort_by(|a, b| {
-        a.start
-            .cmp(&b.start)
-            .then_with(|| b.end.cmp(&a.end))
-    });
-
-    let mut result: Vec<SyntaxMatch> =
-        Vec::with_capacity(matches.len());
-
-    for current in matches {
-        if let Some(previous) = result.last() {
-            if previous.end > current.start {
-                continue;
-            }
-        }
-
-        result.push(current);
-    }
-
-    result
-}
 // ==========================================================================
 // Tests
 // ==========================================================================
@@ -442,6 +312,146 @@ mod tests {
                     panic!("{name}: {error}")
                 });
         }
+    }
+
+    #[test]
+    fn browser_download_loads_in_desktop_with_custom_colors() {
+        // This fixture is an actual download from the designer, not handwritten TOML.
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tools/syntax-designer/fixtures/browser-export-python.toml");
+        let syntax = SyntaxDefinition::load_for_extension(&path, "py").unwrap().unwrap();
+        assert_eq!(syntax.name, "Python");
+        assert_eq!(syntax.rules.len(), 7);
+        assert!(syntax.supports_extension("pyi"));
+        assert!(SyntaxDefinition::load_for_extension(&path, "cs").unwrap().is_none());
+        let comment = "# café 🐈";
+        let spans = syntax.matches_line(comment);
+        assert_eq!(spans.len(), 1);
+        assert_eq!((spans[0].start, spans[0].end), (0, comment.len()));
+        assert_eq!(spans[0].color, Color::RGB(0xe8, 0x79, 0xf9));
+        assert_token(&syntax, r#"name = "Ada""#, r#""Ada""#, "#CE9178");
+    }
+
+    fn embedded_for_extension(extension: &str) -> SyntaxDefinition {
+        SYNTAX_DEFINITIONS.iter().find_map(|(_, contents)| {
+            SyntaxDefinition::from_toml_for_extension(contents, extension).unwrap()
+        }).unwrap_or_else(|| panic!("missing syntax for {extension}"))
+    }
+
+    fn assert_token(syntax: &SyntaxDefinition, line: &str, token: &str, color: &str) {
+        let start = line.find(token).unwrap();
+        let end = start + token.len();
+        assert!(syntax.matches_line(line).iter().any(|span| {
+            span.start <= start && span.end >= end && span.color == parse_color(color)
+        }), "{}: {token:?} in {line:?}", syntax.name);
+    }
+
+    #[test]
+    fn bundled_languages_highlight_representative_source() {
+        for (extension, line, token, color) in [
+            ("c", "int main(void) { return 42; }", "return", "#569CD6"),
+            ("cpp", "template <typename T> class Box {};", "template", "#569CD6"),
+            ("cs", "public record Person(string Name);", "record", "#569CD6"),
+            ("py", "async def greet(name: str):", "async", "#569CD6"),
+            ("php", "<?php ECHO $name;", "$name", "#9CDCFE"),
+            ("ts", "interface Person { name: string }", "interface", "#569CD6"),
+            ("go", "package main", "package", "#569CD6"),
+            ("java", "public class Main {}", "class", "#569CD6"),
+            ("sh", "if [ -n \"$HOME\" ]; then", "then", "#569CD6"),
+            ("lua", "local value = nil", "local", "#569CD6"),
+            ("json", "{\"enabled\": true}", "true", "#4FC1FF"),
+            ("toml", "enabled = true", "enabled", "#9CDCFE"),
+            ("yaml", "enabled: true", "enabled", "#9CDCFE"),
+            ("html", "<div class=\"example\">Hello</div>", "<div", "#569CD6"),
+            ("css", "body { color: #ffffff; }", "color:", "#9CDCFE"),
+            ("sql", "SELECT name FROM people;", "SELECT", "#569CD6"),
+        ] {
+            let syntax = embedded_for_extension(extension);
+            assert_token(&syntax, line, token, color);
+        }
+    }
+
+    #[test]
+    fn common_languages_keep_strings_and_comments_distinct() {
+        for (extension, line, token) in [
+            ("cs", "var url = \"https://example.test\";", "\"https://example.test\""),
+            ("py", "value = \"# not a comment\"", "\"# not a comment\""),
+            ("php", "$value = \"# not a comment\";", "\"# not a comment\""),
+            ("c", "char *url = \"https://example.test\";", "\"https://example.test\""),
+        ] {
+            assert_token(&embedded_for_extension(extension), line, token, "#CE9178");
+        }
+        for (extension, line) in [
+            ("cs", "// return 42;"), ("py", "# return 42"),
+            ("php", "// return 42;"), ("c", "/* return 42; */"),
+        ] {
+            assert_token(&embedded_for_extension(extension), line, line, "#6A9955");
+        }
+        assert_token(&embedded_for_extension("cs"), r#"var path = @"C:\Users\Name";"#,
+            r#"@"C:\Users\Name""#, "#CE9178");
+        assert_token(&embedded_for_extension("py"), "value = f\"Hello {name}\"",
+            "f\"Hello {name}\"", "#CE9178");
+    }
+
+    #[test]
+    fn embedded_extensions_are_unique_and_case_insensitive() {
+        let mut extensions = std::collections::HashSet::new();
+        for (_, contents) in SYNTAX_DEFINITIONS {
+            let file: SyntaxFileConfig = toml::from_str(contents).unwrap();
+            for extension in &file.syntax.extensions {
+                assert!(extensions.insert(extension.to_ascii_lowercase()), "{extension}");
+                let syntax = SyntaxDefinition::from_toml_for_extension(
+                    contents, &format!(".{}", extension.to_ascii_uppercase()),
+                ).unwrap().unwrap();
+                assert!(syntax.supports_extension(extension));
+            }
+        }
+        assert_eq!(embedded_for_extension("pyi").name, "Python");
+        assert_eq!(embedded_for_extension("csx").name, "C#");
+        assert_eq!(embedded_for_extension("mjs").name, "JavaScript");
+        assert_eq!(embedded_for_extension("tsx").name, "TypeScript");
+    }
+
+    #[test]
+    fn unrelated_language_regexes_are_not_compiled() {
+        let contents = r##"
+            [syntax]
+            name = "Unrelated"
+            extensions = ["other"]
+            [[syntax.rules]]
+            name = "invalid"
+            pattern = "("
+            color = "#ffffff"
+        "##;
+        assert!(SyntaxDefinition::from_toml_for_extension(contents, "py").unwrap().is_none());
+        assert!(SyntaxDefinition::from_toml_for_extension(contents, "other").is_err());
+    }
+
+    #[test]
+    fn highlighting_caps_long_lines_at_utf8_boundaries() {
+        let syntax = embedded_for_extension("py");
+        let line = format!("#{}é trailing", "a".repeat(MAX_HIGHLIGHT_BYTES - 2));
+        let spans = syntax.matches_line(&line);
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].end, MAX_HIGHLIGHT_BYTES - 1);
+        assert!(line.is_char_boundary(spans[0].end));
+    }
+
+    #[test]
+    fn highlighting_caps_dense_match_output() {
+        let syntax = SyntaxDefinition::from_toml(r##"
+            [syntax]
+            name = "Dense"
+            extensions = ["dense"]
+            [[syntax.rules]]
+            name = "character"
+            pattern = "."
+            color = "#ffffff"
+        "##).unwrap();
+        let line = "x".repeat(MAX_HIGHLIGHT_BYTES * 2);
+        let spans = syntax.matches_line(&line);
+        assert_eq!(spans.len(), MAX_HIGHLIGHT_MATCHES);
+        assert_eq!(spans.last().unwrap().end, MAX_HIGHLIGHT_MATCHES);
     }
 
     #[test]

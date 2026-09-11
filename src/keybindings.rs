@@ -61,6 +61,7 @@ pub enum Command {
 
     Save,
     SaveAs,
+    FormatDocument,
     Undo,
     Redo,
     Copy,
@@ -397,6 +398,7 @@ impl KeyBindings {
 
             "save" => Some(Command::Save),
             "saveas" => Some(Command::SaveAs),
+            "formatdocument" => Some(Command::FormatDocument),
             "undo" => Some(Command::Undo),
             "redo" => Some(Command::Redo),
             "copy" => Some(Command::Copy),
@@ -414,6 +416,16 @@ impl KeyBindings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn formatting_shortcut_requires_modifiers_and_never_repeats() {
+        let bindings = KeyBindings::default();
+        for modifiers in [Mod::LCTRLMOD | Mod::LSHIFTMOD, Mod::LGUIMOD | Mod::LSHIFTMOD] {
+            assert_eq!(bindings.command_for(Keycode::I, modifiers, false), Some(Command::FormatDocument));
+            assert_eq!(bindings.command_for(Keycode::I, modifiers, true), None);
+        }
+        assert_eq!(bindings.command_for(Keycode::I, Mod::NOMOD, false), None);
+    }
 
     #[test]
     fn save_as_shortcuts_are_distinct_and_do_not_repeat() {

@@ -1,0 +1,55 @@
+# Formatting runs only on :format or the FormatDocument shortcut.
+# The first installed matching provider wins. Reorder entries to change that
+# preference. :format NAME explicitly selects a provider (also for untitled files).
+# Commands must read stdin and write only formatted source to stdout. Never use
+# in-place, directory-wide, daemon, or package-manager commands here.
+# {filepath} is the absolute source filename, passed as a literal argument;
+# it is for language/config discovery, not an instruction to overwrite the file.
+
+[[providers]]
+name = "rustfmt"
+command = "rustfmt"
+args = ["--emit", "stdout", "--edition", "2024"]
+extensions = ["rs"]
+
+[[providers]]
+name = "ruff"
+command = "ruff"
+args = ["format", "--stdin-filename", "{filepath}", "-"]
+extensions = ["py", "pyi"]
+
+[[providers]]
+name = "gofmt"
+command = "gofmt"
+extensions = ["go"]
+
+[[providers]]
+name = "clang-format"
+command = "clang-format"
+args = ["--assume-filename={filepath}"]
+extensions = ["c", "h", "cc", "cpp", "cxx", "hh", "hpp", "hxx", "m", "mm", "java", "cs", "proto"]
+
+[[providers]]
+name = "shfmt"
+command = "shfmt"
+args = ["--filename", "{filepath}", "-"]
+extensions = ["sh", "bash", "bats"]
+filenames = [".bashrc", ".bash_profile", ".profile"]
+
+[[providers]]
+name = "stylua"
+command = "stylua"
+args = ["--search-parent-directories", "--stdin-filepath", "{filepath}", "-"]
+extensions = ["lua", "luau"]
+
+[[providers]]
+name = "taplo"
+command = "taplo"
+args = ["fmt", "-"]
+extensions = ["toml"]
+
+[[providers]]
+name = "biome"
+command = "biome"
+args = ["format", "--stdin-file-path={filepath}"]
+extensions = ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts", "json", "jsonc", "css"]

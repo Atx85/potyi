@@ -71,6 +71,13 @@ pub(crate) enum ParsedCommand {
     Term,
     Split,
     ExtractConfig,
+    Format { provider: Option<String> },
+    Formatters,
+    Hover,
+    Definition,
+    LspBack,
+    LspStatus,
+    LspStop,
     Save,
     SaveAs {
         path: Option<String>,
@@ -99,12 +106,13 @@ enum SuggestionAction {
     CompleteCommand(&'static str),
     SetInput(&'static str),
     ToggleOption(&'static str),
+    FormatProvider(usize),
     None,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct CommandSuggestion {
-    pub label: &'static str,
+pub(crate) struct CommandSuggestion<'a> {
+    pub label: &'a str,
     pub description: &'static str,
     pub active: bool,
     action: SuggestionAction,
@@ -130,6 +138,8 @@ struct CommandWord {
 }
 
 const COMMANDS: &[CommandSpec] = &[
+
+
     CommandSpec {
         name: "find",
         description: "Find text in the document",
@@ -171,6 +181,16 @@ const COMMANDS: &[CommandSpec] = &[
         usage: ":save",
     },
     CommandSpec {
+        name: "format",
+        description: "Format the focused document now",
+        usage: ":format [provider]",
+    },
+    CommandSpec {
+        name: "formatters",
+        description: "Show matching formatters and availability",
+        usage: ":formatters",
+    },
+    CommandSpec {
         name: "save-as",
         description: "Save under a new name; add ! to overwrite",
         usage: ":save-as[!] path",
@@ -190,6 +210,11 @@ const COMMANDS: &[CommandSpec] = &[
         description: "Close Pötyi",
         usage: ":quit",
     },
+    CommandSpec { name: "hover", description: "Show language-server help at the cursor", usage: ":hover" },
+    CommandSpec { name: "definition", description: "Go to the definition at the cursor", usage: ":definition" },
+    CommandSpec { name: "lsp-back", description: "Return from a definition jump", usage: ":lsp-back" },
+    CommandSpec { name: "lsp-status", description: "Show language-server configuration and sessions", usage: ":lsp-status" },
+    CommandSpec { name: "lsp-stop", description: "Stop all language servers", usage: ":lsp-stop" },
 ];
 
 const FIND_OPTIONS: &[OptionSpec] = &[
@@ -305,6 +330,10 @@ pub(crate) struct CommandBar {
     cursor: usize,
     selected: usize,
     status: Option<String>,
+    formatter_choices: Vec<(String, bool)>,
+    info_lines: Vec<String>,
+    info_offset: usize,
+    epoch: u64,
 }
 
 impl CommandBar {
@@ -315,7 +344,29 @@ impl CommandBar {
             cursor: 0,
             selected: 0,
             status: None,
+            formatter_choices: Vec::new(),
+            info_lines: Vec::new(),
+            info_offset: 0,
+            epoch: 0,
         }
+    }
+
+    pub(crate) fn is_info(&self) -> bool { !self.info_lines.is_empty() }
+
+    pub(crate) fn epoch(&self) -> u64 { self.epoch }
+
+    pub(crate) fn show_info(&mut self, text: &str) {
+        self.info_lines.clear();
+        self.info_offset = 0;
+        self.selected = 0;
+        for line in text.lines() {
+            let line = line.replace('\t', "    ");
+            let chars: Vec<_> = line.chars().filter(|c| !c.is_control()).take(4096).collect();
+            if chars.is_empty() { self.info_lines.push(String::new()); }
+            for chunk in chars.chunks(64) { self.info_lines.push(chunk.iter().collect()); }
+            if self.info_lines.len() >= 256 { self.info_lines.truncate(256); break; }
+        }
+        self.set_status("Up/Down scroll; Escape closes");
     }
 
     pub fn is_active(&self) -> bool {
@@ -349,11 +400,24 @@ impl CommandBar {
         self.status = Some(status.into());
     }
 
+    pub fn show_formatters(&mut self, choices: Vec<(String, bool)>) {
+        self.selected = 0;
+        self.status = Some(if choices.is_empty() {
+            "No matching formatters configured".to_string()
+        } else if choices.len() > MAX_VISIBLE_SUGGESTIONS {
+            format!("First {MAX_VISIBLE_SUGGESTIONS} of {} matches; full list in formatters.toml", choices.len())
+        } else {
+            "Choose a formatter, then Enter to run".to_string()
+        });
+        self.formatter_choices = choices;
+    }
+
     pub fn open(
         &mut self,
         initial: &str,
     ) {
         self.active = true;
+        self.formatter_choices = Vec::new();
         self.input.clear();
 
         if initial.starts_with(':') {
@@ -366,11 +430,16 @@ impl CommandBar {
         self.cursor = self.input.len();
         self.selected = 0;
         self.status = None;
+        self.info_lines.clear();
+        self.epoch = self.epoch.wrapping_add(1);
     }
 
     pub fn close(&mut self) {
         self.active = false;
+        self.formatter_choices = Vec::new();
         self.status = None;
+        self.info_lines.clear();
+        self.epoch = self.epoch.wrapping_add(1);
     }
 
     pub fn insert_text(
@@ -403,6 +472,8 @@ impl CommandBar {
         }
         self.selected = 0;
         self.status = None;
+        self.info_lines.clear();
+        self.epoch = self.epoch.wrapping_add(1);
     }
 
     pub fn backspace(&mut self) {
@@ -423,6 +494,8 @@ impl CommandBar {
         self.cursor = previous;
         self.selected = 0;
         self.status = None;
+        self.info_lines.clear();
+        self.epoch = self.epoch.wrapping_add(1);
     }
 
     pub fn delete(&mut self) {
@@ -444,6 +517,8 @@ impl CommandBar {
 
         self.selected = 0;
         self.status = None;
+        self.info_lines.clear();
+        self.epoch = self.epoch.wrapping_add(1);
     }
 
     pub fn move_left(&mut self) {
@@ -509,6 +584,11 @@ impl CommandBar {
         &mut self,
         direction: isize,
     ) {
+        if !self.info_lines.is_empty() {
+            self.info_offset = if direction < 0 { self.info_offset.saturating_sub(1) }
+                else { (self.info_offset + 1).min(self.info_lines.len().saturating_sub(MAX_VISIBLE_SUGGESTIONS)) };
+            return;
+        }
         let count = self.suggestion_count();
 
         if count == 0 {
@@ -576,6 +656,10 @@ impl CommandBar {
                 self.toggle_option(option);
             }
 
+            SuggestionAction::FormatProvider(index) => {
+                self.input = format!(":format {}", self.formatter_choices[index].0);
+            }
+
             SuggestionAction::None => {
                 return false;
             }
@@ -584,6 +668,10 @@ impl CommandBar {
         self.cursor = self.input.len();
         self.selected = 0;
         self.status = None;
+        self.info_lines.clear();
+        self.epoch = self.epoch.wrapping_add(1);
+
+        self.formatter_choices = Vec::new();
 
         true
     }
@@ -600,7 +688,20 @@ impl CommandBar {
     pub fn suggestion(
         &self,
         visible_index: usize,
-    ) -> Option<CommandSuggestion> {
+    ) -> Option<CommandSuggestion<'_>> {
+        if !self.info_lines.is_empty() {
+            return self.info_lines.get(self.info_offset + visible_index).map(|line| CommandSuggestion {
+                label: line, description: "", active: false, action: SuggestionAction::None,
+            });
+        }
+        if self.input.trim() == ":formatters" && !self.formatter_choices.is_empty() {
+            return self.formatter_choices.get(visible_index).map(|(name, available)| CommandSuggestion {
+                label: name,
+                description: if *available { "Available; select to format" } else { "Missing; install or configure executable" },
+                active: false,
+                action: SuggestionAction::FormatProvider(visible_index),
+            });
+        }
         let body =
             self.input
                 .strip_prefix(':')
@@ -849,7 +950,7 @@ impl CommandBar {
 fn setting_suggestion(
     body: &str,
     visible_index: usize,
-) -> Option<CommandSuggestion> {
+) -> Option<CommandSuggestion<'_>> {
     let setting =
         body.strip_prefix("set")?
             .trim_start();
@@ -1315,6 +1416,30 @@ fn parse_command(
             Ok(ParsedCommand::Split)
         }
 
+        "format" => {
+            reject_search_options(search_option_used, backward, all)?;
+            if arguments.len() > 1 || arguments.first().is_some_and(|name| name.is_empty()) {
+                return Err("Usage: :format [provider]".to_string());
+            }
+            Ok(ParsedCommand::Format { provider: arguments.into_iter().next() })
+        }
+
+        "hover" | "definition" | "lsp-back" | "lsp-status" | "lsp-stop" => {
+            reject_no_arguments(command, &arguments, search_option_used, backward, all)?;
+            Ok(match command.as_str() {
+                "hover" => ParsedCommand::Hover,
+                "definition" => ParsedCommand::Definition,
+                "lsp-back" => ParsedCommand::LspBack,
+                "lsp-status" => ParsedCommand::LspStatus,
+                _ => ParsedCommand::LspStop,
+            })
+        }
+
+        "formatters" => {
+            reject_no_arguments(command, &arguments, search_option_used, backward, all)?;
+            Ok(ParsedCommand::Formatters)
+        }
+
         "extract-config" => {
             reject_no_arguments(
                 command,
@@ -1720,6 +1845,61 @@ fn next_char_boundary(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lsp_commands_are_explicit_and_reject_extra_arguments() {
+        for (name, expected) in [
+            ("hover", ParsedCommand::Hover), ("definition", ParsedCommand::Definition),
+            ("lsp-back", ParsedCommand::LspBack), ("lsp-status", ParsedCommand::LspStatus),
+            ("lsp-stop", ParsedCommand::LspStop),
+        ] {
+            assert_eq!(parse_command(&format!(":{name}")).unwrap(), expected);
+            for extra in ["extra", "--all", "--regex", "--rel"] {
+                assert!(parse_command(&format!(":{name} {extra}")).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn informational_results_scroll_and_clear_on_input() {
+        let mut bar = CommandBar::new();
+        bar.open(":hover");
+        let epoch = bar.epoch();
+        bar.show_info(&(0..20).map(|n| format!("Line {n}")).collect::<Vec<_>>().join("\n"));
+        assert_eq!(bar.epoch(), epoch);
+        assert_eq!(bar.suggestion(0).unwrap().label, "Line 0");
+        bar.move_selection(1);
+        assert_eq!(bar.suggestion(0).unwrap().label, "Line 1");
+        assert!(!bar.apply_selected());
+        bar.insert_text("x");
+        assert!(!bar.is_info());
+        assert_ne!(bar.epoch(), epoch);
+    }
+
+    #[test]
+    fn formatting_commands_are_explicit_and_reject_extra_options() {
+        assert_eq!(parse_command(":format").unwrap(), ParsedCommand::Format { provider: None });
+        assert_eq!(parse_command(":format rustfmt").unwrap(), ParsedCommand::Format { provider: Some("rustfmt".into()) });
+        assert_eq!(parse_command(":formatters").unwrap(), ParsedCommand::Formatters);
+        for input in [":format one two", ":format --all", ":format --regex", ":format --rel", ":formatters rustfmt"] {
+            assert!(parse_command(input).is_err(), "{input}");
+        }
+    }
+
+    #[test]
+    fn formatter_results_are_selectable_without_running_on_selection() {
+        let mut bar = CommandBar::new();
+        bar.open(":formatters");
+        bar.show_formatters(vec![("rustfmt".into(), true), ("ruff".into(), false)]);
+        assert_eq!(bar.suggestion_count(), 2);
+        assert_eq!(bar.suggestion(0).unwrap().label, "rustfmt");
+        assert!(bar.suggestion(1).unwrap().description.starts_with("Missing"));
+        assert!(bar.apply_suggestion(0));
+        assert_eq!(bar.input(), ":format rustfmt");
+        assert!(bar.formatter_choices.is_empty());
+        bar.close();
+        assert!(bar.formatter_choices.is_empty());
+    }
 
     #[test]
     fn save_as_commands_parse_paths_and_overwrite_intent() {

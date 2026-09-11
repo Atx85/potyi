@@ -44,6 +44,9 @@ mod dpi_text;
 mod clipboard;
 mod command_bar;
 mod embedded_config;
+mod formatting;
+mod lsp;
+mod lsp_ui;
 mod keybindings;
 mod line_numbers;
 mod piece_table;
@@ -52,6 +55,7 @@ mod search;
 mod search_ui;
 mod window;
 mod syntax;
+mod syntax_core;
 mod config;
 mod terminal;
 mod terminal_layout;
@@ -410,6 +414,52 @@ fn save(&mut self) -> io::Result<()> {
         Ok(())
     }
 
+    fn apply_formatted(
+        &mut self,
+        output: &mut (impl io::Read + io::Seek),
+    ) -> io::Result<bool> {
+        if self.read_only {
+            return Err(io::Error::new(io::ErrorKind::PermissionDenied, "This file is open for viewing"));
+        }
+        let before = self.cursor_state();
+        output.rewind()?;
+        let [cursor, anchor] = formatting::map_positions(output, [
+            (before.line, before.column), (before.anchor_line, before.anchor_column),
+        ])?;
+        if output.stream_position()? == 0 && self.document.len() != 0 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Formatter returned empty output; document preserved"));
+        }
+        output.rewind()?;
+        let Some(snapshot) = self.document.replace_from_reader(output, formatting::MAX_OUTPUT_BYTES)? else {
+            return Ok(false);
+        };
+        let after = CursorState {
+            position: cursor.byte, line: cursor.line, column: cursor.column,
+            anchor: anchor.byte, anchor_line: anchor.line, anchor_column: anchor.column,
+            desired_column: None,
+        };
+        self.restore_cursor(after);
+        self.undo_stack.push(HistoryEntry { kind: HistoryKind::Snapshot(snapshot), before, after });
+        self.redo_stack.clear();
+        self.dirty = true;
+        Ok(true)
+    }
+
+    fn format_document(&mut self, name: Option<&str>) -> io::Result<(String, bool)> {
+        if self.read_only {
+            return Err(io::Error::new(io::ErrorKind::PermissionDenied, "This file is open for viewing"));
+        }
+        if self.document.len() > formatting::MAX_INPUT_BYTES {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Formatting is limited to documents up to 2 MiB"));
+        }
+        let config = formatting::Formatters::load(std::path::Path::new("config/formatters.toml"))?;
+        let (provider, executable) = config.select(self.path.as_deref(), name)?;
+        let scratch = formatting::Scratch::create()?;
+        let mut output = formatting::run(provider, &executable, self.path.as_deref(), &self.document, &scratch)?;
+        let changed = self.apply_formatted(&mut output)?;
+        Ok((provider.name.clone(), changed))
+    }
+
     fn execute(
         &mut self,
         command: Command,
@@ -491,7 +541,7 @@ fn save(&mut self) -> io::Result<()> {
             Command::Quit =>
                 Ok(()),
 
-            Command::SaveAs => Ok(()), // Opens the command bar in the event loop.
+            Command::SaveAs | Command::FormatDocument => Ok(()), // Handled in the event loop.
         }
     }
 
@@ -1725,7 +1775,9 @@ fn execute_command_bar(
     other_editor: &mut Editor,
     renderer: &mut Renderer<'_>,
     terminal: &mut Terminal,
+    vim: &mut VimController,
     reverse_find: bool,
+    lsp_ui: &mut lsp_ui::LspUi,
 ) -> CommandOutcome {
     let mut outcome =
         CommandOutcome::default();
@@ -1910,6 +1962,36 @@ fn execute_command_bar(
             outcome.toggle_split = true;
         }
 
+        Ok(ParsedCommand::Format { provider }) => {
+            outcome.document_changed = run_format_command(editor, search_ui, command_bar, vim, provider.as_deref());
+            outcome.cursor_changed = outcome.document_changed;
+            if outcome.document_changed && editor.config.keybinding_mode == KeybindingMode::Vim {
+                renderer.set_mode_label(Some(vim.mode_label()));
+            }
+        }
+
+        Ok(ParsedCommand::Hover) | Ok(ParsedCommand::Definition) => {
+            let action = if matches!(command_bar.parse(), Ok(ParsedCommand::Hover)) { lsp::Action::Hover } else { lsp::Action::Definition };
+            if let Err(error) = lsp_ui.request(action, editor, other_editor, command_bar) {
+                command_bar.show_info(&error);
+            }
+        }
+        Ok(ParsedCommand::LspBack) => {
+            match lsp_ui.go_back(editor, other_editor) {
+                Ok(result) => { command_bar.close(); search_ui.close(); outcome = result; }
+                Err(error) => command_bar.show_info(&error),
+            }
+        }
+        Ok(ParsedCommand::LspStatus) => command_bar.show_info(&lsp_ui.status(editor)),
+        Ok(ParsedCommand::LspStop) => { lsp_ui.stop(); command_bar.show_info("Language servers stopped"); }
+
+        Ok(ParsedCommand::Formatters) => {
+            match formatting::Formatters::load(std::path::Path::new("config/formatters.toml")) {
+                Ok(config) => command_bar.show_formatters(config.choices(editor.path.as_deref())),
+                Err(error) => command_bar.set_status(error.to_string()),
+            }
+        }
+
         Ok(ParsedCommand::ExtractConfig) => {
             match embedded_config::extract_defaults(
                 std::path::Path::new("config")
@@ -1980,6 +2062,30 @@ fn execute_command_bar(
     }
 
     outcome
+}
+
+fn run_format_command(
+    editor: &mut Editor,
+    search_ui: &mut SearchUi,
+    command_bar: &mut CommandBar,
+    vim: &mut VimController,
+    provider: Option<&str>,
+) -> bool {
+    match editor.format_document(provider) {
+        Ok((name, changed)) => {
+            if changed && editor.config.keybinding_mode == KeybindingMode::Vim {
+                vim.finish_formatting(editor);
+            }
+            if changed { search_ui.close(); }
+            command_bar.set_status(if changed {
+                format!("Formatted with {name}; Ctrl+Z undoes the change")
+            } else {
+                format!("Already formatted ({name})")
+            });
+            changed
+        }
+        Err(error) => { command_bar.set_status(error.to_string()); false }
+    }
 }
 
 fn save_as_in_pane(
@@ -2371,6 +2477,9 @@ if let Some(path) = editor.path.as_deref() {
             error.to_string()
         })?;
 
+    event_subsystem.register_custom_event::<lsp::Event>().map_err(|e| e.to_string())?;
+    let mut lsp_ui = lsp_ui::LspUi::new(event_subsystem.clone());
+
     let mut event_pump =
         sdl.event_pump()
             .map_err(|e| e.to_string())?;
@@ -2415,6 +2524,25 @@ if let Some(path) = editor.path.as_deref() {
                     .map_err(|error| {
                         error.to_string()
                     })?;
+                dirty = true;
+                continue;
+            }
+
+            if let Some(event) = event.as_user_event_type::<lsp::Event>() {
+                let outcome = lsp_ui.accept(event, &mut editor, &mut other_editor, &mut command_bar);
+                if outcome.focus_other {
+                    focus_pane(1 - active_pane, &mut active_pane, &mut editor, &mut other_editor,
+                        &mut vim, &mut other_vim, &mut renderer);
+                }
+                if outcome.cursor_changed {
+                    search_ui.close();
+                    if vim_enabled && outcome.document_reloaded { vim.reset(); }
+                    renderer.set_file_path(editor.path.as_deref());
+                    renderer.set_mode_label(vim_enabled.then_some(vim.mode_label()));
+                    renderer.invalidate_scroll_cache();
+                    renderer.update_cursor(&editor.document);
+                    renderer.ensure_cursor_visible(&mut editor.document);
+                }
                 dirty = true;
                 continue;
             }
@@ -2697,7 +2825,9 @@ Event::MouseButtonDown {
                                 &mut other_editor,
                                 &mut renderer,
                                 &mut terminal,
+                                &mut vim,
                                 false,
+                                &mut lsp_ui,
                             )
                         };
 
@@ -3217,9 +3347,11 @@ Event::MouseMotion {
                                         &mut other_editor,
                                         &mut renderer,
                                         &mut terminal,
+                                        &mut vim,
                                         shift_pressed(
                                             keymod
                                         ),
+                                        &mut lsp_ui,
                                     );
                                 }
                             }
@@ -3421,6 +3553,17 @@ Event::MouseMotion {
 
                         let redraw =
                             match command {
+                                Command::FormatDocument => {
+                                    command_bar.open(":format");
+                                    document_changed = run_format_command(
+                                        &mut editor, &mut search_ui, &mut command_bar, &mut vim, None,
+                                    );
+                                    if document_changed && vim_enabled {
+                                        renderer.set_mode_label(Some(vim.mode_label()));
+                                    }
+                                    true
+                                }
+
                                 Command::SaveAs => {
                                     command_bar.open(":save-as ");
                                     search_ui.close();
@@ -3749,6 +3892,8 @@ Event::MouseMotion {
                 _ => {}
             }
         }
+
+        lsp_ui.reconcile(&editor, &other_editor);
 
         if dirty {
             let start =

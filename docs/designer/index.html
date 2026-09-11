@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Design syntax colors for Pötyi, preview your rules, and download a ready-to-use language definition. Everything stays in your browser.">
+  <meta name="theme-color" content="#161817">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+  <title>Syntax designer · Pötyi</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="designer.css">
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to designer</a>
+  <header class="header">
+    <a class="brand" href="../"><img src="../favicon.svg" width="30" height="30" alt="">Pötyi <span>/</span> <strong>Syntax designer</strong></a>
+    <a class="back-link" href="../">Back to Pötyi <span aria-hidden="true">↗</span></a>
+  </header>
+  <main>
+    <section class="intro">
+      <div><p class="eyebrow">A LITTLE MORE YOU</p><h1>Make code feel like home<span>.</span></h1><p>Pick a language. Find your colors. Take them into Pötyi.</p></div>
+      <div class="local-note"><span class="status-dot"></span>Made here. Stays here.<small>No account. No uploads.</small></div>
+    </section>
+    <noscript><p class="notice error">Enable JavaScript to use the designer. The preview also requires WebAssembly.</p></noscript>
+    <p id="engine-status" class="notice" role="status">Loading the highlighting engine…</p>
+    <div id="workspace" class="workspace" aria-busy="true">
+      <section class="settings panel" aria-labelledby="setup-heading">
+        <div class="section-heading"><h2 id="setup-heading"><span>01</span> Your language</h2><label class="text-button import-label" for="import-file">Import .toml <span aria-hidden="true">↥</span></label><input id="import-file" class="visually-hidden" type="file" accept=".toml,text/plain,application/toml"></div>
+        <label for="preset">Start with a definition</label>
+        <select id="preset" disabled><option>Loading languages…</option></select>
+        <div class="field-pair">
+          <div><label for="language-name">Language name</label><input id="language-name" maxlength="80" value="Python" autocomplete="off"></div>
+          <div><label for="extensions">File extensions</label><input id="extensions" value="py, pyw, pyi" placeholder="py, pyi" autocomplete="off" aria-describedby="extensions-hint"></div>
+        </div>
+        <p class="field-hint" id="extensions-hint">Separate extensions with commas. No leading dots.</p>
+        <div class="section-heading rules-heading"><h2><span>02</span> The details <small id="rule-count"></small></h2><button id="add-rule" class="text-button" type="button">+ Add rule</button></div>
+        <p class="field-hint rule-hint">Pick a color, or select a rule to edit its pattern.</p>
+        <div id="rule-list" class="rule-list" aria-label="Highlighting rules"></div>
+        <div class="rule-editor">
+          <div class="edit-heading"><span id="editing-label">Editing rule</span><div class="rule-actions"><button id="move-up" type="button" aria-label="Move selected rule up" title="Move up">↑</button><button id="move-down" type="button" aria-label="Move selected rule down" title="Move down">↓</button><button id="remove-rule" type="button" class="remove" aria-label="Remove selected rule" title="Remove rule">Remove</button></div></div>
+          <div class="field-pair rule-fields"><div><label for="rule-name">Rule name</label><input id="rule-name" maxlength="80" autocomplete="off"></div><div><label for="rule-color">Hex color</label><input id="rule-color" maxlength="7" spellcheck="false" autocomplete="off"></div></div>
+          <label for="rule-pattern">Match pattern <span class="optional">Rust regex</span></label>
+          <textarea id="rule-pattern" rows="3" maxlength="4096" spellcheck="false" aria-describedby="pattern-hint"></textarea>
+          <p class="field-hint" id="pattern-hint">One line at a time. Look-around and backreferences aren’t supported.</p>
+        </div>
+      </section>
+      <section class="preview-column" aria-labelledby="preview-heading">
+        <div class="preview panel">
+          <div class="section-heading preview-heading"><h2 id="preview-heading"><span>03</span> See it in code</h2><span class="engine-badge"><span class="status-dot"></span>Pötyi engine</span></div>
+          <div class="preview-toolbar"><span class="sample-filename" id="sample-filename">example.py</span><div class="tabs" role="tablist" aria-label="Sample view"><button id="preview-tab" role="tab" aria-selected="true" aria-controls="preview-view" type="button">Preview</button><button id="sample-tab" role="tab" aria-selected="false" aria-controls="sample-view" tabindex="-1" type="button">Edit sample</button></div></div>
+          <div id="preview-view" class="code-view" role="tabpanel" aria-labelledby="preview-tab" tabindex="0"><pre id="preview-code" aria-label="Highlighted sample"></pre></div>
+          <div id="sample-view" role="tabpanel" aria-labelledby="sample-tab" hidden><label class="visually-hidden" for="sample-text">Sample code (up to 16 KiB)</label><textarea id="sample-text" class="sample-editor" spellcheck="false" maxlength="16384"></textarea></div>
+          <div class="preview-footer"><span id="preview-stats">Your changes appear here</span><span>Line-based highlighting</span></div>
+        </div>
+        <p id="validation" class="validation" role="status" aria-live="polite">Preparing your definition…</p>
+        <div class="download-card"><div><p class="eyebrow">READY TO MAKE IT YOURS</p><strong id="download-name">syntax_python.toml</strong><p id="download-detail">A language definition, ready for Pötyi.</p></div><button id="download" class="primary-button" type="button" disabled>Download .toml <span aria-hidden="true">↓</span></button></div>
+        <details class="export-details"><summary>Inspect the exported file</summary><div class="export-top"><span>TOML · UTF-8</span><button id="copy-toml" class="text-button" type="button" disabled>Copy file contents</button></div><pre id="export-code"></pre></details>
+      </section>
+    </div>
+    <section class="install" aria-labelledby="install-heading"><div class="install-intro"><p class="eyebrow">FROM HERE TO YOUR EDITOR</p><h2 id="install-heading">Three steps. Your colors.</h2><p>No plugin installation needed.</p></div><ol><li><span>1</span><div><h3>Extract your settings</h3><p>In Pötyi, run <code>:extract-config</code> to create the <code>config/syntax/</code> folder.</p></div></li><li><span>2</span><div><h3>Add the downloaded file</h3><p>Place it in that folder, beneath Pötyi’s working directory. When changing an existing language, replace its matching definition so each extension has one custom definition.</p></div></li><li><span>3</span><div><h3>Reopen your document</h3><p>Pötyi selects the definition by its file extension. Open the file again to see your changes.</p></div></li></ol></section>
+    <details class="limitations"><summary>A note about previews and long files</summary><p>The preview uses the same Rust regex matcher, overlap handling, and UTF-8 offsets as Pötyi. Each line is limited to 16 KiB and 1,024 candidate matches. The designer accepts up to 32 rules and shows the first 200 lines of a sample up to 16 KiB. Large or complex patterns may reach its compilation limit.</p><p>Highlighting is line-based: multiline strings, comments, and embedded languages are approximate. Colors may also look different with another font or display. Changes stay in this tab until you download them; reloading starts fresh.</p></details>
+  </main>
+  <footer><span>Pötyi · Small editor. Personal touches.</span><a href="https://github.com/Atx85/potyi">Source on GitHub ↗</a></footer>
+  <script type="module" src="designer.js"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+# Lightweight, line-based highlighting; see docs/syntax-highlighting.md.
+
+[syntax]
+name = "C#"
+extensions = ["cs", "csx"]
+
+[[syntax.rules]]
+name = "comment"
+pattern = "//.*$|/\\*.*?(?:\\*/|$)"
+color = "#6A9955"
+
+[[syntax.rules]]
+name = "string"
+pattern = "(?:\\$?@|@\\$)\"(?:[^\"]|\"\")*\"|\\$?\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'"
+color = "#CE9178"
+
+[[syntax.rules]]
+name = "directive"
+pattern = "^\\s*#\\s*[A-Za-z_][A-Za-z0-9_]*"
+color = "#C586C0"
+
+[[syntax.rules]]
+name = "constant"
+pattern = "\\b(?:true|false|null)\\b"
+color = "#4FC1FF"
+
+[[syntax.rules]]
+name = "number"
+pattern = "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b"
+color = "#B5CEA8"
+
+[[syntax.rules]]
+name = "keyword"
+pattern = "\\b(?:abstract|as|async|await|base|break|case|catch|checked|class|const|continue|default|delegate|do|else|enum|event|explicit|extern|finally|fixed|for|foreach|goto|if|implicit|in|init|interface|internal|is|lock|namespace|new|operator|out|override|params|partial|private|protected|public|readonly|record|ref|required|return|scoped|sealed|sizeof|stackalloc|static|struct|switch|this|throw|try|typeof|unchecked|unsafe|using|virtual|void|volatile|when|where|while|with|yield)\\b"
+color = "#569CD6"
+
+[[syntax.rules]]
+name = "type"
+pattern = "\\b(?:bool|byte|char|decimal|double|dynamic|float|int|long|nint|nuint|object|sbyte|short|string|uint|ulong|ushort|var)\\b"
+color = "#4EC9B0"

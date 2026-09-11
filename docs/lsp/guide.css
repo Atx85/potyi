@@ -1,0 +1,58 @@
+.guide-page .site-header { gap: 1.5rem; }
+.guide-page .site-header nav { flex-wrap: wrap; gap: .75rem 1.5rem; }
+.guide-page nav a:first-child { display: inline; }
+.guide-page a[aria-current="page"] { color: var(--accent-strong); }
+.guide-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: clamp(2rem, 6vw, 6rem); align-items: start; padding: 4rem 0 5rem; }
+.guide-sidebar { position: sticky; top: 2rem; padding-top: .4rem; }
+.guide-sidebar .eyebrow { font-size: .875rem; }
+.guide-sidebar nav { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 2rem; }
+.guide-sidebar nav a { font-size: .9375rem; }
+.plain-link { color: var(--muted); font-size: .875rem; text-underline-offset: .25em; }
+.guide-content { min-width: 0; max-width: 810px; }
+.guide-heading h1 { margin-bottom: 1.5rem; font-size: clamp(2.75rem, 6vw, 5rem); line-height: 1.03; }
+.guide-heading .intro { max-width: 620px; }
+.guide-content p, .guide-content li { overflow-wrap: anywhere; }
+.guide-content p { color: #c8d0ca; }
+.guide-content strong { color: var(--ink); }
+.guide-content a { color: var(--accent-strong); text-underline-offset: .2em; }
+.guide-content a:hover { color: var(--ink); }
+.version-note { border-left: 3px solid var(--accent); background: var(--surface); padding: 1.1rem 1.25rem; }
+.guide-content section { margin-top: 3.5rem; padding-top: 2rem; border-top: 1px solid var(--line); scroll-margin-top: 1.5rem; }
+.guide-content h2 { font-size: clamp(1.65rem, 3vw, 2.25rem); line-height: 1.2; letter-spacing: -.035em; margin-bottom: 1.5rem; }
+.guide-content h3 { margin: 1.8rem 0 .6rem; font-size: 1.15rem; line-height: 1.4; }
+.steps { padding-left: 1.65rem; }
+.steps > li { padding-left: .6rem; margin-bottom: 1.7rem; }
+.steps > li::marker { color: var(--accent); font-weight: 750; }
+.steps h3 { margin-top: 0; }
+.guide-content code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .9em; color: #d4ebdc; }
+.guide-content p code, .guide-content td code { background: #202721; padding: .12em .3em; border-radius: 3px; }
+.guide-content pre { max-width: 100%; overflow: auto; padding: 1.4rem; margin: 1.2rem 0 2rem; background: #111612; border: 1px solid var(--line); border-radius: 6px; line-height: 1.7; tab-size: 2; }
+.guide-content pre code { font-size: .875rem; }
+.guide-content details { padding: 1.1rem 0; border-bottom: 1px solid var(--line); }
+.guide-content summary { cursor: pointer; font-weight: 650; color: var(--ink); }
+.guide-content details p { margin: 1rem 0 0; }
+.table-wrap { max-width: 100%; overflow-x: auto; margin-bottom: 1.5rem; }
+.guide-content table { width: 100%; border-collapse: collapse; text-align: left; background: rgba(32, 35, 33, .6); }
+.guide-content th, .guide-content td { padding: .9rem 1rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.guide-content thead th { color: var(--muted); font-size: .875rem; }
+.guide-content tbody th { white-space: nowrap; font-weight: 550; }
+.guide-content td { color: #c8d0ca; }
+.guide-page :focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.guide-end { margin: 3rem 0 0; }
+.language-index { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1.5rem 0 2rem; }
+.language-index a { border: 1px solid var(--line); border-radius: 4px; padding: .5rem .75rem; font-size: .9rem; }
+.guide-content .language-recipe { margin-top: 2rem; padding-top: 1rem; }
+.language-recipe h3 { font-size: 1.35rem; }
+@media (max-width: 800px) {
+  .guide-layout { grid-template-columns: minmax(0, 1fr); gap: 2.5rem; padding-top: 2rem; }
+  .guide-sidebar { position: static; padding-bottom: 1.5rem; border-bottom: 1px solid var(--line); }
+  .guide-sidebar nav { flex-direction: row; flex-wrap: wrap; gap: .6rem 1.2rem; margin-bottom: 1rem; }
+  .guide-heading h1 br { display: none; }
+}
+@media (max-width: 480px) {
+  .guide-page .site-header { flex-direction: column; align-items: flex-start; padding: 1rem 0; gap: .8rem; }
+  .guide-page .site-header, .guide-layout { width: calc(100% - 2rem); }
+  .guide-content pre { padding: 1rem; }
+  .guide-content th, .guide-content td { padding: .75rem; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

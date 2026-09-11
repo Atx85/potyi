@@ -1,6 +1,6 @@
 [syntax]
 name = "JavaScript"
-extensions = ["js", "jsx", "vue"]
+extensions = ["js", "jsx", "mjs", "cjs", "vue"]
 
 # ==========================================================================
 # Comments

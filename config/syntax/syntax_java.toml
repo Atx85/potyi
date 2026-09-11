@@ -1,0 +1,40 @@
+# Lightweight, line-based highlighting; see docs/syntax-highlighting.md.
+
+[syntax]
+name = "Java"
+extensions = ["java"]
+
+[[syntax.rules]]
+name = "comment"
+pattern = "//.*$|/\\*.*?(?:\\*/|$)"
+color = "#6A9955"
+
+[[syntax.rules]]
+name = "string"
+pattern = "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'"
+color = "#CE9178"
+
+[[syntax.rules]]
+name = "directive"
+pattern = "@[A-Za-z_][\\w.]*"
+color = "#C586C0"
+
+[[syntax.rules]]
+name = "constant"
+pattern = "\\b(?:true|false|null)\\b"
+color = "#4FC1FF"
+
+[[syntax.rules]]
+name = "number"
+pattern = "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b"
+color = "#B5CEA8"
+
+[[syntax.rules]]
+name = "keyword"
+pattern = "\\b(?:abstract|assert|break|case|catch|class|const|continue|default|do|else|enum|exports|extends|final|finally|for|goto|if|implements|import|instanceof|interface|module|native|new|non-sealed|open|opens|package|permits|private|protected|provides|public|record|requires|return|sealed|static|strictfp|super|switch|synchronized|this|throw|throws|to|transient|transitive|try|uses|var|volatile|when|while|with|yield)\\b"
+color = "#569CD6"
+
+[[syntax.rules]]
+name = "type"
+pattern = "\\b(?:boolean|byte|char|double|float|int|long|short|void)\\b"
+color = "#4EC9B0"

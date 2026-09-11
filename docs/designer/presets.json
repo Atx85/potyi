@@ -1,0 +1,964 @@
+[
+  {
+    "filename": "syntax_c.toml",
+    "definition": {
+      "name": "C",
+      "extensions": [
+        "c",
+        "h"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "//.*$|/\\*.*?(?:\\*/|$)",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "directive",
+          "pattern": "^\\s*#\\s*[A-Za-z_][A-Za-z0-9_]*",
+          "color": "#C586C0"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b(?:true|false|nullptr|NULL)\\b",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(?:alignas|alignof|auto|break|case|const|constexpr|continue|default|do|else|enum|extern|for|goto|if|inline|register|restrict|return|sizeof|static|static_assert|struct|switch|thread_local|typedef|typeof|typeof_unqual|union|volatile|while|_Alignas|_Alignof|_Atomic|_Generic|_Noreturn|_Static_assert|_Thread_local)\\b",
+          "color": "#569CD6"
+        },
+        {
+          "name": "type",
+          "pattern": "\\b(?:bool|char|double|float|int|long|short|signed|unsigned|void|_Bool|_Complex|_Imaginary|size_t|ptrdiff_t)\\b",
+          "color": "#4EC9B0"
+        }
+      ]
+    },
+    "sample": "/* A small welcome, in C. */\n#include <stdio.h>\n#define MAX_GUESTS 32\n\nint main(void) {\n    const char *name = \"Ada\";\n    int visits = 1;\n\n    if (visits < MAX_GUESTS) {\n        printf(\"Hello, %s!\\n\", name);\n    }\n    return 0;\n}\n"
+  },
+  {
+    "filename": "syntax_cpp.toml",
+    "definition": {
+      "name": "C++",
+      "extensions": [
+        "cc",
+        "cpp",
+        "cxx",
+        "c++",
+        "hh",
+        "hpp",
+        "hxx",
+        "h++"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "//.*$|/\\*.*?(?:\\*/|$)",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "directive",
+          "pattern": "^\\s*#\\s*[A-Za-z_][A-Za-z0-9_]*",
+          "color": "#C586C0"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b(?:true|false|nullptr|NULL)\\b",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(?:alignas|alignof|auto|break|case|const|constexpr|continue|default|do|else|enum|extern|for|goto|if|inline|register|restrict|return|sizeof|static|static_assert|struct|switch|thread_local|typedef|typeof|typeof_unqual|union|volatile|while|_Alignas|_Alignof|_Atomic|_Generic|_Noreturn|_Static_assert|_Thread_local|asm|catch|class|concept|consteval|constinit|const_cast|co_await|co_return|co_yield|decltype|delete|dynamic_cast|explicit|export|final|friend|mutable|namespace|new|noexcept|operator|override|private|protected|public|reinterpret_cast|requires|static_cast|template|this|throw|try|typename|using|virtual)\\b",
+          "color": "#569CD6"
+        },
+        {
+          "name": "type",
+          "pattern": "\\b(?:bool|char|double|float|int|long|short|signed|unsigned|void|_Bool|_Complex|_Imaginary|size_t|ptrdiff_t|wchar_t|char8_t|char16_t|char32_t)\\b",
+          "color": "#4EC9B0"
+        }
+      ]
+    },
+    "sample": "// A small welcome, in C++.\n#include <iostream>\n#include <string>\n\nclass Greeting {\npublic:\n    explicit Greeting(std::string name) : name_(name) {}\n    void show() const {\n        std::cout << \"Hello, \" << name_ << \"!\";\n    }\nprivate:\n    std::string name_;\n};\n"
+  },
+  {
+    "filename": "syntax_csharp.toml",
+    "definition": {
+      "name": "C#",
+      "extensions": [
+        "cs",
+        "csx"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "//.*$|/\\*.*?(?:\\*/|$)",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "(?:\\$?@|@\\$)\"(?:[^\"]|\"\")*\"|\\$?\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "directive",
+          "pattern": "^\\s*#\\s*[A-Za-z_][A-Za-z0-9_]*",
+          "color": "#C586C0"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b(?:true|false|null)\\b",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(?:abstract|as|async|await|base|break|case|catch|checked|class|const|continue|default|delegate|do|else|enum|event|explicit|extern|finally|fixed|for|foreach|goto|if|implicit|in|init|interface|internal|is|lock|namespace|new|operator|out|override|params|partial|private|protected|public|readonly|record|ref|required|return|scoped|sealed|sizeof|stackalloc|static|struct|switch|this|throw|try|typeof|unchecked|unsafe|using|virtual|void|volatile|when|where|while|with|yield)\\b",
+          "color": "#569CD6"
+        },
+        {
+          "name": "type",
+          "pattern": "\\b(?:bool|byte|char|decimal|double|dynamic|float|int|long|nint|nuint|object|sbyte|short|string|uint|ulong|ushort|var)\\b",
+          "color": "#4EC9B0"
+        }
+      ]
+    },
+    "sample": "// A small welcome, in C#.\nusing System;\n\npublic record Greeting(string Name)\n{\n    public string Message() => $\"Hello, {Name}!\";\n}\n\nvar visitor = new Greeting(\"Ada\");\nvar enabled = true;\n\nif (enabled)\n{\n    Console.WriteLine(visitor.Message());\n}\n"
+  },
+  {
+    "filename": "syntax_css.toml",
+    "definition": {
+      "name": "CSS",
+      "extensions": [
+        "css"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "/\\*.*?(?:\\*/|$)",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "directive",
+          "pattern": "@[A-Za-z-]+|!important\\b",
+          "color": "#C586C0"
+        },
+        {
+          "name": "property",
+          "pattern": "(?:--)?[A-Za-z][A-Za-z-]*\\s*:",
+          "color": "#9CDCFE"
+        },
+        {
+          "name": "constant",
+          "pattern": "#[0-9a-fA-F]{3,8}\\b",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b[0-9]+(?:\\.[0-9]+)?(?:[A-Za-z]+|%)?",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "type",
+          "pattern": "[.#][A-Za-z_-][A-Za-z0-9_-]*",
+          "color": "#4EC9B0"
+        }
+      ]
+    },
+    "sample": "/* A small welcome, styled your way. */\n:root {\n  --accent: #a3e3b5;\n}\n\n.greeting {\n  color: #edf3ec;\n  background: #161817;\n  padding: 24px;\n  border-radius: 12px;\n}\n\n@media (max-width: 600px) {\n  .greeting { padding: 16px; }\n}\n"
+  },
+  {
+    "filename": "syntax_go.toml",
+    "definition": {
+      "name": "Go",
+      "extensions": [
+        "go"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "//.*$|/\\*.*?(?:\\*/|$)",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "string",
+          "pattern": "`[^`]*`",
+          "color": "#CE9178"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b(?:true|false|nil|iota)\\b",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(?:break|case|chan|const|continue|default|defer|else|fallthrough|for|func|go|goto|if|import|interface|map|package|range|return|select|struct|switch|type|var)\\b",
+          "color": "#569CD6"
+        },
+        {
+          "name": "type",
+          "pattern": "\\b(?:any|bool|byte|comparable|complex64|complex128|error|float32|float64|int|int8|int16|int32|int64|rune|string|uint|uint8|uint16|uint32|uint64|uintptr)\\b",
+          "color": "#4EC9B0"
+        }
+      ]
+    },
+    "sample": "// A small welcome, in Go.\npackage main\n\nimport \"fmt\"\n\ntype Visitor struct {\n    Name string\n    Visits int\n}\n\nfunc main() {\n    visitor := Visitor{Name: \"Ada\", Visits: 1}\n    fmt.Printf(\"Hello, %s!\\n\", visitor.Name)\n}\n"
+  },
+  {
+    "filename": "syntax_html.toml",
+    "definition": {
+      "name": "HTML",
+      "extensions": [
+        "html",
+        "htm",
+        "xhtml"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "<!--.*?(?:-->|$)",
+          "color": "#6A9955"
+        },
+        {
+          "name": "directive",
+          "pattern": "(?i:<!DOCTYPE\\b[^>]*>)",
+          "color": "#C586C0"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "keyword",
+          "pattern": "</?[A-Za-z][A-Za-z0-9:-]*|/?>",
+          "color": "#569CD6"
+        },
+        {
+          "name": "property",
+          "pattern": "\\b[A-Za-z_:][A-Za-z0-9_:.-]*\\s*=",
+          "color": "#9CDCFE"
+        },
+        {
+          "name": "constant",
+          "pattern": "&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#x[0-9a-fA-F]+);",
+          "color": "#4FC1FF"
+        }
+      ]
+    },
+    "sample": "<!DOCTYPE html>\n<html lang=\"en\">\n  <head>\n    <title>A small welcome</title>\n  </head>\n  <body>\n    <!-- Make yourself at home. -->\n    <main class=\"greeting\">\n      <h1>Hello, Ada!</h1>\n      <p>Quiet tools &amp; good coffee.</p>\n    </main>\n  </body>\n</html>\n"
+  },
+  {
+    "filename": "syntax_java.toml",
+    "definition": {
+      "name": "Java",
+      "extensions": [
+        "java"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "//.*$|/\\*.*?(?:\\*/|$)",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "directive",
+          "pattern": "@[A-Za-z_][\\w.]*",
+          "color": "#C586C0"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b(?:true|false|null)\\b",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(?:abstract|assert|break|case|catch|class|const|continue|default|do|else|enum|exports|extends|final|finally|for|goto|if|implements|import|instanceof|interface|module|native|new|non-sealed|open|opens|package|permits|private|protected|provides|public|record|requires|return|sealed|static|strictfp|super|switch|synchronized|this|throw|throws|to|transient|transitive|try|uses|var|volatile|when|while|with|yield)\\b",
+          "color": "#569CD6"
+        },
+        {
+          "name": "type",
+          "pattern": "\\b(?:boolean|byte|char|double|float|int|long|short|void)\\b",
+          "color": "#4EC9B0"
+        }
+      ]
+    },
+    "sample": "// A small welcome, in Java.\npublic class Greeting {\n    private final String name;\n\n    public Greeting(String name) {\n        this.name = name;\n    }\n\n    public String message() {\n        return \"Hello, \" + name + \"!\";\n    }\n}\n"
+  },
+  {
+    "filename": "syntax_javascript.toml",
+    "definition": {
+      "name": "JavaScript",
+      "extensions": [
+        "js",
+        "jsx",
+        "mjs",
+        "cjs",
+        "vue"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "//.*$",
+          "color": "#6A9955"
+        },
+        {
+          "name": "comment",
+          "pattern": "/\\*.*?\\*/",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"([^\"\\\\]|\\\\.)*\"",
+          "color": "#CE9178"
+        },
+        {
+          "name": "string",
+          "pattern": "'([^'\\\\]|\\\\.)*",
+          "color": "#CE9178"
+        },
+        {
+          "name": "template",
+          "pattern": "`([^`\\\\]|\\\\.)*`",
+          "color": "#CE9178"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(0x[0-9a-fA-F]+|0b[01]+|0o[0-7]+|[0-9]+(\\.[0-9]+)?)\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|export|extends|false|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|true|try|typeof|undefined|var|void|while|with|yield)\\b",
+          "color": "#569CD6"
+        },
+        {
+          "name": "type",
+          "pattern": "\\b(Array|Boolean|Date|Error|Function|JSON|Map|Math|Number|Object|Promise|RegExp|Set|String|Symbol|WeakMap|WeakSet)\\b",
+          "color": "#4EC9B0"
+        },
+        {
+          "name": "function",
+          "pattern": "\\bfunction\\s+[a-zA-Z_$][a-zA-Z0-9_$]*",
+          "color": "#DCDCAA"
+        },
+        {
+          "name": "function",
+          "pattern": "\\b[a-zA-Z_$][a-zA-Z0-9_$]*\\s*=\\s*\\([^)]*\\)\\s*=>",
+          "color": "#DCDCAA"
+        },
+        {
+          "name": "function",
+          "pattern": "\\b[a-zA-Z_$][a-zA-Z0-9_$]*\\s*=\\s*[a-zA-Z_$][a-zA-Z0-9_$]*\\s*=>",
+          "color": "#DCDCAA"
+        },
+        {
+          "name": "property",
+          "pattern": "\\b[a-zA-Z_$][a-zA-Z0-9_$]*\\s*:",
+          "color": "#9CDCFE"
+        },
+        {
+          "name": "decorator",
+          "pattern": "@[a-zA-Z_$][a-zA-Z0-9_$]*",
+          "color": "#C586C0"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b[A-Z][A-Z0-9_]*\\b",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "html_comment",
+          "pattern": "<!--.*?-->",
+          "color": "#6A9955"
+        },
+        {
+          "name": "html_tag",
+          "pattern": "</?[a-zA-Z][a-zA-Z0-9:-]*(?:\\s[^<>]*?)?/?>",
+          "color": "#569CD6"
+        },
+        {
+          "name": "html_attribute",
+          "pattern": "\\b[a-zA-Z_:][a-zA-Z0-9_:.@-]*\\s*=",
+          "color": "#9CDCFE"
+        },
+        {
+          "name": "vue_directive",
+          "pattern": "\\bv-[a-zA-Z-]+",
+          "color": "#C586C0"
+        },
+        {
+          "name": "vue_shorthand",
+          "pattern": "[:@#][a-zA-Z_$][a-zA-Z0-9_$.-]*",
+          "color": "#C586C0"
+        },
+        {
+          "name": "template_expression",
+          "pattern": "\\{\\{.*?\\}\\}",
+          "color": "#DCDCAA"
+        },
+        {
+          "name": "jsx_expression",
+          "pattern": "\\{[^{}]+\\}",
+          "color": "#DCDCAA"
+        }
+      ]
+    },
+    "sample": "// A small welcome, in JavaScript.\nconst visitor = {\n  name: \"Ada\",\n  favorites: [\"quiet tools\", \"good coffee\"],\n};\n\nfunction greet(person) {\n  const message = `Hello, ${person.name}!`;\n  return message;\n}\n\nif (visitor.favorites.length > 0) {\n  console.log(greet(visitor));\n}\n"
+  },
+  {
+    "filename": "syntax_json.toml",
+    "definition": {
+      "name": "JSON / JSONC",
+      "extensions": [
+        "json",
+        "jsonc"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "//.*$|/\\*.*?(?:\\*/|$)",
+          "color": "#6A9955"
+        },
+        {
+          "name": "property",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"\\s*:",
+          "color": "#9CDCFE"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"",
+          "color": "#CE9178"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b(?:true|false|null)\\b",
+          "color": "#4FC1FF"
+        }
+      ]
+    },
+    "sample": "{\n  \"name\": \"Ada\",\n  \"greeting\": \"Make something that feels like you.\",\n  \"favorites\": [\n    \"quiet tools\",\n    \"good coffee\"\n  ],\n  \"visits\": 1,\n  \"enabled\": true,\n  \"lastVisit\": null\n}\n"
+  },
+  {
+    "filename": "syntax_lua.toml",
+    "definition": {
+      "name": "Lua / Luau",
+      "extensions": [
+        "lua",
+        "luau"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "--\\[\\[.*?(?:\\]\\]|$)|--.*$",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "string",
+          "pattern": "\\[\\[.*?\\]\\]",
+          "color": "#CE9178"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b(?:true|false|nil)\\b",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(?:and|break|continue|do|else|elseif|end|export|for|function|if|in|local|not|or|repeat|return|then|type|typeof|until|while)\\b",
+          "color": "#569CD6"
+        }
+      ]
+    },
+    "sample": "-- A small welcome, in Lua.\nlocal visitor = {\n    name = \"Ada\",\n    visits = 1,\n}\n\nlocal function greet(person)\n    return \"Hello, \" .. person.name .. \"!\"\nend\n\nif visitor.visits > 0 then\n    print(greet(visitor))\nend\n"
+  },
+  {
+    "filename": "syntax_php.toml",
+    "definition": {
+      "name": "PHP",
+      "extensions": [
+        "php",
+        "phtml",
+        "php3",
+        "php4",
+        "php5",
+        "php7",
+        "php8",
+        "phps"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "//.*$|#[^\\[].*$|#$|/\\*.*?(?:\\*/|$)",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "directive",
+          "pattern": "<\\?(?:php\\b|=)?|\\?>|#\\[",
+          "color": "#C586C0"
+        },
+        {
+          "name": "variable",
+          "pattern": "\\$[A-Za-z_\\x{80}-\\x{10ffff}][\\w]*",
+          "color": "#9CDCFE"
+        },
+        {
+          "name": "constant",
+          "pattern": "(?i:\\b(?:true|false|null)\\b)",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(?:(?i:abstract|and|array|as|break|callable|case|catch|class|clone|const|continue|declare|default|die|do|echo|else|elseif|empty|enddeclare|endfor|endforeach|endif|endswitch|endwhile|enum|eval|exit|extends|final|finally|fn|for|foreach|function|global|goto|if|implements|include|include_once|instanceof|insteadof|interface|isset|list|match|namespace|new|or|print|private|protected|public|readonly|require|require_once|return|static|switch|throw|trait|try|unset|use|var|while|xor|yield))\\b",
+          "color": "#569CD6"
+        },
+        {
+          "name": "type",
+          "pattern": "\\b(?:bool|float|int|iterable|mixed|never|object|string|void)\\b",
+          "color": "#4EC9B0"
+        }
+      ]
+    },
+    "sample": "<?php\n// A small welcome, in PHP.\nnamespace App;\n\nfinal class Greeting\n{\n    public function __construct(private string $name) {}\n\n    public function message(): string\n    {\n        return \"Hello, {$this->name}!\";\n    }\n}\n\n$visitor = new Greeting(\"Ada\");\necho $visitor->message();\n"
+  },
+  {
+    "filename": "syntax_python.toml",
+    "definition": {
+      "name": "Python",
+      "extensions": [
+        "py",
+        "pyw",
+        "pyi"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "#.*$",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "(?i:rb|br|rf|fr|r|u|b|f)?(?:\"\"\".*?\"\"\"|'''.*?'''|\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*')",
+          "color": "#CE9178"
+        },
+        {
+          "name": "directive",
+          "pattern": "@[A-Za-z_][A-Za-z0-9_.]*",
+          "color": "#C586C0"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b(?:True|False|None)\\b",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(?:and|as|assert|async|await|break|case|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|match|nonlocal|not|or|pass|raise|return|try|while|with|yield)\\b",
+          "color": "#569CD6"
+        },
+        {
+          "name": "type",
+          "pattern": "\\b(?:bool|bytearray|bytes|complex|dict|float|frozenset|int|list|memoryview|object|range|set|str|tuple|type)\\b",
+          "color": "#4EC9B0"
+        }
+      ]
+    },
+    "sample": "# A small welcome, made a little more personal.\nfrom dataclasses import dataclass\n\n@dataclass\nclass Greeting:\n    name: str\n    favorites: list[str]\n\n    def message(self) -> str:\n        return f\"Hello, {self.name}!\"\n\nvisitor = Greeting(\"Ada\", [\"quiet tools\", \"good coffee\"])\n\nif visitor.favorites:\n    print(visitor.message())\n    print(\"Make something that feels like you.\")\n"
+  },
+  {
+    "filename": "syntax_rs.toml",
+    "definition": {
+      "name": "Rust",
+      "extensions": [
+        "rs"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "//.*$",
+          "color": "#6A9955"
+        },
+        {
+          "name": "comment",
+          "pattern": "/\\*.*?\\*/",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"([^\"\\\\]|\\\\.)*\"",
+          "color": "#CE9178"
+        },
+        {
+          "name": "character",
+          "pattern": "'([^'\\\\]|\\\\.)*",
+          "color": "#CE9178"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(0x[0-9a-fA-F]+|0b[01]+|0o[0-7]+|[0-9]+(\\.[0-9]+)?)\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(as|async|await|break|const|continue|crate|dyn|else|enum|extern|false|fn|for|if|impl|in|let|loop|match|mod|move|mut|pub|ref|return|self|Self|static|struct|super|trait|true|type|unsafe|use|where|while|abstract|become|box|do|final|macro|override|priv|typeof|unsized|virtual|yield|try)\\b",
+          "color": "#569CD6"
+        },
+        {
+          "name": "type",
+          "pattern": "\\b(bool|char|str|u8|u16|u32|u64|u128|usize|i8|i16|i32|i64|i128|isize|f32|f64)\\b",
+          "color": "#4EC9B0"
+        },
+        {
+          "name": "attribute",
+          "pattern": "#!?\\[[^\\]]+\\]",
+          "color": "#C586C0"
+        },
+        {
+          "name": "macro",
+          "pattern": "\\b[a-zA-Z_][a-zA-Z0-9_]*!",
+          "color": "#DCDCAA"
+        },
+        {
+          "name": "function",
+          "pattern": "\\bfn\\s+[a-zA-Z_][a-zA-Z0-9_]*",
+          "color": "#DCDCAA"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b[A-Z][A-Z0-9_]*\\b",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "lifetime",
+          "pattern": "'[a-zA-Z_][a-zA-Z0-9_]*",
+          "color": "#D7BA7D"
+        }
+      ]
+    },
+    "sample": "// A small welcome, in Rust.\n#[derive(Debug)]\nstruct Greeting {\n    name: String,\n    visits: u32,\n}\n\nfn main() {\n    let visitor = Greeting {\n        name: String::from(\"Ada\"),\n        visits: 1,\n    };\n    println!(\"Hello, {}!\", visitor.name);\n}\n"
+  },
+  {
+    "filename": "syntax_shell.toml",
+    "definition": {
+      "name": "Shell",
+      "extensions": [
+        "sh",
+        "bash",
+        "zsh",
+        "ksh",
+        "bats"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "(?:^|\\s)#.*$",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'[^']*'|`[^`]*`",
+          "color": "#CE9178"
+        },
+        {
+          "name": "variable",
+          "pattern": "\\$(?:\\{[^}]*\\}|[A-Za-z_][A-Za-z0-9_]*|[0-9@*#?$!_-])",
+          "color": "#9CDCFE"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(?:if|then|else|elif|fi|case|esac|for|select|while|until|do|done|in|function|time|coproc|break|continue|return|exit|export|local|readonly|declare|typeset|unset|shift|source)\\b",
+          "color": "#569CD6"
+        }
+      ]
+    },
+    "sample": "#!/bin/sh\n# A small welcome, from the shell.\nname=\"Ada\"\nvisits=1\n\nif [ \"$visits\" -gt 0 ]; then\n    printf 'Hello, %s!\\n' \"$name\"\nfi\n\nfor favorite in \"quiet tools\" \"good coffee\"; do\n    echo \"$favorite\"\ndone\n"
+  },
+  {
+    "filename": "syntax_sql.toml",
+    "definition": {
+      "name": "SQL",
+      "extensions": [
+        "sql"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "--.*$|/\\*.*?(?:\\*/|$)",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "'(?:[^']|'')*'|\\\"(?:[^\\\"]|\\\"\\\")*\\\"|`[^`]*`",
+          "color": "#CE9178"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "(?i:\\b(?:select|from|where|insert|into|values|update|set|delete|create|alter|drop|table|index|view|database|schema|join|inner|left|right|full|outer|cross|on|as|and|or|not|in|is|null|like|between|exists|distinct|all|union|intersect|except|group|by|order|having|limit|offset|fetch|top|asc|desc|case|when|then|else|end|with|recursive|over|partition|returning|primary|key|foreign|references|unique|constraint|default|check|begin|commit|rollback|transaction|grant|revoke|if|replace|truncate|cascade)\\b)",
+          "color": "#569CD6"
+        },
+        {
+          "name": "type",
+          "pattern": "(?i:\\b(?:bigint|binary|bit|blob|boolean|char|date|datetime|decimal|double|float|int|integer|interval|json|numeric|real|smallint|text|time|timestamp|uuid|varchar)\\b)",
+          "color": "#4EC9B0"
+        }
+      ]
+    },
+    "sample": "-- A small welcome, in SQL.\nCREATE TABLE visitors (\n    id INTEGER PRIMARY KEY,\n    name VARCHAR(80) NOT NULL,\n    visits INTEGER DEFAULT 1\n);\n\nINSERT INTO visitors (name) VALUES ('Ada');\n\nSELECT name, visits\nFROM visitors\nWHERE visits > 0\nORDER BY name ASC;\n"
+  },
+  {
+    "filename": "syntax_toml.toml",
+    "definition": {
+      "name": "TOML",
+      "extensions": [
+        "toml"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "#.*$",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "directive",
+          "pattern": "^\\s*\\[\\[?[^\\]]+\\]\\]?",
+          "color": "#C586C0"
+        },
+        {
+          "name": "property",
+          "pattern": "^\\s*[A-Za-z0-9_.-]+\\s*=",
+          "color": "#9CDCFE"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b(?:true|false|inf|nan)\\b",
+          "color": "#4FC1FF"
+        }
+      ]
+    },
+    "sample": "# A few settings, in TOML.\n[visitor]\nname = \"Ada\"\nvisits = 1\nenabled = true\nfavorites = [\"quiet tools\", \"good coffee\"]\n\n[appearance]\nbackground = \"#161817\"\naccent = \"#a3e3b5\"\n"
+  },
+  {
+    "filename": "syntax_typescript.toml",
+    "definition": {
+      "name": "TypeScript",
+      "extensions": [
+        "ts",
+        "tsx",
+        "mts",
+        "cts"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "//.*$|/\\*.*?(?:\\*/|$)",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "string",
+          "pattern": "`(?:[^`\\\\]|\\\\.)*`",
+          "color": "#CE9178"
+        },
+        {
+          "name": "constant",
+          "pattern": "\\b(?:true|false|null|undefined)\\b",
+          "color": "#4FC1FF"
+        },
+        {
+          "name": "directive",
+          "pattern": "@[A-Za-z_$][\\w$]*",
+          "color": "#C586C0"
+        },
+        {
+          "name": "property",
+          "pattern": "\\b[A-Za-z_$][\\w$]*\\s*:",
+          "color": "#9CDCFE"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(?:abstract|as|asserts|async|await|break|case|catch|class|const|constructor|continue|debugger|declare|default|delete|do|else|enum|export|extends|finally|for|from|function|get|if|implements|import|in|infer|instanceof|interface|is|keyof|let|namespace|new|of|override|private|protected|public|readonly|require|return|satisfies|set|static|super|switch|this|throw|try|type|typeof|unique|using|var|void|while|with|yield)\\b",
+          "color": "#569CD6"
+        },
+        {
+          "name": "type",
+          "pattern": "\\b(?:any|bigint|boolean|never|number|object|string|symbol|unknown)\\b",
+          "color": "#4EC9B0"
+        }
+      ]
+    },
+    "sample": "// A small welcome, in TypeScript.\ninterface Visitor {\n  name: string;\n  favorites: string[];\n}\n\nfunction greet(person: Visitor): string {\n  return `Hello, ${person.name}!`;\n}\n\nconst visitor: Visitor = {\n  name: \"Ada\",\n  favorites: [\"quiet tools\", \"good coffee\"],\n};\nconsole.log(greet(visitor));\n"
+  },
+  {
+    "filename": "syntax_yaml.toml",
+    "definition": {
+      "name": "YAML",
+      "extensions": [
+        "yaml",
+        "yml"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "(?:^|\\s)#.*$",
+          "color": "#6A9955"
+        },
+        {
+          "name": "string",
+          "pattern": "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'",
+          "color": "#CE9178"
+        },
+        {
+          "name": "directive",
+          "pattern": "^\\s*(?:---|\\.\\.\\.|%[A-Za-z]+)|[&*!][A-Za-z_][A-Za-z0-9_.-]*",
+          "color": "#C586C0"
+        },
+        {
+          "name": "property",
+          "pattern": "(?:^|\\s)[A-Za-z_][A-Za-z0-9_.-]*\\s*:",
+          "color": "#9CDCFE"
+        },
+        {
+          "name": "number",
+          "pattern": "\\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+|[0-9][0-9_]*(?:\\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?)[a-zA-Z0-9_]*\\b",
+          "color": "#B5CEA8"
+        },
+        {
+          "name": "constant",
+          "pattern": "(?i:\\b(?:true|false|null|yes|no|on|off)\\b)|~",
+          "color": "#4FC1FF"
+        }
+      ]
+    },
+    "sample": "# A few settings, in YAML.\nvisitor:\n  name: \"Ada\"\n  visits: 1\n  enabled: true\n  favorites:\n    - quiet tools\n    - good coffee\n\nappearance:\n  background: \"#161817\"\n  accent: \"#a3e3b5\"\n"
+  },
+  {
+    "filename": "syntax_custom.toml",
+    "definition": {
+      "name": "Custom",
+      "extensions": [
+        "example"
+      ],
+      "rules": [
+        {
+          "name": "comment",
+          "pattern": "#.*$",
+          "color": "#6A9955"
+        },
+        {
+          "name": "keyword",
+          "pattern": "\\b(begin|end)\\b",
+          "color": "#569CD6"
+        }
+      ]
+    },
+    "sample": "# A language of your own.\nbegin\n    example\nend\n"
+  }
+]

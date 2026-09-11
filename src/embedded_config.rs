@@ -24,6 +24,11 @@ pub(crate) const KEYBINDINGS: &str =
 pub(crate) const EDITOR: &str =
     include_str!("../config/editor.toml");
 
+pub(crate) const LSP: &str = include_str!("../config/lsp.toml");
+
+pub(crate) const FORMATTERS: &str =
+    include_str!("../config/formatters.toml");
+
 pub(crate) const SYNTAX_DEFINITIONS: &[(&str, &str)] = &[
     (
         "syntax/syntax_rs.toml",
@@ -32,6 +37,70 @@ pub(crate) const SYNTAX_DEFINITIONS: &[(&str, &str)] = &[
     (
         "syntax/syntax_javascript.toml",
         include_str!("../config/syntax/syntax_javascript.toml"),
+    ),
+    (
+        "syntax/syntax_c.toml",
+        include_str!("../config/syntax/syntax_c.toml"),
+    ),
+    (
+        "syntax/syntax_cpp.toml",
+        include_str!("../config/syntax/syntax_cpp.toml"),
+    ),
+    (
+        "syntax/syntax_csharp.toml",
+        include_str!("../config/syntax/syntax_csharp.toml"),
+    ),
+    (
+        "syntax/syntax_python.toml",
+        include_str!("../config/syntax/syntax_python.toml"),
+    ),
+    (
+        "syntax/syntax_php.toml",
+        include_str!("../config/syntax/syntax_php.toml"),
+    ),
+    (
+        "syntax/syntax_typescript.toml",
+        include_str!("../config/syntax/syntax_typescript.toml"),
+    ),
+    (
+        "syntax/syntax_go.toml",
+        include_str!("../config/syntax/syntax_go.toml"),
+    ),
+    (
+        "syntax/syntax_java.toml",
+        include_str!("../config/syntax/syntax_java.toml"),
+    ),
+    (
+        "syntax/syntax_shell.toml",
+        include_str!("../config/syntax/syntax_shell.toml"),
+    ),
+    (
+        "syntax/syntax_lua.toml",
+        include_str!("../config/syntax/syntax_lua.toml"),
+    ),
+    (
+        "syntax/syntax_json.toml",
+        include_str!("../config/syntax/syntax_json.toml"),
+    ),
+    (
+        "syntax/syntax_toml.toml",
+        include_str!("../config/syntax/syntax_toml.toml"),
+    ),
+    (
+        "syntax/syntax_yaml.toml",
+        include_str!("../config/syntax/syntax_yaml.toml"),
+    ),
+    (
+        "syntax/syntax_html.toml",
+        include_str!("../config/syntax/syntax_html.toml"),
+    ),
+    (
+        "syntax/syntax_css.toml",
+        include_str!("../config/syntax/syntax_css.toml"),
+    ),
+    (
+        "syntax/syntax_sql.toml",
+        include_str!("../config/syntax/syntax_sql.toml"),
     ),
 ];
 
@@ -55,6 +124,8 @@ pub(crate) fn extract_defaults(
     let files = [
         ("editor.toml", EDITOR),
         ("keybindings.toml", KEYBINDINGS),
+        ("formatters.toml", FORMATTERS),
+        ("lsp.toml", LSP),
     ]
     .into_iter()
     .chain(SYNTAX_DEFINITIONS.iter().copied());
@@ -113,7 +184,7 @@ mod tests {
         ));
 
         let first = extract_defaults(&directory).unwrap();
-        assert_eq!(first.created, 4);
+        assert_eq!(first.created, 4 + SYNTAX_DEFINITIONS.len());
         assert_eq!(first.existing, 0);
 
         let keybindings = directory.join("keybindings.toml");
@@ -121,7 +192,7 @@ mod tests {
 
         let second = extract_defaults(&directory).unwrap();
         assert_eq!(second.created, 0);
-        assert_eq!(second.existing, 4);
+        assert_eq!(second.existing, 4 + SYNTAX_DEFINITIONS.len());
         assert_eq!(fs::read_to_string(keybindings).unwrap(), "custom");
 
         fs::remove_dir_all(directory).unwrap();

@@ -1,0 +1,40 @@
+# Lightweight, line-based highlighting; see docs/syntax-highlighting.md.
+
+[syntax]
+name = "CSS"
+extensions = ["css"]
+
+[[syntax.rules]]
+name = "comment"
+pattern = "/\\*.*?(?:\\*/|$)"
+color = "#6A9955"
+
+[[syntax.rules]]
+name = "string"
+pattern = "\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'"
+color = "#CE9178"
+
+[[syntax.rules]]
+name = "directive"
+pattern = "@[A-Za-z-]+|!important\\b"
+color = "#C586C0"
+
+[[syntax.rules]]
+name = "property"
+pattern = "(?:--)?[A-Za-z][A-Za-z-]*\\s*:"
+color = "#9CDCFE"
+
+[[syntax.rules]]
+name = "constant"
+pattern = "#[0-9a-fA-F]{3,8}\\b"
+color = "#4FC1FF"
+
+[[syntax.rules]]
+name = "number"
+pattern = "\\b[0-9]+(?:\\.[0-9]+)?(?:[A-Za-z]+|%)?"
+color = "#B5CEA8"
+
+[[syntax.rules]]
+name = "type"
+pattern = "[.#][A-Za-z_-][A-Za-z0-9_-]*"
+color = "#4EC9B0"

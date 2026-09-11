@@ -1,0 +1,19 @@
+[package]
+name = "potyi-syntax-designer"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.9"
+
+[profile.release]
+opt-level = "s"
+lto = true
+panic = "abort"
+strip = true
