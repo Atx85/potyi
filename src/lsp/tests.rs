@@ -145,6 +145,26 @@ fn uri_roundtrip_escapes_spaces_unicode_and_reserved_characters() {
 }
 
 #[test]
+fn hover_documentation_spans_preserve_code_and_plaintext_signatures() {
+    let content = hover_content(&json!({"contents": [
+        {"language":"rust", "value":"fn greeting() -> &'static str"},
+        "Returns a greeting.",
+        {"language":"rust", "value":"greeting();"}
+    ]}));
+    let docs: String = content.documentation.iter().map(|range| &content.text[range.clone()]).collect();
+    assert_eq!(docs, "Returns a greeting.");
+    let content = hover_content(&json!({"contents": {"kind":"plaintext", "value":
+        "crate_name\n\nfn greeting()\n\n\nReturns café.\nMore documentation."}}));
+    assert_eq!(&content.text[content.documentation[0].clone()], "Returns café.\nMore documentation.");
+    let content = hover_content(&json!({"contents": {"kind":"plaintext", "value":"fn greeting()"}}));
+    assert!(content.documentation.is_empty());
+    let content = hover_content(&json!({"contents": {"kind":"markdown", "value":
+        "Description\n```rust\nfn example() {}\n```\nMore description"}}));
+    let docs: String = content.documentation.iter().map(|range| &content.text[range.clone()]).collect();
+    assert_eq!(docs, "Description\nMore description");
+}
+
+#[test]
 fn parses_hover_variants_and_definition_links() {
     assert_eq!(
         hover_text(&json!({"contents":["one",{"language":"rust","value":"two"}]})),
@@ -221,7 +241,7 @@ fn server_roundtrip_syncs_unsaved_text_and_closes_documents() {
             let Reply::Hover(text) = event.result.unwrap() else {
                 panic!("expected hover")
             };
-            serde_json::from_str::<Value>(&text).unwrap()
+            serde_json::from_str::<Value>(&text.text).unwrap()
         };
         let first = send(1, "a🦀\r\nx", true);
         assert_eq!(
@@ -368,7 +388,7 @@ fn real_clangd_hover_and_definition() {
     else {
         panic!("hover expected")
     };
-    assert!(hover.contains("answer"), "{hover}");
+    assert!(hover.text.contains("answer"), "{}", hover.text);
     client.request(request(2, Action::Definition)).unwrap();
     let Reply::Definition(locations) = receiver
         .recv_timeout(Duration::from_secs(20))
@@ -386,4 +406,149 @@ fn real_clangd_hover_and_definition() {
     );
     drop(client);
     let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+#[ignore = "requires installed rust-analyzer and rust-src; set POTYI_TEST_RUST_ANALYZER to its executable"]
+fn real_rust_analyzer_hover_and_definition() {
+    let demo = std::env::var_os("POTYI_TEST_RUST_DEMO").map(PathBuf::from);
+    let (root, path, text, config, symbol, type_name) = if let Some(demo) = &demo {
+        let path = demo.join("project/src/main.rs").canonicalize().unwrap();
+        let settings = Config::parse(&std::fs::read_to_string(demo.join("config/lsp.toml")).unwrap()).unwrap();
+        assert!(settings.enabled);
+        let config = settings.server_for(&path).unwrap().clone();
+        let root = project_root(&path, &config);
+        assert_eq!(root, path.parent().unwrap().parent().unwrap(), "demo must use its own Cargo project");
+        let text = std::fs::read_to_string(&path).unwrap();
+        (root, path, text, config, "greeting", "str")
+    } else {
+        let root = std::env::temp_dir().join(format!("potyi-real-rust-lsp-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("Cargo.toml"),
+            "[package]\nname = \"potyi-lsp-test\"\nversion = \"0.1.0\"\nedition = \"2021\"\n[workspace]\n").unwrap();
+        let path = root.join("src/main.rs");
+        let text = "/// Test hover documentation.\nfn answer() -> u32 { 42 }\nfn main() { let value = answer(); }\n".to_string();
+        std::fs::write(&path, &text).unwrap();
+        let config = ServerConfig {
+            name: "rust".into(),
+            command: std::env::var("POTYI_TEST_RUST_ANALYZER").unwrap_or_else(|_| "rust-analyzer".into()),
+            args: vec![], extensions: vec!["rs".into()], language_id: "rust".into(),
+            root_markers: vec!["Cargo.toml".into()],
+            initialization_options: json!({"cachePriming":{"enable":false},"checkOnSave":false}),
+        };
+        (root, path, text, config, "answer", "u32")
+    };
+    let (sender, receiver) = mpsc::channel();
+    let client = Client::start(config, root.clone(), move |event| {
+        let _ = sender.send(event);
+    }).unwrap();
+    let request = |id, action| Request {
+        id, action,
+        documents: vec![Document { path: path.clone(), text: text.clone() }],
+        cursor: text.rfind(symbol).unwrap() + 2,
+    };
+    // Regression: rename must work as the first command, without a hover warm-up.
+    client.request(request(1000, Action::Rename("cold_renamed".into()))).unwrap();
+    let cold = receiver.recv_timeout(Duration::from_secs(40)).unwrap().result;
+    assert!(matches!(&cold, Ok(Reply::Rename(_))), "cold call-site rename failed: {cold:?}");
+    // Cargo project discovery continues after initialize. Retry empty hover
+    // responses while that initial analysis is still loading.
+    let deadline = std::time::Instant::now() + Duration::from_secs(45);
+    let mut id = 0;
+    loop {
+        id += 1;
+        client.request(request(id, Action::Hover)).unwrap();
+        let reply = match receiver.recv_timeout(Duration::from_secs(35)).unwrap().result {
+            Err(error) if error.eq_ignore_ascii_case("content modified") && std::time::Instant::now() < deadline => {
+                thread::sleep(Duration::from_millis(250)); continue;
+            }
+            result => result.unwrap(),
+        };
+        let Reply::Hover(hover) = reply else { panic!("hover expected") };
+        if hover.text.contains(symbol) && hover.text.contains(type_name) {
+            assert!(hover.documentation.iter().any(|range| {
+                let text = &hover.text[range.clone()];
+                text.contains("Test hover documentation") || text.contains("Returns a greeting")
+            }), "real rust-analyzer documentation must be styled separately from its signature");
+            eprintln!("rust-analyzer hover: {}", hover.text);
+            break;
+        }
+        assert!(std::time::Instant::now() < deadline, "rust-analyzer never returned symbol hover: {}", hover.text);
+        thread::sleep(Duration::from_millis(250));
+    }
+    let locations = loop {
+        id += 1;
+        client.request(request(id, Action::Definition)).unwrap();
+        let Reply::Definition(locations) = receiver.recv_timeout(Duration::from_secs(20))
+            .unwrap().result.unwrap() else { panic!("definition expected") };
+        if !locations.is_empty() { break locations; }
+        assert!(std::time::Instant::now() < deadline, "rust-analyzer never returned a definition");
+        thread::sleep(Duration::from_millis(250));
+    };
+    assert_eq!(locations[0].line, 1);
+    assert_eq!(locations[0].character, 3);
+    assert_eq!(locations[0].path.canonicalize().unwrap(), path.canonicalize().unwrap());
+    eprintln!("rust-analyzer definition: main.rs:2:4");
+    id += 1;
+    client.request(request(id, Action::Rename("renamed_symbol".into()))).unwrap();
+    let Reply::Rename(preview) = receiver.recv_timeout(Duration::from_secs(20)).unwrap().result.unwrap()
+        else { panic!("rename preview expected") };
+    assert_eq!(preview.files.len(), 1);
+    assert!(preview.files[0].preview.contains("renamed_symbol"));
+    let mut editor = crate::Editor::new(crate::config::EditorConfig::default()).unwrap();
+    editor.open(path.to_str().unwrap()).unwrap();
+    let mut other = crate::Editor::new(crate::config::EditorConfig::default()).unwrap();
+    crate::workspace_edit::apply(Arc::new(preview), &mut editor, &mut other).unwrap();
+    let renamed = editor.document.text().unwrap();
+    assert_eq!(renamed.matches("renamed_symbol").count(), 2);
+    assert!(!renamed.contains(&format!("fn {symbol}")));
+    assert_eq!(std::fs::read_to_string(&path).unwrap(),text, "open buffer must not be saved implicitly");
+    assert!(crate::workspace_edit::history(&mut editor,&mut other,false).unwrap());
+    assert_eq!(editor.document.text().unwrap(),text);
+    eprintln!("rust-analyzer rename: declaration + call, preview/apply/undo passed");
+    id += 1;
+    let mut variable_request = request(id, Action::Rename("renamed_variable".into()));
+    variable_request.cursor = text.find("let ").unwrap() + 5;
+    client.request(variable_request).unwrap();
+    let Reply::Rename(preview) = receiver.recv_timeout(Duration::from_secs(20)).unwrap().result.unwrap()
+        else { panic!("variable rename expected") };
+    crate::workspace_edit::apply(Arc::new(preview), &mut editor, &mut other).unwrap();
+    assert!(editor.document.text().unwrap().contains("let renamed_variable ="));
+    assert!(crate::workspace_edit::history(&mut editor,&mut other,false).unwrap());
+    assert_eq!(editor.document.text().unwrap(),text);
+
+
+    drop(client);
+    if demo.is_none() { let _ = std::fs::remove_dir_all(root); }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_feature_error_keeps_the_initialized_session_alive() {
+    let root = std::env::temp_dir();
+    let (sender, receiver) = mpsc::channel();
+    let client = Client::start(mock_config("feature-error"), root.clone(), move |event| {
+        let _ = sender.send(event);
+    }).unwrap();
+    for id in 1..=2 {
+        client.request(Request { id, action:Action::Hover,
+            documents:vec![Document {path:root.join("feature-error.rs"),text:"hello".into()}],cursor:2 }).unwrap();
+        let result = receiver.recv_timeout(Duration::from_secs(5)).unwrap().result;
+        if id == 1 { assert_eq!(result.unwrap_err(),"No references found at position"); }
+        else { assert!(matches!(result,Ok(Reply::Hover(_))),"session restarted: {result:?}"); }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn readiness_wait_is_bounded_cancellable_and_does_not_break_a_healthy_session() {
+    let cancel = Arc::new(AtomicBool::new(false));
+    let server = Transport::start(&mock_config("incremental"),&std::env::temp_dir(),cancel.clone()).unwrap();
+    let started = std::time::Instant::now();
+    assert!(server.wait_until_ready(Duration::from_millis(80)).unwrap_err().contains("still loading"));
+    assert!(started.elapsed() < Duration::from_secs(1));
+    assert!(!server.has_failed());
+    cancel.store(true,Ordering::Relaxed);
+    assert_eq!(server.wait_until_ready(Duration::from_secs(10)).unwrap_err(),"LSP stopped");
+    assert!(started.elapsed() < Duration::from_secs(1));
 }

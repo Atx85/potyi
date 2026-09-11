@@ -6,8 +6,9 @@
     <meta name="description" content="Set up language servers in Pötyi: enable LSP, find installation and configuration recipes for your language, and use hover and go-to-definition.">
     <meta name="theme-color" content="#161817">
     <title>Language server setup · Pötyi</title>
+    <link rel="canonical" href="https://atx85.github.io/potyi/lsp/">
     <link rel="icon" href="../favicon.svg?v=2" type="image/svg+xml">
-    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../styles.css?v=benchmarks-1">
     <link rel="stylesheet" href="guide.css">
   </head>
   <body class="guide-page">
@@ -244,6 +245,7 @@ root_markers = [&quot;.git&quot;]</code></pre><p>Replace the configuration path 
             <table>
               <thead><tr><th scope="col">Command</th><th scope="col">What it does</th></tr></thead>
               <tbody>
+                <tr><th scope="row"><code>:rename new_name</code></th><td>Previews a project-wide symbol rename; select Apply changes to commit.</td></tr>
                 <tr><th scope="row"><code>:hover</code></th><td>Shows documentation or type information at the document cursor.</td></tr>
                 <tr><th scope="row"><code>:definition</code></th><td>Jumps to the first definition returned by the server.</td></tr>
                 <tr><th scope="row"><code>:lsp-back</code></th><td>Returns to the previous definition-jump location.</td></tr>
@@ -258,13 +260,16 @@ root_markers = [&quot;.git&quot;]</code></pre><p>Replace the configuration path 
         <section id="behavior" aria-labelledby="behavior-heading">
           <h2 id="behavior-heading">How it works</h2>
           <h3>Starts when you ask</h3>
-          <p>A server starts on your first <code>:hover</code> or <code>:definition</code> request. Current unsaved text in matching documents from both panes is synchronized before the request. Later requests use incremental changes when supported, or full-document updates when required. <strong>Typing alone does not trigger synchronization.</strong></p>
+          <p>A server starts on your first <code>:hover</code>, <code>:definition</code>, or <code>:rename</code> request. Current unsaved text in matching documents from both panes is synchronized before the request. Later requests use incremental changes when supported, or full-document updates when required. <strong>Typing alone does not trigger synchronization.</strong></p>
+          <h3>Preview a rename</h3>
+          <p>Place the cursor on a symbol and run <code>:rename new_name</code>. Click a file or use Up/Down and Enter to inspect replacements, then Enter to return. Select <strong>Apply changes</strong> to commit; Escape cancels. Normal Undo reverses the rename across files. Keep affected open buffers open while you need this undo history. If an affected file was closed during the rename and you later open it, close it before undoing.</p>
+          <p>Rename is limited to 64 files, 10,000 edits, 2 MiB per file and 16 MiB total before/after text. Each preview shows up to 40 replacements with long text shortened. Preparation runs in the background; Apply and Undo validate and write the bounded changes on the editor thread. Stale or unsupported edits are rejected. Extraction into a new file is a later milestone. See the <a href="../lsp.md#renaming-a-function-or-variable">text guide</a> for undo and recovery details.</p>
           <h3>Background work, bounded resources</h3>
           <p>Server startup, communication, and shutdown run on background threads. An explicit request copies at most 2 MiB per document on the editor thread. Language servers may still index dependencies or run build tools according to their own settings, so they add memory and CPU usage while running.</p>
           <p>Pötyi allows at most two sessions, one per configured server and project. A configured <code>.git</code> marker takes precedence; otherwise the nearest root marker is used, falling back to the file’s directory. A session stops when no matching documents remain open.</p>
           <h3>Your edits stay protected</h3>
           <p>Definition jumps reuse open buffers and preserve unsaved text, read-only state, and undo history. A new file uses a clean pane. If both panes have unsaved changes, the jump is refused. Returned locations are checked before replacing a pane.</p>
-          <p>Results are discarded if either document changes, the requesting cursor moves, the file changes, or the command bar is dismissed or edited. LSP does not save files, apply refactoring edits, run server-requested commands, or change your formatter or keybindings.</p>
+          <p>Results are discarded if either document changes, the requesting cursor moves, the file changes, or the command bar is dismissed or edited. Rename applies only reviewed text edits. Open buffers remain unsaved; Apply writes unopened files identified in the preview. Server-requested commands remain disabled.</p>
           <p>After editing the server settings, run <code>:lsp-stop</code>; the next request starts a fresh session. To disable LSP, also set <code>enabled = false</code>.</p>
         </section>
 
@@ -298,7 +303,7 @@ root_markers = [&quot;.git&quot;]</code></pre><p>Replace the configuration path 
 
         <section id="limits" aria-labelledby="limits-heading">
           <h2 id="limits-heading">Current limits</h2>
-          <p>This first version provides hover, definition navigation, and return navigation. It does not yet display diagnostics, completion menus, signature help, references, rename, code actions, or semantic highlighting. Dynamic capability registration, project file watchers, and virtual documents are also not implemented.</p>
+          <p>This version provides hover, definition navigation, return navigation, and symbol rename. It does not yet display diagnostics, completion menus, signature help, references, code actions, or semantic highlighting. Dynamic capability registration, project file watchers, and virtual documents are also not implemented.</p>
           <p>For implementation details and test coverage, see the <a href="../lsp.md">text guide</a>. The automated checks cover protocol framing, Unicode, incremental updates, unsaved buffers, navigation safety, timeouts, cancellation, and server crashes.</p>
         </section>
         <p class="guide-end"><a href="#main">Back to top ↑</a></p>

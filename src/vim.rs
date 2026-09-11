@@ -154,6 +154,11 @@ impl VimController {
         self.mode
     }
 
+    /// Terminal selections share the system clipboard with editor yanks.
+    pub(crate) fn set_clipboard_linewise(&mut self, linewise: bool) {
+        self.register_linewise = linewise;
+    }
+
     pub(crate) fn mode_label(&self) -> &'static str {
         match self.mode {
             VimMode::Normal => "-- NORMAL --",
@@ -167,6 +172,19 @@ impl VimController {
         self.count = 0;
         self.pending_operator = None;
         self.pending_g = false;
+    }
+
+    pub(crate) fn workspace_history_key(&self, key: Keycode, keymod: Mod) -> Option<bool> {
+        if self.mode != VimMode::Normal { return None; }
+        if key == Keycode::U && !self.pending_g && self.pending_operator.is_none() && !keymod.intersects(Mod::LCTRLMOD | Mod::RCTRLMOD | Mod::LGUIMOD | Mod::RGUIMOD | Mod::LALTMOD | Mod::RALTMOD) { return Some(false); }
+        if key == Keycode::R && keymod.intersects(Mod::LCTRLMOD | Mod::RCTRLMOD)
+            && !keymod.intersects(Mod::LGUIMOD | Mod::RGUIMOD | Mod::LALTMOD | Mod::RALTMOD | Mod::LSHIFTMOD | Mod::RSHIFTMOD) { return Some(true); }
+        None
+    }
+
+    pub(crate) fn consume_workspace_history_key(&mut self) {
+        self.cancel_pending();
+        self.suppress_text_input = true;
     }
 
     pub(crate) fn handle_document_click(&mut self) {

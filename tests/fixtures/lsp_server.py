@@ -7,6 +7,7 @@ mode = sys.argv[1]
 documents = {}
 changes = []
 versions = {}
+hover_attempts = 0
 
 
 def send(value):
@@ -76,6 +77,10 @@ while True:
     elif method == "textDocument/didClose":
         documents.pop(params["textDocument"]["uri"], None)
     elif method == "textDocument/hover":
+        hover_attempts += 1
+        if mode == "feature-error" and hover_attempts == 1:
+            send({"id": message["id"], "error": {"code": -32602, "message": "No references found at position"}})
+            continue
         send({"id": 987, "method": "workspace/configuration", "params": {"items": [{}]}})
         text = json.dumps({"documents": documents, "changes": changes, "position": params["position"]}, ensure_ascii=False)
         send({"id": message["id"], "result": {"contents": {"kind": "plaintext", "value": text}}})

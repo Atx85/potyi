@@ -42,6 +42,7 @@ pub enum Command {
     SelectUp,
     SelectDown,
     SelectAll,
+    SelectNextOccurrence,
     SelectWordLeft,
     SelectWordRight,
     SelectPageUp,
@@ -61,6 +62,7 @@ pub enum Command {
 
     Save,
     SaveAs,
+    NewFile,
     FormatDocument,
     Undo,
     Redo,
@@ -152,6 +154,33 @@ impl KeyBindings {
                     && (!repeat || binding.repeatable)
             })
             .map(|binding| binding.command)
+    }
+
+    /// Terminal clipboard shortcuts leave plain Ctrl+C for cancellation.
+    pub fn terminal_clipboard_command(
+        &self,
+        key: Keycode,
+        keymod: Mod,
+        repeat: bool,
+    ) -> Option<Command> {
+        if repeat { return None; }
+        if self.command_for(key, keymod, false) == Some(Command::Paste) {
+            return Some(Command::Paste);
+        }
+        let copy_modifiers = [
+            Mod::LCTRLMOD | Mod::LSHIFTMOD,
+            Mod::LGUIMOD,
+            Mod::LGUIMOD | Mod::LSHIFTMOD,
+        ];
+        if key == Keycode::C && copy_modifiers.iter().any(|mods| Self::modifiers_match(*mods, keymod)) {
+            return Some(Command::Copy);
+        }
+        if key == Keycode::V && [Mod::LCTRLMOD | Mod::LSHIFTMOD, Mod::LGUIMOD | Mod::LSHIFTMOD]
+            .iter().any(|mods| Self::modifiers_match(*mods, keymod))
+        {
+            return Some(Command::Paste);
+        }
+        None
     }
 
     /// Check whether the requested modifier state matches the actual
@@ -379,6 +408,7 @@ impl KeyBindings {
             "selectup" | "select_up" => Some(Command::SelectUp),
             "selectdown" | "select_down" => Some(Command::SelectDown),
             "selectall" | "select_all" => Some(Command::SelectAll),
+            "selectnextoccurrence" | "select_next_occurrence" => Some(Command::SelectNextOccurrence),
             "selectwordleft" | "select_word_left" => Some(Command::SelectWordLeft),
             "selectwordright" | "select_word_right" => Some(Command::SelectWordRight),
             "selectpageup" | "select_page_up" => Some(Command::SelectPageUp),
@@ -398,6 +428,7 @@ impl KeyBindings {
 
             "save" => Some(Command::Save),
             "saveas" => Some(Command::SaveAs),
+            "newfile" => Some(Command::NewFile),
             "formatdocument" => Some(Command::FormatDocument),
             "undo" => Some(Command::Undo),
             "redo" => Some(Command::Redo),
@@ -439,6 +470,49 @@ mod tests {
             assert_eq!(bindings.command_for(Keycode::S, modifiers, true), None);
         }
         assert_eq!(bindings.command_for(Keycode::S, Mod::LCTRLMOD, false), Some(Command::Save));
+    }
+
+    #[test]
+    fn new_file_shortcuts_accept_ctrl_and_command_without_repeat() {
+        let bindings = KeyBindings::default();
+        for modifiers in [Mod::LCTRLMOD, Mod::RCTRLMOD, Mod::LGUIMOD, Mod::RGUIMOD] {
+            assert_eq!(bindings.command_for(Keycode::N, modifiers, false), Some(Command::NewFile));
+            assert_eq!(bindings.command_for(Keycode::N, modifiers, true), None);
+        }
+    }
+
+    #[test]
+    fn clipboard_shortcuts_work_with_ctrl_and_command() {
+        let bindings = KeyBindings::default();
+        for modifiers in [Mod::LCTRLMOD, Mod::RCTRLMOD, Mod::LGUIMOD, Mod::RGUIMOD] {
+            for (key, command) in [(Keycode::C, Command::Copy), (Keycode::X, Command::Cut), (Keycode::V, Command::Paste)] {
+                assert_eq!(bindings.command_for(key, modifiers, false), Some(command));
+                assert_eq!(bindings.command_for(key, modifiers, true), None);
+                assert_eq!(bindings.command_for(key, modifiers | Mod::LALTMOD, false), None);
+            }
+        }
+    }
+
+    #[test]
+    fn terminal_clipboard_supports_command_and_preserves_ctrl_c_for_stop() {
+        let bindings = KeyBindings::default();
+        for modifiers in [Mod::LCTRLMOD, Mod::RCTRLMOD, Mod::LGUIMOD, Mod::RGUIMOD] {
+            for shift in [Mod::NOMOD, Mod::LSHIFTMOD, Mod::RSHIFTMOD] {
+                assert_eq!(bindings.terminal_clipboard_command(Keycode::V, modifiers | shift, false), Some(Command::Paste));
+            }
+        }
+        for modifiers in [Mod::LCTRLMOD, Mod::RCTRLMOD] {
+            assert_eq!(bindings.terminal_clipboard_command(Keycode::C, modifiers, false), None);
+            assert_eq!(bindings.terminal_clipboard_command(Keycode::C, modifiers | Mod::LSHIFTMOD, false), Some(Command::Copy));
+        }
+        for modifiers in [Mod::LGUIMOD, Mod::RGUIMOD] {
+            assert_eq!(bindings.terminal_clipboard_command(Keycode::C, modifiers, false), Some(Command::Copy));
+            assert_eq!(bindings.terminal_clipboard_command(Keycode::C, modifiers | Mod::LSHIFTMOD, false), Some(Command::Copy));
+        }
+        assert_eq!(bindings.terminal_clipboard_command(Keycode::V, Mod::NOMOD, false), None);
+        assert_eq!(bindings.terminal_clipboard_command(Keycode::V, Mod::LGUIMOD | Mod::LALTMOD, false), None);
+        assert_eq!(bindings.terminal_clipboard_command(Keycode::V, Mod::LGUIMOD, true), None);
+        assert_eq!(bindings.terminal_clipboard_command(Keycode::C, Mod::LGUIMOD, true), None);
     }
 
     #[test]

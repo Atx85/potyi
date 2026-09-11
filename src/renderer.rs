@@ -18,7 +18,9 @@
 use sdl3::event::Event;
 use sdl3::pixels::Color;
 use sdl3::rect::{Point, Rect};
-use sdl3::render::FRect;
+use sdl3::render::{FRect, TextureCreator};
+use sdl3::video::WindowContext;
+use crate::terminal_text_cache::TextCache;
 use sdl3::sys::render::
     SDL_LOGICAL_PRESENTATION_STRETCH;
 use sdl3::{
@@ -32,6 +34,7 @@ use crate::command_bar::{
     CommandBar,
     CommandBarHit,
     COMMAND_BAR_MARGIN,
+    COMMAND_FONT_SIZE,
     COMMAND_INPUT_HEIGHT,
     COMMAND_RUN_WIDTH,
     COMMAND_SUGGESTION_HEIGHT,
@@ -41,7 +44,7 @@ use crate::line_numbers::LineNumbers;
 use crate::piece_table::PieceTable;
 use crate::search_ui::{SearchField, SearchUi};
 use crate::syntax::SyntaxDefinition;
-use crate::terminal::{EntryKind, Terminal, TerminalAction};
+use crate::terminal::{EntryKind, OutputCommand, Terminal, TerminalAction};
 use crate::terminal_layout::{TerminalLayout, WrapMetrics};
 use crate::window::{
     logical_render_size,
@@ -128,8 +131,14 @@ impl StoredViewState {
 
 pub struct Renderer<'a> {
     canvas: Canvas<Window>,
+    texture_creator: &'a TextureCreator<WindowContext>,
+    terminal_text_cache: TextCache<'a>,
+    cache_terminal_text: bool,
     font: Font<'a>,
     raster_font: Font<'a>,
+    command_font: Font<'a>,
+    command_raster_font: Font<'a>,
+    command_char_width: i32,
     dpi_text: DpiTextMetrics,
     logical_font_size: f32,
 
@@ -142,6 +151,7 @@ pub struct Renderer<'a> {
     window_height: i32,
     bottom_inset: i32,
     terminal_layout: TerminalLayout,
+    terminal_layout_origin: (u64, usize),
 
     tab_width: usize,
     line_number_mode: LineNumberMode,
@@ -165,9 +175,11 @@ pub struct Renderer<'a> {
 impl<'a> Renderer<'a> {
     pub fn new(
         mut canvas: Canvas<Window>,
+        texture_creator: &'a TextureCreator<WindowContext>,
         font: Font<'a>,
         raster_font: Font<'a>,
         logical_font_size: f32,
+        command_fonts: (Font<'a>, Font<'a>),
         window_hit_test: WindowHitTestState,
     ) -> Result<Self, String> {
         let (
@@ -204,6 +216,13 @@ impl<'a> Renderer<'a> {
                 .map(|(width, _)| width as i32)
                 .unwrap_or(11);
 
+        let (command_font, command_raster_font) = command_fonts;
+        command_font.set_size(COMMAND_FONT_SIZE).map_err(|e| e.to_string())?;
+        command_raster_font.set_size(dpi_text.raster_font_size(COMMAND_FONT_SIZE))
+            .map_err(|e| e.to_string())?;
+        let command_char_width = command_font.size_of("M")
+            .map(|(width, _)| width as i32).unwrap_or(8);
+
         window_hit_test.set_metrics(
             window_width as i32,
             window_coordinate_scale(
@@ -213,8 +232,14 @@ impl<'a> Renderer<'a> {
 
         Ok(Self {
             canvas,
+            texture_creator,
+            terminal_text_cache: TextCache::default(),
+            cache_terminal_text: false,
             font,
             raster_font,
+            command_font,
+            command_raster_font,
+            command_char_width,
             dpi_text,
             logical_font_size,
 
@@ -227,6 +252,7 @@ impl<'a> Renderer<'a> {
             window_height: window_height as i32,
             bottom_inset: 0,
             terminal_layout: TerminalLayout::default(),
+            terminal_layout_origin: (0, 0),
 
             tab_width: 4,
             line_number_mode:
@@ -409,6 +435,7 @@ impl<'a> Renderer<'a> {
             return Err(error.to_string());
         }
 
+        self.terminal_text_cache.clear();
         self.logical_font_size =
             logical_font_size;
 
@@ -878,6 +905,10 @@ impl<'a> Renderer<'a> {
                 )
                 .map_err(|e| e.to_string())?;
 
+            self.command_raster_font
+                .set_size(dpi_text.raster_font_size(COMMAND_FONT_SIZE))
+                .map_err(|e| e.to_string())?;
+            self.terminal_text_cache.clear();
             self.dpi_text = dpi_text;
         }
 
@@ -957,35 +988,20 @@ impl<'a> Renderer<'a> {
         width: f32,
         height: f32,
     ) -> Result<(), String> {
-        let surface =
-            self.raster_font
-                .render(text)
-                .blended(color)
-                .map_err(|e| e.to_string())?;
-
-        let texture_creator =
-            self.canvas.texture_creator();
-
-        let texture =
-            texture_creator
-                .create_texture_from_surface(
-                    &surface,
-                )
-                .map_err(|e| e.to_string())?;
-
-        self.canvas
-            .copy(
-                &texture,
-                None,
-                FRect::new(
-                    x,
-                    y,
-                    width,
-                    height,
-                ),
-            )
-            .map_err(|e| e.to_string())?;
-
+        let key = if self.cache_terminal_text { TextCache::key(text, color) } else { 0 };
+        if self.cache_terminal_text {
+            if let Some(texture) = self.terminal_text_cache.get(key, text, color) {
+                return self.canvas.copy(texture, None, FRect::new(x, y, width, height))
+                    .map_err(|error| error.to_string());
+            }
+            #[cfg(test)] { self.terminal_text_cache.misses += 1; }
+        }
+        let surface = self.raster_font.render(text).blended(color).map_err(|e| e.to_string())?;
+        let texture = self.texture_creator.create_texture_from_surface(&surface).map_err(|e| e.to_string())?;
+        self.canvas.copy(&texture, None, FRect::new(x, y, width, height)).map_err(|e| e.to_string())?;
+        if self.cache_terminal_text {
+            self.terminal_text_cache.insert(key, text, color, texture);
+        }
         Ok(())
     }
 
@@ -1610,6 +1626,7 @@ impl<'a> Renderer<'a> {
         search_ui: &SearchUi,
         command_bar: &CommandBar,
     ) -> Result<(), String> {
+        self.terminal_text_cache.clear();
         self.bottom_inset =
             command_bar.reserved_height();
 
@@ -1648,6 +1665,7 @@ impl<'a> Renderer<'a> {
         search_ui: &SearchUi,
         command_bar: &CommandBar,
     ) -> Result<(), String> {
+        self.terminal_text_cache.clear();
         self.bottom_inset =
             command_bar.reserved_height();
 
@@ -1813,9 +1831,18 @@ impl<'a> Renderer<'a> {
         &mut self,
         terminal: &mut Terminal,
     ) -> Result<(), String> {
-        let status_lines = terminal.status()
+        self.cache_terminal_text = true;
+        let result = self.render_terminal_contents(terminal);
+        self.cache_terminal_text = false;
+        result
+    }
+
+    fn render_terminal_contents(&mut self, terminal: &mut Terminal) -> Result<(), String> {
+        let mut status_lines = terminal.status()
             .map(|status| self.terminal_status_lines(status))
             .unwrap_or_default();
+        status_lines.extend(self.terminal_status_lines(terminal.output_focus_hint()
+            .unwrap_or("Command input · Shift+Up: select output · Esc: editor")));
         let status_height = if status_lines.is_empty() { 0 } else {
             status_lines.len() as i32 * self.font.height().max(1) + 8
         };
@@ -1855,16 +1882,34 @@ impl<'a> Renderer<'a> {
         let line_height =
             self.font.height().max(1);
 
+        let selection = terminal.output_selection();
+        let cursor = terminal.output_cursor();
+        let cursor_row = self.terminal_layout.row_at(cursor);
         for row in rows.clone() {
             let range = self.terminal_layout.row_range(row, terminal.output_mut())
                 .map_err(|error| error.to_string())?.expect("visible row must exist");
             let start = range.start;
             let text = String::from_utf8(terminal.output_mut().read_range(start, range.len())
                 .map_err(|error| error.to_string())?).map_err(|error| error.to_string())?;
-            if text.is_empty() {
-                continue;
-            }
             let y = TITLE_BAR_HEIGHT + 8 + (row - rows.start) as i32 * line_height;
+            if !selection.is_empty() && selection.start < range.end.saturating_add(1) && selection.end > start {
+                let from = selection.start.saturating_sub(start).min(text.len());
+                let to = selection.end.saturating_sub(start).min(text.len());
+                let left = self.terminal_text_width(&text[..from]);
+                let right = self.terminal_text_width(&text[..to]);
+                let newline_width = if selection.end > range.end { self.char_width.max(1) } else { 0 };
+                self.canvas.set_draw_color(Color::RGB(55, 78, 110));
+                self.canvas.fill_rect(Rect::new(12 + left, y,
+                    (right - left + newline_width).max(1) as u32, line_height as u32,
+                )).map_err(|error| error.to_string())?;
+            }
+            if terminal.output_focused() && row == cursor_row {
+                let column = cursor.saturating_sub(start).min(text.len());
+                let x = 12 + self.terminal_text_width(&text[..column]);
+                self.canvas.set_draw_color(Color::RGB(245, 245, 245));
+                self.canvas.fill_rect(Rect::new(x, y, 2, line_height as u32))
+                    .map_err(|error| error.to_string())?;
+            }
             let mut rendered_to = 0;
             for entry in terminal.entries_in(start..start + text.len()) {
                 let from = entry.range.start.saturating_sub(start);
@@ -2072,6 +2117,71 @@ impl<'a> Renderer<'a> {
         Ok(None)
     }
 
+    /// Clamp pointer selection to visible output, including empty lines and row ends.
+    pub(crate) fn terminal_output_offset_at(&mut self, terminal: &mut Terminal, x: i32, y: i32) -> Result<usize, String> {
+        self.update_terminal_layout(terminal)?;
+        let rows = self.terminal_layout.visible_rows(self.visible_line_count(), terminal.scroll_back());
+        let row = (rows.start + (y - TITLE_BAR_HEIGHT - 8).max(0) as usize / self.font.height().max(1) as usize)
+            .min(rows.end.saturating_sub(1));
+        self.terminal_offset_on_row(terminal, row, x - 12)
+    }
+
+    fn terminal_offset_on_row(&self, terminal: &mut Terminal, row: usize, x: i32) -> Result<usize, String> {
+        let Some(range) = self.terminal_layout.row_range(row, terminal.output_mut()).map_err(|e| e.to_string())? else {
+            return Ok(0);
+        };
+        let bytes = terminal.output_mut().read_range(range.start, range.len()).map_err(|e| e.to_string())?;
+        let text = String::from_utf8(bytes).map_err(|e| e.to_string())?;
+        let mut previous = 0;
+        for (index, character) in text.char_indices() {
+            let end = index + character.len_utf8();
+            let width = self.terminal_text_width(&text[..end]);
+            if x < previous + (width - previous) / 2 {
+                return Ok(range.start + index);
+            }
+            previous = width;
+        }
+        Ok(range.end)
+    }
+
+    pub(crate) fn navigate_terminal_output(&mut self, terminal: &mut Terminal, command: OutputCommand) -> Result<(), String> {
+        self.update_terminal_layout(terminal)?;
+        let row = self.terminal_layout.row_at(terminal.output_cursor());
+        match command {
+            OutputCommand::Rows(delta, extend) => {
+                let range = self.terminal_layout.row_range(row, terminal.output_mut()).map_err(|e| e.to_string())?.unwrap_or(0..0);
+                let length = terminal.output_cursor().min(range.end).saturating_sub(range.start);
+                let prefix = terminal.output_mut().read_range(range.start, length).map_err(|e| e.to_string())?;
+                let prefix = String::from_utf8(prefix).map_err(|e| e.to_string())?;
+                let x = terminal.output_desired_x().unwrap_or_else(|| self.terminal_text_width(&prefix));
+                let target_row = row.saturating_add_signed(delta).min(self.terminal_layout.len().saturating_sub(1));
+                let mut target = self.terminal_offset_on_row(terminal, target_row, x)?;
+                // A shared wrap boundary belongs to the following row. Keep
+                // vertical movement on the requested row, even past its text.
+                if self.terminal_layout.row_at(target) > target_row {
+                    target = terminal.output_mut().previous_char_boundary(target).map_err(|e| e.to_string())?;
+                }
+                terminal.move_output_cursor(target, extend).map_err(|e| e.to_string())?;
+                terminal.set_output_desired_x(x);
+            }
+            OutputCommand::RowEdge(end, extend) => {
+                let range = self.terminal_layout.row_range(row, terminal.output_mut()).map_err(|e| e.to_string())?.unwrap_or(0..0);
+                terminal.move_output_cursor(if end { range.end } else { range.start }, extend).map_err(|e| e.to_string())?;
+            }
+            _ => {}
+        }
+        if terminal.output_focused() {
+            let row = self.terminal_layout.row_at(terminal.output_cursor());
+            let visible = self.visible_line_count().max(1);
+            let rows = self.terminal_layout.visible_rows(visible, terminal.scroll_back());
+            let start = if row < rows.start { row } else if row >= rows.end {
+                row.saturating_add(1).saturating_sub(visible)
+            } else { rows.start };
+            terminal.set_scroll_back(self.terminal_layout.len().saturating_sub(visible).saturating_sub(start));
+        }
+        Ok(())
+    }
+
     fn update_terminal_layout(&mut self, terminal: &mut Terminal) -> Result<(), String> {
         let metrics = WrapMetrics {
             width: (self.window_width - 24).max(1),
@@ -2080,6 +2190,11 @@ impl<'a> Renderer<'a> {
             font_size: self.logical_font_size.to_bits(),
         };
         let generation = terminal.output_generation();
+        let origin = terminal.output_layout_origin();
+        if origin.0 == self.terminal_layout_origin.0 && origin.1 > self.terminal_layout_origin.1 {
+            self.terminal_layout.discard_prefix(origin.1 - self.terminal_layout_origin.1, generation);
+        }
+        self.terminal_layout_origin = origin;
         let mut layout = std::mem::take(&mut self.terminal_layout);
         let update = layout.update(terminal.output_mut(), generation, metrics, |character| {
             self.logical_text_size(&character.to_string()).0.ceil() as i32
@@ -2087,7 +2202,7 @@ impl<'a> Renderer<'a> {
         self.terminal_layout = layout;
         let added_rows = update.map_err(|error| error.to_string())?;
         let scroll_back = terminal.scroll_back();
-        let scroll_back = if scroll_back > 0 { scroll_back.saturating_add(added_rows) } else { 0 };
+        let scroll_back = if scroll_back > 0 || terminal.output_focused() { scroll_back.saturating_add(added_rows) } else { 0 };
         terminal.set_scroll_back(scroll_back.min(
             self.terminal_layout.len().saturating_sub(self.visible_line_count())
         ));
@@ -2249,7 +2364,7 @@ impl<'a> Renderer<'a> {
             },
         )?;
 
-        if !terminal.is_running() {
+        if !terminal.is_running() && !terminal.output_focused() {
             self.canvas.set_draw_color(
                 Color::RGB(245, 245, 245),
             );
@@ -2760,7 +2875,20 @@ impl<'a> Renderer<'a> {
         &mut self,
         table: &mut PieceTable,
     ) -> Result<(), String> {
-        if !table.has_selection() {
+        self.render_cursor_selection(table, &table.cursor.clone())?;
+        for index in 0..table.secondary_cursors.len() {
+            let cursor = table.secondary_cursors[index].clone();
+            self.render_cursor_selection(table, &cursor)?;
+        }
+        Ok(())
+    }
+
+    fn render_cursor_selection(
+        &mut self,
+        table: &mut PieceTable,
+        cursor: &crate::piece_table::Cursor,
+    ) -> Result<(), String> {
+        if cursor.position == cursor.anchor {
             return Ok(());
         }
 
@@ -2770,21 +2898,21 @@ impl<'a> Renderer<'a> {
             end_line,
             end_column,
         ) =
-            if table.cursor.position
-                <= table.cursor.anchor
+            if cursor.position
+                <= cursor.anchor
             {
                 (
-                    table.cursor.line,
-                    table.cursor.column,
-                    table.cursor.anchor_line,
-                    table.cursor.anchor_column,
+                    cursor.line,
+                    cursor.column,
+                    cursor.anchor_line,
+                    cursor.anchor_column,
                 )
             } else {
                 (
-                    table.cursor.anchor_line,
-                    table.cursor.anchor_column,
-                    table.cursor.line,
-                    table.cursor.column,
+                    cursor.anchor_line,
+                    cursor.anchor_column,
+                    cursor.line,
+                    cursor.column,
                 )
             };
 
@@ -2808,12 +2936,7 @@ impl<'a> Renderer<'a> {
         let text_left =
             self.text_left(table)?;
 
-        for line in start_line..=end_line {
-            if line < first
-                || line >= last
-            {
-                continue;
-            }
+        for line in start_line.max(first)..end_line.saturating_add(1).min(last) {
 
             let text =
                 table
@@ -3041,12 +3164,21 @@ impl<'a> Renderer<'a> {
         &mut self,
         table: &mut PieceTable,
     ) -> Result<(), String> {
-        let line =
-            self.cursor_line;
+        self.render_cursor_at(table, self.cursor_line, self.cursor_column)?;
+        for index in 0..table.secondary_cursors.len() {
+            let cursor = &table.secondary_cursors[index];
+            let (line, column) = (cursor.line, cursor.column);
+            self.render_cursor_at(table, line, column)?;
+        }
+        Ok(())
+    }
 
-        let column =
-            self.cursor_column;
-
+    fn render_cursor_at(
+        &mut self,
+        table: &mut PieceTable,
+        line: usize,
+        column: usize,
+    ) -> Result<(), String> {
         let visible =
             self.visible_line_count();
 
@@ -3135,11 +3267,11 @@ impl<'a> Renderer<'a> {
         }
 
         let input_width =
-            self.font.size_of(text)
+            self.command_font.size_of(text)
                 .map(|(width, _)| width as i32)
                 .unwrap_or_else(|_| {
                     text.chars().count() as i32
-                        * self.char_width
+                        * self.command_char_width
                 });
 
         let prefix =
@@ -3147,11 +3279,11 @@ impl<'a> Renderer<'a> {
                 .unwrap_or(text);
 
         let cursor_width =
-            self.font.size_of(prefix)
+            self.command_font.size_of(prefix)
                 .map(|(width, _)| width as i32)
                 .unwrap_or_else(|_| {
                     prefix.chars().count() as i32
-                        * self.char_width
+                        * self.command_char_width
                 });
 
         let field_width =
@@ -3181,7 +3313,7 @@ impl<'a> Renderer<'a> {
                 index + character.len_utf8();
 
             let width =
-                self.font
+                self.command_font
                     .size_of(&text[..end])
                     .map(|(width, _)| {
                         width as i32
@@ -3190,7 +3322,7 @@ impl<'a> Renderer<'a> {
                         text[..end]
                             .chars()
                             .count() as i32
-                            * self.char_width
+                            * self.command_char_width
                     });
 
             if target
@@ -3207,6 +3339,28 @@ impl<'a> Renderer<'a> {
     }
 
     fn render_command_bar(
+        &mut self,
+        command_bar: &CommandBar,
+        search_ui: &SearchUi,
+    ) -> Result<(), String> {
+        if !command_bar.is_active() {
+            return Ok(());
+        }
+
+        // Reuse the DPI-aware, bounded text renderer with the panel's fonts.
+        // Restore editor metrics even if drawing returns an error.
+        std::mem::swap(&mut self.font, &mut self.command_font);
+        std::mem::swap(&mut self.raster_font, &mut self.command_raster_font);
+        std::mem::swap(&mut self.char_width, &mut self.command_char_width);
+        let result = self.render_command_bar_contents(command_bar, search_ui);
+        std::mem::swap(&mut self.font, &mut self.command_font);
+        std::mem::swap(&mut self.raster_font, &mut self.command_raster_font);
+        std::mem::swap(&mut self.char_width, &mut self.command_char_width);
+        self.canvas.set_clip_rect(None);
+        result
+    }
+
+    fn render_command_bar_contents(
         &mut self,
         command_bar: &CommandBar,
         search_ui: &SearchUi,
@@ -3269,18 +3423,24 @@ impl<'a> Renderer<'a> {
                 continue;
             };
 
-            let row_y =
-                y + index as i32
-                    * COMMAND_SUGGESTION_HEIGHT;
+            let row_y = y + command_bar.suggestion_row_offset(index);
+            let row_height = command_bar.suggestion_row_height(index);
 
             if command_bar.is_info() {
-                let clip = Rect::new(x + 12, row_y, (width - 24).max(1) as u32, COMMAND_SUGGESTION_HEIGHT as u32);
+                if suggestion.label.is_empty() { continue; }
+                let color = if command_bar.info_is_documentation(index) {
+                    self.syntax.as_ref()
+                        .and_then(|syntax| syntax.rules.iter().find(|rule| rule.name.eq_ignore_ascii_case("comment")))
+                        .map(|rule| rule.color)
+                        .unwrap_or(Color::RGB(106, 153, 85))
+                } else { Color::RGB(235, 235, 235) };
+                let clip = Rect::new(x + 12, row_y, (width - 24).max(1) as u32, row_height as u32);
                 let text_width = self.font.size_of(suggestion.label).map(|(w, _)| w as i32).unwrap_or(0);
                 self.canvas.set_clip_rect(Some(clip));
                 self.render_clipped_single_line_text(
                     suggestion.label, x + 12,
-                    row_y + (COMMAND_SUGGESTION_HEIGHT - self.font.height()) / 2,
-                    clip, text_width, Color::RGB(235, 235, 235),
+                    row_y + (row_height - self.font.height()) / 2,
+                    clip, text_width, color,
                 )?;
                 self.canvas.set_clip_rect(None);
                 continue;
@@ -3366,9 +3526,7 @@ impl<'a> Renderer<'a> {
             }
         }
 
-        let input_y =
-            y + count as i32
-                * COMMAND_SUGGESTION_HEIGHT;
+        let input_y = y + command_bar.suggestions_height();
 
         self.canvas.set_draw_color(
             Color::RGB(105, 155, 205),
@@ -3481,6 +3639,8 @@ impl<'a> Renderer<'a> {
                             })
                     }
                 });
+
+        let status = status.or_else(|| command_bar.navigation_hint());
 
         let status_width =
             status.as_deref()
@@ -4860,5 +5020,273 @@ mod cursor_hit_tests {
             ),
             (false, false),
         );
+    }
+}
+
+#[cfg(test)]
+mod terminal_selection_render_tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "Run with SDL_VIDEODRIVER=dummy and --ignored --test-threads=1"]
+    fn compact_hover_panel_renders_with_small_paragraph_gaps() {
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let window = video.window("hover spacing", 800, 600).hidden().build().unwrap();
+        let ttf = sdl3::ttf::init().unwrap();
+        let font = || ttf.load_font_from_iostream(
+            sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(), 18.0,
+        ).unwrap();
+        let canvas = window.into_canvas();
+        let texture_creator = canvas.texture_creator();
+        let mut renderer = Renderer::new(canvas, &texture_creator, font(), font(), 18.0,
+            (font(), font()), crate::window::WindowHitTestState::new(800, 1.0)).unwrap();
+        let mut bar = CommandBar::new();
+        bar.open(":hover");
+        renderer.set_file_path(Some(std::path::Path::new("example.rs")));
+        bar.show_hover(&crate::lsp::hover_content(&serde_json::json!({"contents": {
+            "kind": "plaintext",
+            "value": "potyi_lsp_demo\n\nfn greeting() -> &'static str\n\n\nReturns a greeting to test Pötyi hover information."
+        }})));
+        assert_eq!(bar.panel_height(), 108);
+        assert!(renderer.command_font.height() <= bar.suggestion_row_height(0));
+        renderer.canvas.set_draw_color(Color::RGB(30, 30, 30));
+        renderer.canvas.clear();
+        renderer.render_command_bar(&bar, &SearchUi::new()).unwrap();
+        let top = 600 - bar.reserved_height();
+        let has_color = |renderer: &Renderer<'_>, index, color: [u8; 3]| {
+            let surface = renderer.canvas.read_pixels(Rect::new(20,
+                top + bar.suggestion_row_offset(index), 760, bar.suggestion_row_height(index) as u32))
+                .unwrap().convert_format(sdl3::pixels::PixelFormat::RGBA32).unwrap();
+            surface.with_lock(|pixels| pixels.chunks_exact(4).any(|pixel| pixel[..3] == color))
+        };
+        assert!(has_color(&renderer, 4, [106, 153, 85]), "documentation should use Rust comment green");
+        assert!(has_color(&renderer, 2, [235, 235, 235]), "signature should keep its normal color");
+        if let Some(path) = std::env::var_os("POTYI_HOVER_PREVIEW") {
+            renderer.canvas.read_pixels(Rect::new(0, 600 - bar.reserved_height() - 8, 800,
+                (bar.reserved_height() + 8) as u32)).unwrap().save_bmp(path).unwrap();
+        }
+        for rule in &mut renderer.syntax.as_mut().unwrap().rules {
+            if rule.name == "comment" { rule.color = Color::RGB(180, 100, 220); }
+        }
+        renderer.render_command_bar(&bar, &SearchUi::new()).unwrap();
+        assert!(has_color(&renderer, 4, [180, 100, 220]), "custom comment colors must apply to hover documentation");
+    }
+
+    #[test]
+    #[ignore = "Run with SDL_VIDEODRIVER=dummy and --ignored --test-threads=1"]
+    fn occurrence_selections_carets_and_vim_transition_render_correctly() {
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let window = video.window("occurrence rendering", 800, 600).hidden().build().unwrap();
+        let ttf = sdl3::ttf::init().unwrap();
+        let font = || ttf.load_font_from_iostream(
+            sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(), 18.0,
+        ).unwrap();
+        let canvas = window.into_canvas();
+        let texture_creator = canvas.texture_creator();
+        let mut renderer = Renderer::new(canvas, &texture_creator, font(), font(), 18.0,
+            (font(), font()), crate::window::WindowHitTestState::new(800, 1.0)).unwrap();
+        let mut config = crate::config::EditorConfig::default();
+        config.keybinding_mode = crate::config::KeybindingMode::Conventional;
+        let mut editor = crate::Editor::new(config.clone()).unwrap();
+        editor.document.insert(0, "cat\ncat").unwrap();
+        editor.document.move_cursor(0).unwrap();
+        editor.select_next_occurrence().unwrap();
+        editor.select_next_occurrence().unwrap();
+        renderer.update_cursor(&editor.document);
+        renderer.canvas.set_draw_color(Color::RGB(0, 0, 0));
+        renderer.canvas.clear();
+        renderer.render_selection(&mut editor.document).unwrap();
+        let left = renderer.text_left(&mut editor.document).unwrap();
+        let pixel = |renderer: &Renderer<'_>, x, y| {
+            let surface = renderer.canvas.read_pixels(Rect::new(x, y, 1, 1)).unwrap()
+                .convert_format(sdl3::pixels::PixelFormat::RGBA32).unwrap();
+            surface.with_lock(|bytes| [bytes[0], bytes[1], bytes[2]])
+        };
+        for line in 0..2 {
+            assert_eq!(pixel(&renderer, left + 1, TITLE_BAR_HEIGHT + 9 + line * renderer.font.height()),
+                [70, 100, 160], "both selections must be highlighted");
+        }
+        editor.insert("dog").unwrap();
+        renderer.update_cursor(&editor.document);
+        renderer.canvas.set_draw_color(Color::RGB(0, 0, 0));
+        renderer.canvas.clear();
+        renderer.render_cursor(&mut editor.document).unwrap();
+        let x = renderer.visual_x_for_column("dog", 3, left);
+        for line in 0..2 {
+            assert_eq!(pixel(&renderer, x, TITLE_BAR_HEIGHT + 9 + line * renderer.font.height()),
+                [255, 255, 255], "both insertion carets must be drawn");
+        }
+        let mut other = crate::Editor::new(config).unwrap();
+        let mut vim = crate::VimController::new();
+        let mut other_vim = crate::VimController::new();
+        let mut enabled = false;
+        crate::apply_keybinding_mode(crate::config::KeybindingMode::Vim, &mut enabled,
+            &mut editor, &mut other, &mut vim, &mut other_vim, &mut renderer);
+        assert!(enabled);
+        assert!(editor.document.secondary_cursors.is_empty());
+        assert!(!editor.document.has_selection());
+        assert_eq!(editor.document.text().unwrap(), "dog\ndog");
+        editor.config.keybinding_mode = crate::config::KeybindingMode::Vim;
+        editor.undo().unwrap();
+        assert_eq!(editor.document.text().unwrap(), "cat\ncat");
+        assert!(editor.document.secondary_cursors.is_empty());
+        assert!(!editor.document.has_selection());
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    #[ignore = "Latency probe; run with SDL_VIDEODRIVER=dummy --ignored --nocapture --test-threads=1"]
+    fn terminal_command_latency_probe() {
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let events = sdl.event().unwrap();
+        crate::terminal::register_test_events(&events);
+        let mut pump = sdl.event_pump().unwrap();
+        let window = video.window("terminal latency", 800, 600).hidden().build().unwrap();
+        let ttf = sdl3::ttf::init().unwrap();
+        let font = || ttf.load_font_from_iostream(
+            sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(), 18.0,
+        ).unwrap();
+        let canvas = window.into_canvas();
+        let texture_creator = canvas.texture_creator();
+        let mut renderer = Renderer::new(canvas, &texture_creator, font(), font(), 18.0,
+            (font(), font()), crate::window::WindowHitTestState::new(800, 1.0)).unwrap();
+        let mut terminal = Terminal::new(std::env::current_dir().unwrap()).unwrap();
+        terminal.set_events(events.clone());
+        for command in ["printf terminal-ready", "grep -n 'fn main' src/main.rs", "printf 'ready\\n' | grep -n ready"] {
+            for _ in pump.poll_iter() {}
+            terminal.clear().unwrap();
+            terminal.insert_text(command);
+            let start = std::time::Instant::now();
+            terminal.submit(&events).unwrap();
+            let initial_length = terminal.output_mut().len();
+            renderer.render_terminal(&mut terminal).unwrap();
+            let mut first_output = None;
+            while terminal.is_running() {
+                let changed = terminal.poll_background().unwrap();
+                if changed {
+                    renderer.render_terminal(&mut terminal).unwrap();
+                    if terminal.output_mut().len() > initial_length && first_output.is_none() {
+                        first_output = Some(start.elapsed());
+                    }
+                }
+                assert!(start.elapsed() < std::time::Duration::from_secs(20), "command timed out");
+                if !terminal.is_running() { break; }
+                let timeout = if terminal.has_pending_work() { std::time::Duration::ZERO } else { std::time::Duration::from_secs(1) };
+                if let Some(event) = pump.wait_event_timeout(timeout)
+                    && let Some(event) = event.as_user_event_type::<crate::terminal::TerminalEvent>()
+                { terminal.handle_event(event).unwrap(); }
+            }
+            eprintln!("LATENCY {command:?}: first drawn output {:?}, complete {:?}", first_output.unwrap(), start.elapsed());
+            let name = if command.starts_with("grep") { "terminal_grep_first_frame" }
+                else if command.contains('|') { "terminal_pipe_first_frame" } else { "terminal_printf_first_frame" };
+            crate::benchmarks::record(name, first_output.unwrap(), 0);
+        }
+    }
+
+    #[test]
+    #[ignore = "Performance probe; run with SDL_VIDEODRIVER=dummy --ignored --nocapture --test-threads=1"]
+    fn terminal_performance_probe() {
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let window = video.window("terminal performance", 800, 600).hidden().build().unwrap();
+        let ttf = sdl3::ttf::init().unwrap();
+        let font = || ttf.load_font_from_iostream(
+            sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(), 18.0,
+        ).unwrap();
+        let canvas = window.into_canvas();
+        let texture_creator = canvas.texture_creator();
+        let mut renderer = Renderer::new(canvas, &texture_creator, font(), font(), 18.0,
+            (font(), font()), crate::window::WindowHitTestState::new(800, 1.0)).unwrap();
+        let mut terminal = Terminal::new(std::env::temp_dir()).unwrap();
+        terminal.clear().unwrap();
+        let text = (0..100).map(|n| format!("{n}: ordinary terminal output with Unicode 東京 and words\n")).collect::<String>();
+        terminal.output_mut().insert(0, &text).unwrap();
+        renderer.render_terminal(&mut terminal).unwrap();
+        let initial_misses = renderer.terminal_text_cache.misses;
+        let start = std::time::Instant::now();
+        for _ in 0..120 { renderer.render_terminal(&mut terminal).unwrap(); }
+        let elapsed = start.elapsed();
+        eprintln!("PERF 120 unchanged frames: {elapsed:?}");
+        crate::benchmarks::record("terminal_120_cached_frames", elapsed, 0);
+        assert_eq!(renderer.terminal_text_cache.misses, initial_misses, "unchanged frames must reuse glyph textures");
+        assert!(renderer.terminal_text_cache.bytes() <= crate::terminal_text_cache::MAX_BYTES);
+        terminal.clear().unwrap();
+        let chunk = "long unfinished output ".repeat(700);
+        let start = std::time::Instant::now();
+        for _ in 0..128 {
+            let end = terminal.output_mut().len();
+            terminal.output_mut().insert(end, &chunk).unwrap();
+            renderer.update_terminal_layout(&mut terminal).unwrap();
+        }
+        let elapsed = start.elapsed();
+        eprintln!("PERF unfinished-line append/layout {} bytes: {elapsed:?}", chunk.len() * 128);
+        crate::benchmarks::record("terminal_append_layout_2mb", elapsed, chunk.len() * 128);
+        renderer.set_font_size(20.0).unwrap();
+        assert_eq!(renderer.terminal_text_cache.bytes(), 0, "font changes invalidate cached glyphs");
+        // Deliberately exceed the cache budget, without a timing assertion.
+        for n in 0..4 {
+            let text = format!("large cached row {n}");
+            let color = Color::RGB(255, 255, 255);
+            let key = TextCache::key(&text, color);
+            let texture = texture_creator.create_texture_static(None, 1024, 1024).unwrap();
+            renderer.terminal_text_cache.insert(key, &text, color, texture);
+            assert!(renderer.terminal_text_cache.bytes() <= crate::terminal_text_cache::MAX_BYTES);
+            assert!(renderer.terminal_text_cache.get(key, &text, color).is_some());
+        }
+        assert!(renderer.terminal_text_cache.get(TextCache::key("large cached row 0", Color::RGB(255,255,255)),
+            "large cached row 0", Color::RGB(255,255,255)).is_none(), "old textures must be evicted");
+        renderer.render(terminal.output_mut(), &SearchUi::new(), &CommandBar::new()).unwrap();
+        assert_eq!(renderer.terminal_text_cache.bytes(), 0, "returning to the editor releases cached textures");
+
+    }
+
+    #[test]
+    #[ignore = "Run with SDL_VIDEODRIVER=dummy and --ignored --test-threads=1"]
+    fn terminal_selection_handles_wrapping_unicode_and_streaming() {
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let window = video.window("terminal selection test", 800, 600).hidden().build().unwrap();
+        let ttf = sdl3::ttf::init().unwrap();
+        let font = || ttf.load_font_from_iostream(
+            sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(), 18.0,
+        ).unwrap();
+        let canvas = window.into_canvas();
+        let texture_creator = canvas.texture_creator();
+        let mut renderer = Renderer::new(canvas, &texture_creator, font(), font(), 18.0,
+            (font(), font()), crate::window::WindowHitTestState::new(800, 1.0)).unwrap();
+        let mut terminal = Terminal::new(std::env::temp_dir()).unwrap();
+        terminal.clear().unwrap();
+        let text = format!("aé🙂\n\n{}\nend", "wrapped words ".repeat(200));
+        terminal.output_mut().insert(0, &text).unwrap();
+        renderer.render_terminal(&mut terminal).unwrap();
+        terminal.move_output_cursor(0, false).unwrap();
+        renderer.navigate_terminal_output(&mut terminal, OutputCommand::None).unwrap();
+        renderer.render_terminal(&mut terminal).unwrap();
+        let x = 12 + renderer.terminal_text_width("aé");
+        assert_eq!(renderer.terminal_output_offset_at(&mut terminal, x, TITLE_BAR_HEIGHT + 8).unwrap(), 3);
+        terminal.move_output_cursor(3, false).unwrap();
+        renderer.navigate_terminal_output(&mut terminal, OutputCommand::Rows(1, true)).unwrap();
+        assert_eq!(terminal.output_cursor(), 8); // empty logical line
+        assert_eq!(terminal.output_selection(), 3..8);
+        let desired_x = terminal.output_desired_x();
+        renderer.navigate_terminal_output(&mut terminal, OutputCommand::Rows(1, true)).unwrap();
+        assert_eq!(terminal.output_desired_x(), desired_x);
+        let row = renderer.terminal_layout.row_at(terminal.output_cursor());
+        renderer.navigate_terminal_output(&mut terminal, OutputCommand::Rows(1, true)).unwrap();
+        assert_eq!(renderer.terminal_layout.row_at(terminal.output_cursor()), row + 1);
+        let selection = terminal.output_selection();
+        renderer.render_terminal(&mut terminal).unwrap();
+        let visible_start = renderer.terminal_layout.visible_rows(renderer.visible_line_count(), terminal.scroll_back()).start;
+        let end = terminal.output_mut().len();
+        terminal.output_mut().insert(end, &"streaming\n".repeat(100)).unwrap();
+        renderer.render_terminal(&mut terminal).unwrap();
+        assert_eq!(terminal.output_selection(), selection);
+        assert_eq!(renderer.terminal_layout.visible_rows(renderer.visible_line_count(), terminal.scroll_back()).start, visible_start);
+        terminal.clear().unwrap();
+        terminal.move_output_cursor(0, false).unwrap();
+        renderer.render_terminal(&mut terminal).unwrap();
     }
 }

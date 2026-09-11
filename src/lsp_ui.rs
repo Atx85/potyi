@@ -1,7 +1,7 @@
 // Pötyi - Lightweight text editor
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Editor integration. LSP cannot mutate documents or execute server commands.
+//! Explicit LSP navigation and reviewed workspace text edits; no server commands.
 use crate::{CommandOutcome, CursorState, Editor, command_bar::CommandBar, file_is_open_in, lsp};
 use sdl3::EventSubsystem;
 use std::collections::HashMap;
@@ -32,6 +32,8 @@ pub(crate) struct LspUi {
     events: EventSubsystem,
     sessions: HashMap<(String, PathBuf), Running>,
     pending: Option<Pending>,
+    preview: Option<(u64, std::sync::Arc<crate::workspace_edit::PreparedRename>)>,
+    hover_refresh: Option<Pending>,
     next_id: u64,
     back: Vec<Bookmark>,
     last_paths: Vec<Option<PathBuf>>,
@@ -43,6 +45,8 @@ impl LspUi {
             events,
             sessions: HashMap::new(),
             pending: None,
+            preview: None,
+            hover_refresh: None,
             next_id: 1,
             back: Vec::new(),
             last_paths: Vec::new(),
@@ -51,7 +55,36 @@ impl LspUi {
 
     pub fn stop(&mut self) {
         self.pending = None;
+        self.hover_refresh = None;
         self.sessions.clear();
+        self.preview = None;
+    }
+
+    /// Clicks are explicit hover requests. While a server is busy, retain only
+    /// the latest target metadata; snapshot its text when the previous request ends.
+    pub fn document_clicked(&mut self, editor: &Editor, other: &Editor, bar: &mut CommandBar) {
+        if !bar.is_active() || !bar.is_info()
+            || !matches!(bar.parse(), Ok(crate::command_bar::ParsedCommand::Hover))
+        {
+            self.hover_refresh = None;
+            if bar.is_active() && bar.is_info()
+                && matches!(bar.parse(), Ok(crate::command_bar::ParsedCommand::Definition))
+                && self.pending.as_ref().is_some_and(|p| !p.matches(editor, other, bar))
+            {
+                bar.show_info("Cursor moved. Press Enter to request a definition here.");
+            }
+            return;
+        }
+        if self.pending.is_some() {
+            self.hover_refresh = Some(Pending {
+                id: 0, revision: editor.document.revision(),
+                other_revision: other.document.revision(),
+                cursor: editor.document.cursor.position, path: editor.path.clone(), epoch: bar.epoch(),
+            });
+            bar.show_info("Waiting for hover at the clicked word…\nClick another word to change the target; Escape closes.");
+        } else if let Err(error) = self.request(lsp::Action::Hover, editor, other, bar) {
+            bar.show_info(&error);
+        }
     }
 
     pub fn status(&self, editor: &Editor) -> String {
@@ -90,6 +123,8 @@ impl LspUi {
         if self.pending.is_some() {
             return Err("LSP request in progress; use :lsp-stop to cancel".into());
         }
+        self.hover_refresh = None;
+        self.preview = None;
         let config = lsp::Config::load()?;
         if !config.enabled {
             self.stop();
@@ -176,6 +211,7 @@ impl LspUi {
             return;
         }
         self.pending = None;
+        self.hover_refresh = None;
         let canonical: Vec<_> = paths
             .iter()
             .flatten()
@@ -228,12 +264,29 @@ impl LspUi {
             return outcome;
         }
         let pending = self.pending.take().unwrap();
+        if let Some(refresh) = self.hover_refresh.take() {
+            if refresh.matches(editor, other, bar)
+                && matches!(bar.parse(), Ok(crate::command_bar::ParsedCommand::Hover))
+            {
+                if let Err(error) = self.request(lsp::Action::Hover, editor, other, bar) {
+                    bar.show_info(&error);
+                }
+            }
+            return outcome;
+        }
         if !pending.matches(editor, other, bar) {
             return outcome;
         }
         match event.result {
             Err(error) => bar.show_info(&format!("LSP: {error}")),
-            Ok(lsp::Reply::Hover(text)) => bar.show_info(&text),
+            Ok(lsp::Reply::Rename(preview)) => {
+                bar.show_review(preview.choices());
+                self.preview = Some((bar.epoch(), std::sync::Arc::new(preview)));
+            }
+            Ok(lsp::Reply::Hover(text)) => {
+                bar.show_hover(&text);
+                bar.set_status("Click another word to inspect it; Up/Down scroll; Escape closes");
+            }
             Ok(lsp::Reply::Definition(locations)) => {
                 if let Some(location) = locations.first() {
                     let bookmark = Bookmark {
@@ -260,6 +313,47 @@ impl LspUi {
         outcome
     }
 
+    pub fn files_changed(&mut self, paths: Vec<PathBuf>) {
+        if paths.is_empty() { return; }
+        self.pending = None;
+        self.hover_refresh = None;
+        self.sessions.retain(|(_,root), session| {
+            let changed: Vec<_> = paths.iter().filter(|p| p.starts_with(root)).cloned().collect();
+            // Reconnect on demand if the bounded queue cannot accept invalidation.
+            changed.is_empty() || session.client.files_changed(changed)
+        });
+    }
+
+    pub fn discard_dismissed_preview(&mut self, bar: &CommandBar) {
+        if self.preview.as_ref().is_some_and(|(epoch,_)| !bar.is_active() || *epoch != bar.epoch()) {
+            self.preview = None;
+        }
+    }
+
+    /// Returns Some only while Enter/click belongs to an existing rename preview.
+    pub fn review(&mut self, editor: &mut Editor, other: &mut Editor, bar: &mut CommandBar)
+        -> Option<Result<bool,String>> {
+        self.discard_dismissed_preview(bar);
+        let (_, preview) = self.preview.as_ref()?;
+        if bar.is_info() {
+            bar.show_review(preview.choices());
+            return Some(Ok(false));
+        }
+        let selected = bar.review_selection()?;
+        if selected < preview.files.len() {
+            bar.show_info(&preview.files[selected].preview);
+            bar.set_status("Up/Down scroll; Enter returns to files; Escape cancels rename");
+            return Some(Ok(false));
+        }
+        let apply = selected == preview.files.len();
+        let (_, preview) = self.preview.take().unwrap();
+        if !apply { bar.close(); return Some(Ok(false)); }
+        Some(crate::workspace_edit::apply(preview, editor, other).map(|_| {
+            self.files_changed(crate::workspace_edit::recent_disk_changes(editor, false));
+            bar.close(); true
+        }))
+    }
+
     pub fn go_back(
         &mut self,
         editor: &mut Editor,
@@ -277,7 +371,7 @@ impl LspUi {
         let outcome = navigate(&location, editor, other)?;
         let target = if outcome.focus_other { other } else { editor };
         if target.document.revision() == bookmark.revision {
-            target.restore_cursor(bookmark.cursor);
+            target.restore_cursor(bookmark.cursor.clone());
         } else {
             target
                 .document
@@ -341,6 +435,7 @@ fn navigate(
             .line_text(location.line)
             .map_err(|e| e.to_string())?;
         let column = lsp::utf16_column(&text, location.character)?;
+        target.clear_secondary_cursors();
         target
             .document
             .move_cursor_to_line_column(location.line, column)

@@ -596,3 +596,28 @@ footer {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Measurement pages and the homepage's evidence section share the site palette. */
+.development-note { margin: 1rem 0 4rem; color: var(--muted); font-size: .9rem; }
+.benchmark-summary, .editor-faq { padding: 3rem 0; border-top: 1px solid var(--line); }
+.benchmark-summary h2, .editor-faq h2 { font-size: clamp(1.8rem, 3vw, 2.6rem); line-height: 1.15; }
+.benchmark-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin: 2rem 0; }
+.benchmark-stat { padding: 1.2rem; border: 1px solid var(--line); background: var(--surface); }
+.benchmark-stat strong { display: block; font-size: 1.8rem; color: var(--accent-strong); font-variant-numeric: tabular-nums; }
+.benchmark-stat span { display: block; font-size: .95rem; }
+.benchmark-context { color: var(--muted); max-width: 80ch; font-size: .95rem; }
+.editor-faq details { padding: 1rem 0; border-bottom: 1px solid var(--line); }
+.editor-faq summary { cursor: pointer; font-weight: 650; }
+.editor-faq details p { margin: 1rem 0 0; max-width: 75ch; color: var(--muted); }
+.benchmark-report { padding: 4rem 0; }
+.benchmark-report h1 { font-size: clamp(2.5rem, 5vw, 4.5rem); line-height: 1.06; }
+.benchmark-report h2 { margin-top: 3rem; }
+.benchmark-report p, .benchmark-report li { max-width: 85ch; }
+.benchmark-table { overflow-x: auto; margin: 1.5rem 0; }
+.benchmark-table table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.benchmark-table th, .benchmark-table td { padding: .8rem; text-align: left; border-bottom: 1px solid var(--line); }
+.benchmark-table thead { background: var(--surface); }
+.benchmark-report pre { overflow-x: auto; padding: 1rem; background: var(--surface); border: 1px solid var(--line); }
+.benchmark-report code { overflow-wrap: anywhere; }
+@media (max-width: 900px) { .benchmark-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } nav { flex-wrap: wrap; gap: .7rem 1.2rem; } }
+@media (max-width: 480px) { .benchmark-grid { grid-template-columns: 1fr; } }

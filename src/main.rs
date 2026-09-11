@@ -47,6 +47,9 @@ mod embedded_config;
 mod formatting;
 mod lsp;
 mod lsp_ui;
+mod workspace_edit;
+#[cfg(test)]
+mod benchmarks;
 mod keybindings;
 mod line_numbers;
 mod piece_table;
@@ -57,8 +60,10 @@ mod window;
 mod syntax;
 mod syntax_core;
 mod config;
+mod multi_cursor;
 mod terminal;
 mod terminal_layout;
+mod terminal_text_cache;
 mod vim;
 
 use keybindings::{Command, KeyBindings};
@@ -95,6 +100,7 @@ use terminal::{
     Terminal,
     TerminalAction,
     TerminalEvent,
+    OutputCommand,
 };
 use vim::{VimController, VimMode, VimUiAction};
 
@@ -102,8 +108,9 @@ use vim::{VimController, VimMode, VimUiAction};
 // Cursor / history
 // ==========================================================================
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct CursorState {
+    secondary_cursors: Vec<piece_table::Cursor>,
     position: usize,
     line: usize,
     column: usize,
@@ -123,6 +130,7 @@ struct TextChange {
 enum HistoryKind {
     Changes(Vec<TextChange>),
     Snapshot(PieceTableSnapshot),
+    Workspace(workspace_edit::Marker),
     Sequence(Vec<HistoryKind>),
 }
 
@@ -151,6 +159,7 @@ struct Editor {
     undo_stack: Vec<HistoryEntry>,
     redo_stack: Vec<HistoryEntry>,
 
+    multi_edit_group: Option<usize>,
     applying_history: bool,
     dirty: bool,
     read_only: bool,
@@ -166,6 +175,7 @@ impl Editor {
             config,
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
+            multi_edit_group: None,
             applying_history: false,
             dirty: false,
             read_only: false,
@@ -183,6 +193,7 @@ impl Editor {
     }
     fn cursor_state(&self) -> CursorState {
         CursorState {
+            secondary_cursors: self.document.secondary_cursors.clone(),
             position: self.document.cursor.position,
             line: self.document.cursor.line,
             column: self.document.cursor.column,
@@ -201,6 +212,10 @@ impl Editor {
         &mut self,
         start: usize,
     ) {
+        // A workspace transaction must remain a top-level, coordinated undo step.
+        let start = self.undo_stack.iter().enumerate().skip(start)
+            .rfind(|(_, entry)| matches!(entry.kind, HistoryKind::Workspace(_)))
+            .map_or(start, |(index, _)| index + 1);
         if start >= self.undo_stack.len() {
             return;
         }
@@ -215,8 +230,8 @@ impl Editor {
             return;
         }
 
-        let before = entries.first().unwrap().before;
-        let after = entries.last().unwrap().after;
+        let before = entries.first().unwrap().before.clone();
+        let after = entries.last().unwrap().after.clone();
         let kinds = entries.into_iter()
             .map(|entry| entry.kind)
             .collect();
@@ -270,6 +285,8 @@ impl Editor {
                 }
             }
 
+            HistoryKind::Workspace(_) => return Err(io::Error::other("Workspace undo requires both panes")),
+
             HistoryKind::Snapshot(snapshot) => {
                 self.document.swap_snapshot(snapshot);
             }
@@ -294,6 +311,11 @@ impl Editor {
         &mut self,
         state: CursorState,
     ) {
+        let collapse_occurrence_selection = self.config.keybinding_mode == KeybindingMode::Vim
+            && !state.secondary_cursors.is_empty();
+        self.document.secondary_cursors = if self.config.keybinding_mode == KeybindingMode::Conventional {
+            state.secondary_cursors
+        } else { Vec::new() };
         self.document.cursor.position =
             state.position;
 
@@ -314,6 +336,39 @@ impl Editor {
 
         self.document.cursor.anchor_column =
             state.anchor_column;
+        if collapse_occurrence_selection {
+            self.document.cursor.anchor = state.position;
+            self.document.cursor.anchor_line = state.line;
+            self.document.cursor.anchor_column = state.column;
+        }
+    }
+
+    fn new_document(&mut self, path: Option<&str>) -> io::Result<()> {
+        if self.dirty {
+            return Err(io::Error::other("Save the current document before creating a new file"));
+        }
+        if path == Some("") {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Enter a file path"));
+        }
+
+        let document = PieceTable::empty()?;
+        if let Some(path) = path {
+            document.write_to_new(std::path::Path::new(path)).map_err(|error| {
+                if error.kind() == io::ErrorKind::AlreadyExists {
+                    io::Error::new(error.kind(), "File already exists. Use :open to edit it.")
+                } else {
+                    error
+                }
+            })?;
+        }
+        self.document = document;
+        self.path = path.map(PathBuf::from);
+        self.multi_edit_group = None;
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+        self.dirty = false;
+        self.read_only = false;
+        Ok(())
     }
 
     fn open(
@@ -334,6 +389,7 @@ impl Editor {
         self.document = document;
         self.path = Some(PathBuf::from(path));
 
+        self.multi_edit_group = None;
         self.undo_stack.clear();
         self.redo_stack.clear();
         self.dirty = false;
@@ -433,12 +489,14 @@ fn save(&mut self) -> io::Result<()> {
         let Some(snapshot) = self.document.replace_from_reader(output, formatting::MAX_OUTPUT_BYTES)? else {
             return Ok(false);
         };
+        self.clear_secondary_cursors();
         let after = CursorState {
+            secondary_cursors: Vec::new(),
             position: cursor.byte, line: cursor.line, column: cursor.column,
             anchor: anchor.byte, anchor_line: anchor.line, anchor_column: anchor.column,
             desired_column: None,
         };
-        self.restore_cursor(after);
+        self.restore_cursor(after.clone());
         self.undo_stack.push(HistoryEntry { kind: HistoryKind::Snapshot(snapshot), before, after });
         self.redo_stack.clear();
         self.dirty = true;
@@ -465,7 +523,23 @@ fn save(&mut self) -> io::Result<()> {
         command: Command,
         page_lines: usize,
     ) -> io::Result<()> {
+        if self.config.keybinding_mode == KeybindingMode::Conventional
+            && !self.document.secondary_cursors.is_empty()
+            && multi_cursor::is_cursor_motion(command)
+        {
+            return self.move_occurrence_cursors(command, page_lines);
+        }
+        if !matches!(command, Command::SelectNextOccurrence | Command::Delete | Command::Backspace
+            | Command::Newline | Command::InsertTab | Command::Copy | Command::Cut | Command::Paste
+            | Command::Undo | Command::Redo) {
+            self.clear_secondary_cursors();
+        }
+        self.execute_single(command, page_lines)
+    }
+
+    fn execute_single(&mut self, command: Command, page_lines: usize) -> io::Result<()> {
         match command {
+            Command::SelectNextOccurrence => self.select_next_occurrence(),
             Command::MoveLeft =>
                 self.move_left(),
         
@@ -541,7 +615,7 @@ fn save(&mut self) -> io::Result<()> {
             Command::Quit =>
                 Ok(()),
 
-            Command::SaveAs | Command::FormatDocument => Ok(()), // Handled in the event loop.
+            Command::NewFile | Command::SaveAs | Command::FormatDocument => Ok(()), // Handled in the event loop.
         }
     }
 
@@ -642,6 +716,10 @@ fn save(&mut self) -> io::Result<()> {
             return Ok(());
         }
 
+        if !self.document.secondary_cursors.is_empty() {
+            return self.edit_occurrences(text, None);
+        }
+
         let range =
             if self.document.has_selection() {
                 SearchResult {
@@ -711,6 +789,8 @@ fn save(&mut self) -> io::Result<()> {
 
         let before =
             self.cursor_state();
+
+        self.clear_secondary_cursors();
 
         let changed =
             !self.document.range_equals(
@@ -815,6 +895,8 @@ fn save(&mut self) -> io::Result<()> {
 
         let before =
             self.cursor_state();
+
+        self.clear_secondary_cursors();
 
         let mut runs:
             Vec<ReplacementRun> = Vec::new();
@@ -1144,6 +1226,9 @@ fn save(&mut self) -> io::Result<()> {
     }
 
     fn delete(&mut self) -> io::Result<()> {
+        if !self.document.secondary_cursors.is_empty() {
+            return self.edit_occurrences("", Some(false));
+        }
         if self.document.has_selection() {
             return self.delete_selection();
         }
@@ -1167,6 +1252,9 @@ fn save(&mut self) -> io::Result<()> {
     }
 
     fn backspace(&mut self) -> io::Result<()> {
+        if !self.document.secondary_cursors.is_empty() {
+            return self.edit_occurrences("", Some(true));
+        }
         if self.document.has_selection() {
             return self.delete_selection();
         }
@@ -1190,6 +1278,9 @@ fn save(&mut self) -> io::Result<()> {
     }
 
     fn delete_selection(&mut self) -> io::Result<()> {
+        if !self.document.secondary_cursors.is_empty() {
+            return self.edit_occurrences("", None);
+        }
         if !self.document.has_selection() {
             return Ok(());
         }
@@ -1211,6 +1302,10 @@ fn save(&mut self) -> io::Result<()> {
     // ----------------------------------------------------------------------
 
     fn undo(&mut self) -> io::Result<()> {
+        if self.undo_stack.last().is_some_and(|e| matches!(e.kind, HistoryKind::Workspace(_))) {
+            return Err(io::Error::other("Workspace undo requires both panes"));
+        }
+        self.multi_edit_group = None;
         if self.read_only {
             return Ok(());
         }
@@ -1228,7 +1323,7 @@ fn save(&mut self) -> io::Result<()> {
                 &mut entry.kind,
                 true,
             )?;
-            self.restore_cursor(entry.before);
+            self.restore_cursor(entry.before.clone());
 
             Ok(())
         })();
@@ -1244,6 +1339,10 @@ fn save(&mut self) -> io::Result<()> {
     }
 
     fn redo(&mut self) -> io::Result<()> {
+        if self.redo_stack.last().is_some_and(|e| matches!(e.kind, HistoryKind::Workspace(_))) {
+            return Err(io::Error::other("Workspace undo requires both panes"));
+        }
+        self.multi_edit_group = None;
         if self.read_only {
             return Ok(());
         }
@@ -1261,7 +1360,7 @@ fn save(&mut self) -> io::Result<()> {
                 &mut entry.kind,
                 false,
             )?;
-            self.restore_cursor(entry.after);
+            self.restore_cursor(entry.after.clone());
 
             Ok(())
         })();
@@ -1777,10 +1876,42 @@ fn execute_command_bar(
     terminal: &mut Terminal,
     vim: &mut VimController,
     reverse_find: bool,
+    other_vim: &mut VimController,
     lsp_ui: &mut lsp_ui::LspUi,
 ) -> CommandOutcome {
     let mut outcome =
         CommandOutcome::default();
+
+    let other_history_len = other_editor.undo_stack.len();
+    if let Some(result) = lsp_ui.review(editor, other_editor, command_bar) {
+        match result {
+            Ok(true) => {
+                vim.finish_formatting(editor);
+                if other_editor.undo_stack.len() > other_history_len {
+                    other_vim.finish_formatting(other_editor);
+                }
+                search_ui.close();
+                outcome.document_changed = true;
+                outcome.cursor_changed = true;
+            }
+            Ok(false) => {},
+            Err(error) => command_bar.show_info(&error),
+        }
+        return outcome;
+    }
+    editor.clear_secondary_cursors();
+    let previous_epoch = command_bar.epoch();
+    let execute = command_bar.prepare_execute();
+    if previous_epoch != command_bar.epoch() {
+        if let Err(error) = sync_command_search(command_bar, search_ui, &mut editor.document, vim.search_origin()) {
+            command_bar.set_status(error.to_string());
+            return outcome;
+        }
+        outcome.cursor_changed = search_ui.current_match().is_some();
+    }
+    if !execute {
+        return outcome;
+    }
 
     match command_bar.parse() {
         Ok(ParsedCommand::Find {
@@ -1874,6 +2005,24 @@ fn execute_command_bar(
                         error
                     );
                 }
+            }
+        }
+
+        Ok(ParsedCommand::New { path }) => {
+            let result = if path.as_deref().is_some_and(|path| file_is_open_in(path, other_editor)) {
+                Err(io::Error::other("This file is already open in the other pane"))
+            } else {
+                editor.new_document(path.as_deref())
+            };
+            match result {
+                Ok(()) => {
+                    command_bar.close();
+                    search_ui.close();
+                    outcome.document_reloaded = true;
+                    outcome.path_changed = true;
+                    outcome.cursor_changed = true;
+                }
+                Err(error) => command_bar.set_status(error.to_string()),
             }
         }
 
@@ -1973,6 +2122,11 @@ fn execute_command_bar(
         Ok(ParsedCommand::Hover) | Ok(ParsedCommand::Definition) => {
             let action = if matches!(command_bar.parse(), Ok(ParsedCommand::Hover)) { lsp::Action::Hover } else { lsp::Action::Definition };
             if let Err(error) = lsp_ui.request(action, editor, other_editor, command_bar) {
+                command_bar.show_info(&error);
+            }
+        }
+        Ok(ParsedCommand::Rename { name }) => {
+            if let Err(error) = lsp_ui.request(lsp::Action::Rename(name), editor, other_editor, command_bar) {
                 command_bar.show_info(&error);
             }
         }
@@ -2184,9 +2338,17 @@ fn apply_keybinding_mode(
     other_vim: &mut VimController,
     renderer: &mut Renderer<'_>,
 ) {
+    editor.clear_secondary_cursors();
+    other_editor.clear_secondary_cursors();
     *vim_enabled = mode == KeybindingMode::Vim;
 
     if *vim_enabled {
+        for target in [&mut *editor, &mut *other_editor] {
+            let cursor = &mut target.document.cursor;
+            cursor.anchor = cursor.position;
+            cursor.anchor_line = cursor.line;
+            cursor.anchor_column = cursor.column;
+        }
         vim.reset();
         other_vim.reset();
         renderer.set_mode_label(Some(vim.mode_label()));
@@ -2224,6 +2386,20 @@ fn open_terminal_document(
     Ok(focus_other)
 }
 
+fn move_to_terminal_location(
+    document: &mut PieceTable,
+    line: usize,
+    column: Option<usize>,
+    byte_column: bool,
+) -> io::Result<()> {
+    let column = column.unwrap_or(1).saturating_sub(1);
+    let column = if byte_column {
+        let text = document.line_text(line.saturating_sub(1))?;
+        text.char_indices().take_while(|(offset, _)| *offset < column).count()
+    } else { column };
+    document.move_cursor_to_line_column(line.saturating_sub(1), column)
+}
+
 fn handle_terminal_action(
     action: TerminalAction,
     terminal: &mut Terminal,
@@ -2232,7 +2408,7 @@ fn handle_terminal_action(
     renderer: &mut Renderer<'_>,
 ) -> Result<bool, String> {
     let read_only = matches!(action, TerminalAction::View(_));
-    let (path, line, column, read_only) = match action {
+    let (path, line, column, byte_column, read_only) = match action {
         TerminalAction::None => return Ok(false),
         TerminalAction::EnterDirectory(path) => {
             if let Err(error) = terminal.enter_directory(&path) {
@@ -2240,7 +2416,9 @@ fn handle_terminal_action(
             }
             return Ok(false);
         }
-        TerminalAction::ListedFile(path) => (path, None, None, false),
+        TerminalAction::ListedFile(path) => (path, None, None, false, false),
+        TerminalAction::Location(path, location) =>
+            (path, Some(location.line), location.column, location.byte_column, false),
         TerminalAction::Edit(value) | TerminalAction::View(value) => {
             let (path_text, line, column) = match parse_location(&value) {
                 Some((path, line, column)) => (path, Some(line), column),
@@ -2253,7 +2431,7 @@ fn handle_terminal_action(
                     return Ok(false);
                 }
             };
-            (path, line, column, read_only)
+            (path, line, column, false, read_only)
         }
     };
 
@@ -2273,16 +2451,12 @@ fn handle_terminal_action(
         }
     };
     let target = if focus_other { other_editor } else { editor };
+    target.clear_secondary_cursors();
 
-    if let Some(line) = line
-        && let Err(error) = target.document
-            .move_cursor_to_line_column(
-                line.saturating_sub(1),
-                column.unwrap_or(1)
-                    .saturating_sub(1),
-            )
-    {
-        terminal.set_status(error.to_string());
+    if let Some(line) = line {
+        if let Err(error) = move_to_terminal_location(&mut target.document, line, column, byte_column) {
+            terminal.set_status(error.to_string());
+        }
     }
 
     if !focus_other {
@@ -2415,12 +2589,24 @@ let raster_font =
         )
         .map_err(|e| e.to_string())?;
 
+let texture_creator = canvas.texture_creator();
 let mut renderer =
     Renderer::new(
         canvas,
+        &texture_creator,
         logical_font,
         raster_font,
         logical_font_size,
+        (
+            ttf_context.load_font_from_iostream(
+                sdl3::iostream::IOStream::from_bytes(FONT_DATA).map_err(|e| e.to_string())?,
+                command_bar::COMMAND_FONT_SIZE,
+            ).map_err(|e| e.to_string())?,
+            ttf_context.load_font_from_iostream(
+                sdl3::iostream::IOStream::from_bytes(FONT_DATA).map_err(|e| e.to_string())?,
+                command_bar::COMMAND_FONT_SIZE,
+            ).map_err(|e| e.to_string())?,
+        ),
         window_hit_test,
     )?;
 
@@ -2477,6 +2663,7 @@ if let Some(path) = editor.path.as_deref() {
             error.to_string()
         })?;
 
+    terminal.set_events(event_subsystem.clone());
     event_subsystem.register_custom_event::<lsp::Event>().map_err(|e| e.to_string())?;
     let mut lsp_ui = lsp_ui::LspUi::new(event_subsystem.clone());
 
@@ -2500,31 +2687,34 @@ if let Some(path) = editor.path.as_deref() {
     // Event loop
     // ----------------------------------------------------------------------
 
+    let mut terminal_frames = terminal::FrameSchedule::default();
     'event_loop: loop {
         pending_events.clear();
+        if !terminal.is_active() { terminal_frames.clear(); }
+        if terminal.poll_background().map_err(|error| error.to_string())? && terminal.is_active() {
+            terminal_frames.changed();
+        }
 
         if !dirty
             && let Some(event) = event_pump
                 .wait_event_timeout(
-                    Duration::from_secs(1)
+                    terminal_frames.wait(Instant::now(), dirty, terminal.has_pending_work())
                 )
         {
             pending_events.push(event);
         }
 
         pending_events.extend(
-            event_pump.poll_iter()
+            event_pump.poll_iter().take(64)
         );
 
         for mut event in pending_events.drain(..) {
             if let Some(terminal_event) = event
                 .as_user_event_type::<TerminalEvent>()
             {
-                terminal.handle_event(terminal_event)
-                    .map_err(|error| {
-                        error.to_string()
-                    })?;
-                dirty = true;
+                if terminal.handle_event(terminal_event).map_err(|error| error.to_string())? && terminal.is_active() {
+                    terminal_frames.changed();
+                }
                 continue;
             }
 
@@ -2660,6 +2850,7 @@ Event::MouseButtonDown {
                                 &terminal,
                                 x as i32,
                             );
+                        terminal.focus_prompt();
                         terminal.set_cursor(cursor);
                     }
 
@@ -2715,74 +2906,30 @@ Event::MouseButtonDown {
                     }
 
                     TerminalHit::Output => {
-                        if let Some(action) = renderer
-                            .terminal_action_at(
-                                &mut terminal,
-                                x as i32,
-                                y as i32,
-                            )?
-                        {
-                            if handle_terminal_action(
-                                action,
-                                &mut terminal,
-                                &mut editor,
-                                &mut other_editor,
-                                &mut renderer,
-                            )? {
-                                focus_pane(
-                                    1 - active_pane,
-                                    &mut active_pane,
-                                    &mut editor,
-                                    &mut other_editor,
-                                    &mut vim,
-                                    &mut other_vim,
-                                    &mut renderer,
-                                );
-                            }
-                        }
+                        let action = renderer.terminal_action_at(&mut terminal, x as i32, y as i32)?;
+                        let offset = renderer.terminal_output_offset_at(&mut terminal, x as i32, y as i32)?;
+                        terminal.begin_output_drag(offset, x as i32, y as i32, action)
+                            .map_err(|error| error.to_string())?;
                     }
 
                     TerminalHit::Outside => {}
                 }
 
                 dirty = true;
-            } else if command_bar.is_active() {
-                match renderer.command_bar_hit_at(
-                    &command_bar,
-                    x as i32,
-                    y as i32,
-                ) {
-                    CommandBarHit::Suggestion(index) => {
-                        if command_bar.apply_suggestion(
-                            index
-                        ) {
-                            sync_command_search(
-                                &command_bar,
-                                &mut search_ui,
-                                &mut editor.document,
-                                vim.search_origin(),
-                            )
-                            .map_err(|error| {
-                                error.to_string()
-                            })?;
-
-                            if search_ui.current_match()
-                                .is_some()
-                            {
-                                renderer.update_cursor(
-                                    &editor.document
-                                );
-
-                                renderer.ensure_search_match_visible(
-                                    &mut editor.document,
-                                    &search_ui,
-                                    &command_bar,
-                                );
-                            }
-                        }
-
-                        dirty = true;
-                    }
+            } else if command_bar.is_active()
+                && renderer.command_bar_hit_at(&command_bar, x as i32, y as i32) != CommandBarHit::Outside
+            {
+                let hit = renderer.command_bar_hit_at(&command_bar, x as i32, y as i32);
+                let hit = if let CommandBarHit::Suggestion(index) = hit
+                    && !command_bar.is_info()
+                {
+                    command_bar.select_suggestion(index);
+                    CommandBarHit::Execute
+                } else {
+                    hit
+                };
+                match hit {
+                    CommandBarHit::Suggestion(_) => {},
 
                     CommandBarHit::Input => {
                         let cursor =
@@ -2801,6 +2948,7 @@ Event::MouseButtonDown {
                     CommandBarHit::Execute => {
                         let close_vim_search =
                             vim_enabled
+                            && !command_bar.selects_option_on_enter()
                             && matches!(
                                 command_bar.parse(),
                                 Ok(ParsedCommand::Find { .. })
@@ -2827,6 +2975,7 @@ Event::MouseButtonDown {
                                 &mut terminal,
                                 &mut vim,
                                 false,
+                                &mut other_vim,
                                 &mut lsp_ui,
                             )
                         };
@@ -2949,6 +3098,7 @@ Event::MouseButtonDown {
                         )?;
 
                 if let Some((line, column)) = target {
+                    editor.clear_secondary_cursors();
                     editor
                         .document
                         .move_cursor_to_line_column(
@@ -2966,6 +3116,7 @@ Event::MouseButtonDown {
                     renderer.ensure_cursor_visible(
                         &mut editor.document,
                     );
+                    lsp_ui.document_clicked(&editor, &other_editor, &mut command_bar);
 
                     dirty = true;
                 }
@@ -2974,11 +3125,34 @@ Event::MouseButtonDown {
     }
 }
 
+Event::MouseButtonUp {
+    mouse_btn: MouseButton::Left, x, y, ..
+} => {
+    if terminal.is_active() && terminal.output_dragging() && coordinates_converted {
+        let offset = renderer.terminal_output_offset_at(&mut terminal, x as i32, y as i32)?;
+        terminal.drag_output_to(offset, x as i32, y as i32).map_err(|error| error.to_string())?;
+        if let Some(action) = terminal.finish_output_drag() {
+            terminal.focus_prompt();
+            if handle_terminal_action(action, &mut terminal, &mut editor, &mut other_editor, &mut renderer)? {
+                focus_pane(1 - active_pane, &mut active_pane, &mut editor, &mut other_editor,
+                    &mut vim, &mut other_vim, &mut renderer);
+            }
+        }
+        dirty = true;
+    }
+}
+
 Event::MouseMotion {
     x,
     y,
     ..
 } => {
+    if terminal.is_active() && terminal.output_dragging() && coordinates_converted {
+        let offset = renderer.terminal_output_offset_at(&mut terminal, x as i32, y as i32)?;
+        terminal.drag_output_to(offset, x as i32, y as i32).map_err(|error| error.to_string())?;
+        dirty = true;
+        continue;
+    }
     if coordinates_converted
         && command_bar.is_active()
         && let CommandBarHit::Suggestion(index) =
@@ -3005,6 +3179,7 @@ Event::MouseMotion {
                         && key == Keycode::Grave
                         && !repeat
                     {
+                        editor.clear_secondary_cursors();
                         command_bar.close();
                         search_ui.close();
                         terminal.toggle(
@@ -3015,13 +3190,13 @@ Event::MouseMotion {
                     }
 
                     if terminal.is_active() {
-                        if ctrl_pressed(keymod)
-                            && key == Keycode::V
-                            && !repeat
-                        {
+                        let clipboard_command = key_bindings.terminal_clipboard_command(key, keymod, repeat);
+                        if clipboard_command == Some(Command::Paste) {
                             match read_text(&clipboard) {
-                                Ok(text) => terminal
-                                    .insert_text(&text),
+                                Ok(text) => {
+                                    terminal.focus_prompt();
+                                    terminal.insert_text(&text);
+                                }
                                 Err(error) => terminal
                                     .set_status(format!(
                                         "Clipboard paste failed: {error}"
@@ -3032,32 +3207,16 @@ Event::MouseMotion {
                             continue;
                         }
 
-                        if ctrl_pressed(keymod)
-                            && shift_pressed(keymod)
-                            && key == Keycode::C
-                            && !repeat
-                        {
-                            match terminal.output_text() {
-                                Ok(output) => match clipboard
-                                    .set_clipboard_text(
-                                        &output
-                                    )
-                                {
-                                    Ok(()) => terminal
-                                        .set_status(
-                                            "Output copied"
-                                        ),
-                                    Err(error) => terminal
-                                        .set_status(format!(
-                                            "Clipboard copy failed: {error}"
-                                        )),
-                                },
-                                Err(error) => terminal
-                                    .set_status(
-                                        error.to_string()
-                                    ),
+                        let selected_copy = ctrl_pressed(keymod) && key == Keycode::C
+                            && !repeat && !terminal.output_selection().is_empty();
+                        if clipboard_command == Some(Command::Copy) || selected_copy {
+                            let all = shift_pressed(keymod) || terminal.output_selection().is_empty();
+                            if let Err(error) = terminal.copy_output(&clipboard, all, false) {
+                                terminal.set_status(format!("Clipboard copy failed: {error}"));
+                            } else {
+                                vim.set_clipboard_linewise(!all && terminal.output_linewise());
+                                other_vim.set_clipboard_linewise(!all && terminal.output_linewise());
                             }
-
                             dirty = true;
                             continue;
                         }
@@ -3091,6 +3250,44 @@ Event::MouseMotion {
                             continue;
                         }
 
+                        let select_output = !terminal.output_focused()
+                            && key == Keycode::Up && shift_pressed(keymod)
+                            && !keymod.intersects(Mod::LCTRLMOD | Mod::RCTRLMOD
+                                | Mod::LGUIMOD | Mod::RGUIMOD | Mod::LALTMOD | Mod::RALTMOD);
+                        if (key == Keycode::F6 && !repeat) || select_output {
+                            if terminal.output_focused() {
+                                terminal.focus_prompt();
+                            } else {
+                                let end = terminal.output_mut().len();
+                                terminal.move_output_cursor(end, false).map_err(|error| error.to_string())?;
+                                renderer.navigate_terminal_output(&mut terminal, if select_output {
+                                    OutputCommand::Rows(-1, true)
+                                } else { OutputCommand::None })?;
+                            }
+                            dirty = true;
+                            continue;
+                        }
+
+                        if terminal.output_focused() {
+                            let command = terminal.output_key(key, keymod, vim_enabled)
+                                .map_err(|error| error.to_string())?;
+                            if matches!(command, OutputCommand::Copy) {
+                                let linewise = terminal.output_linewise();
+                                if !terminal.output_selection().is_empty() {
+                                    if let Err(error) = terminal.copy_output(&clipboard, false, true) {
+                                        terminal.set_status(format!("Clipboard copy failed: {error}"));
+                                    } else {
+                                        vim.set_clipboard_linewise(linewise);
+                                        other_vim.set_clipboard_linewise(linewise);
+                                    }
+                                }
+                            } else {
+                                renderer.navigate_terminal_output(&mut terminal, command)?;
+                            }
+                            dirty = true;
+                            continue;
+                        }
+
                         match key {
                             Keycode::Escape => {
                                 terminal.close_to_editor();
@@ -3118,6 +3315,9 @@ Event::MouseMotion {
                             }
                             Keycode::End => {
                                 terminal.move_end();
+                            }
+                            Keycode::Tab if !repeat => {
+                                terminal.complete_path(shift_pressed(keymod));
                             }
                             Keycode::Return
                             | Keycode::KpEnter
@@ -3189,6 +3389,7 @@ Event::MouseMotion {
                                 _ => ":".to_string(),
                             };
 
+                        editor.clear_secondary_cursors();
                         command_bar.open(&initial);
 
                         sync_command_search(
@@ -3328,6 +3529,7 @@ Event::MouseMotion {
                             {
                                 let close_vim_search =
                                     vim_enabled
+                                    && !command_bar.selects_option_on_enter()
                                     && matches!(
                                         command_bar.parse(),
                                         Ok(ParsedCommand::Find { .. })
@@ -3351,6 +3553,7 @@ Event::MouseMotion {
                                         shift_pressed(
                                             keymod
                                         ),
+                                        &mut other_vim,
                                         &mut lsp_ui,
                                     );
                                 }
@@ -3456,6 +3659,43 @@ Event::MouseMotion {
                     /*
                      * Normal editor key handling.
                      */
+                    let workspace_redo = if vim_enabled {
+                        vim.workspace_history_key(key, keymod).or_else(|| match bound_command {
+                            Some(Command::Undo) => Some(false), Some(Command::Redo) => Some(true), _ => None
+                        })
+                    } else {
+                        match bound_command { Some(Command::Undo) => Some(false), Some(Command::Redo) => Some(true), _ => None }
+                    };
+                    if let Some(redo) = workspace_redo {
+                        match workspace_edit::history(&mut editor, &mut other_editor, redo) {
+                            Ok(false) => {},
+                            result => {
+                                if result.is_ok() {
+                                    lsp_ui.files_changed(workspace_edit::recent_disk_changes(&editor, !redo));
+                                }
+                                if vim_enabled {
+                                    vim.deactivate(&mut editor); other_vim.deactivate(&mut other_editor);
+                                    vim.consume_workspace_history_key();
+                                    renderer.set_mode_label(Some(vim.mode_label()));
+                                }
+                                if let Err(error) = result { command_bar.open(":"); command_bar.show_info(&error); }
+                                search_ui.close();
+                                renderer.invalidate_scroll_cache();
+                                renderer.update_cursor(&editor.document);
+                                dirty = true;
+                                continue;
+                            }
+                        }
+                    }
+                    if !vim_enabled && key == Keycode::Escape {
+                        editor.clear_secondary_cursors();
+                        dirty = true;
+                        continue;
+                    }
+                    if vim_enabled && bound_command == Some(Command::SelectNextOccurrence) {
+                        // Ctrl+D still reaches Vim's half-page motion; Cmd+D has no Vim action.
+                        if VimController::page_motion(key, keymod).is_none() { continue; }
+                    }
                     if vim_enabled {
                         let outcome = vim.handle_key(
                             &mut editor,
@@ -3554,6 +3794,7 @@ Event::MouseMotion {
                         let redraw =
                             match command {
                                 Command::FormatDocument => {
+                                    editor.clear_secondary_cursors();
                                     command_bar.open(":format");
                                     document_changed = run_format_command(
                                         &mut editor, &mut search_ui, &mut command_bar, &mut vim, None,
@@ -3564,7 +3805,15 @@ Event::MouseMotion {
                                     true
                                 }
 
+                                Command::NewFile => {
+                                    editor.clear_secondary_cursors();
+                                    command_bar.open(":new ");
+                                    search_ui.close();
+                                    true
+                                }
+
                                 Command::SaveAs => {
+                                    editor.clear_secondary_cursors();
                                     command_bar.open(":save-as ");
                                     search_ui.close();
                                     true
@@ -3711,7 +3960,9 @@ Event::MouseMotion {
                     ..
                 } => {
                     if terminal.is_active() {
-                        terminal.insert_text(&text);
+                        if !terminal.output_focused() {
+                            terminal.insert_text(&text);
+                        }
                         dirty = true;
                         continue;
                     }
@@ -3787,7 +4038,7 @@ Event::MouseMotion {
                         continue;
                     }
 
-                    if !vim_enabled && text == ":" {
+                    if !vim_enabled && text == ":" && editor.document.secondary_cursors.is_empty() {
                         let line = editor
                             .document
                             .cursor
@@ -3835,6 +4086,8 @@ Event::MouseMotion {
                 Event::MouseWheel {
                     x,
                     y,
+                    mouse_x,
+                    mouse_y,
                     ..
                 } => {
                     if terminal.is_active() {
@@ -3842,6 +4095,17 @@ Event::MouseMotion {
                             y as isize * 3
                         );
                         dirty = true;
+                        continue;
+                    }
+
+                    if command_bar.is_active()
+                        && renderer.command_bar_hit_at(&command_bar, mouse_x as i32, mouse_y as i32) != CommandBarHit::Outside
+                        && !matches!(command_bar.parse(), Ok(ParsedCommand::Find { .. } | ParsedCommand::Replace { .. }))
+                    {
+                        if y != 0.0 {
+                            command_bar.scroll_suggestions(if y > 0.0 { -3 } else { 3 });
+                            dirty = true;
+                        }
                         continue;
                     }
 
@@ -3893,8 +4157,10 @@ Event::MouseMotion {
             }
         }
 
+        lsp_ui.discard_dismissed_preview(&command_bar);
         lsp_ui.reconcile(&editor, &other_editor);
 
+        dirty |= terminal.is_active() && terminal_frames.due(Instant::now());
         if dirty {
             let start =
                 Instant::now();
@@ -3905,6 +4171,7 @@ Event::MouseMotion {
                 renderer.render_terminal(
                     &mut terminal
                 )?;
+                terminal_frames.rendered(Instant::now());
             } else if split_mode {
                 renderer.render_split(
                     &mut editor.document,

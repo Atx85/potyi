@@ -15,19 +15,33 @@ pub(crate) struct WrapMetrics {
     pub font_size: u32,
 }
 
-/// Only byte offsets are retained. Appends reflow the unfinished final line;
-/// resizing, font changes, clearing, and output trimming rebuild the layout.
+/// Only byte offsets are retained. Appends reflow the final visual row;
+/// resizing, font changes, clearing, and cuts inside a line rebuild the layout.
 #[derive(Default)]
 pub(crate) struct TerminalLayout {
     starts: Vec<usize>,
     length: usize,
-    tail_start: usize,
     generation: u64,
     metrics: Option<WrapMetrics>,
     character_widths: HashMap<char, i32>,
 }
 
 impl TerminalLayout {
+    /// Whole-line history trimming preserves the wrapping of retained rows.
+    /// Return false if the cutoff lies outside the layout we have measured.
+    pub fn discard_prefix(&mut self, bytes: usize, generation: u64) -> bool {
+        let Ok(first) = self.starts.binary_search(&bytes) else {
+            return false;
+        };
+        self.starts.drain(..first);
+        for start in &mut self.starts {
+            *start -= bytes;
+        }
+        self.length -= bytes;
+        self.generation = generation;
+        true
+    }
+
     pub fn update(
         &mut self,
         output: &PieceTable,
@@ -41,7 +55,13 @@ impl TerminalLayout {
         }
         let append = same_layout && output.len() >= self.length;
         let old_rows = self.starts.len();
-        let start = if append { self.tail_start } else { 0 };
+        // Completed visual rows cannot change when text is appended. Only the
+        // final visual row can gain text or move its last word to a new row.
+        let start = if append {
+            self.starts.last().copied().unwrap_or(0)
+        } else {
+            0
+        };
         let bytes = output.read_range(start, output.len() - start)?;
         let text = std::str::from_utf8(&bytes)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
@@ -65,7 +85,6 @@ impl TerminalLayout {
             });
             self.starts
                 .extend(starts.iter().map(|position| offset + position));
-            self.tail_start = offset;
             offset += line.len() + 1;
         }
         self.length = output.len();
@@ -80,6 +99,12 @@ impl TerminalLayout {
 
     pub fn len(&self) -> usize {
         self.starts.len()
+    }
+
+    pub fn row_at(&self, offset: usize) -> usize {
+        self.starts
+            .partition_point(|start| *start <= offset)
+            .saturating_sub(1)
     }
 
     pub fn visible_rows(&self, visible: usize, scroll_back: usize) -> Range<usize> {
@@ -204,7 +229,10 @@ mod tests {
             layout.update(&table, 0, metrics(3), |_| 1).unwrap();
             let rows = rows(&layout, &table);
             assert_eq!(rows.concat(), text);
-            assert_eq!(rows.iter().map(|row| row.trim()).collect::<Vec<_>>(), ["one", "two"]);
+            assert_eq!(
+                rows.iter().map(|row| row.trim()).collect::<Vec<_>>(),
+                ["one", "two"]
+            );
         }
     }
 
@@ -251,6 +279,43 @@ mod tests {
                 panic!("unchanged output must use cached rows")
             })
             .unwrap();
+    }
+
+    #[test]
+    fn every_small_append_matches_full_reflow() {
+        for width in [1, 3, 8, 20] {
+            let mut output = table("");
+            let mut incremental = TerminalLayout::default();
+            let text = "one two 東京🙂\tlongwordwithoutspaces    end\n\nnext".repeat(5);
+            for ch in text.chars() {
+                output.insert(output.len(), &ch.to_string()).unwrap();
+                incremental
+                    .update(&output, 0, metrics(width), |_| 1)
+                    .unwrap();
+                let mut fresh = TerminalLayout::default();
+                fresh.update(&output, 0, metrics(width), |_| 1).unwrap();
+                assert_eq!(
+                    incremental.starts, fresh.starts,
+                    "width {width}, ending {ch:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn trimming_completed_lines_reuses_retained_rows() {
+        let mut output = table("discarded line\nretained words and more\nlast part");
+        let mut incremental = TerminalLayout::default();
+        incremental.update(&output, 0, metrics(8), |_| 1).unwrap();
+        let removed = "discarded line\n".len();
+        output.delete(0, removed).unwrap();
+        assert!(incremental.discard_prefix(removed, 1));
+        output.insert(output.len(), " extended\nnew line").unwrap();
+        incremental.update(&output, 1, metrics(8), |_| 1).unwrap();
+        let mut fresh = TerminalLayout::default();
+        fresh.update(&output, 1, metrics(8), |_| 1).unwrap();
+        assert_eq!(incremental.starts, fresh.starts);
+        assert!(!incremental.discard_prefix(output.len() + 1, 2));
     }
 
     #[test]

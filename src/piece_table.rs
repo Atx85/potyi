@@ -295,6 +295,7 @@ pub(crate) struct PieceTableSnapshot {
 // Cursor
 // ==========================================================================
 
+#[derive(Clone, Debug)]
 pub struct Cursor {
     pub position: usize,
     pub anchor: usize,
@@ -334,6 +335,7 @@ pub struct PieceTable {
     all_lines_cached: bool,
 
     pub(crate) cursor: Cursor,
+    pub(crate) secondary_cursors: Vec<Cursor>,
 }
 
 fn next_document_revision() -> u64 {
@@ -426,6 +428,7 @@ line_cache: if original_length == 0 {
 
 all_lines_cached: original_length == 0,
 
+            secondary_cursors: Vec::new(),
             cursor: Cursor {
                 position: 0,
                 anchor: 0,
@@ -472,6 +475,7 @@ all_lines_cached: original_length == 0,
             line_cache: Vec::new(),
             all_lines_cached: false,
 
+            secondary_cursors: Vec::new(),
             cursor: Cursor {
                 position: 0,
                 anchor: 0,

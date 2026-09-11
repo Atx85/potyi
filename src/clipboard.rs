@@ -55,20 +55,18 @@ pub(crate) fn copy_selection<C: TextClipboard>(
     clipboard: &C,
     table: &PieceTable,
 ) -> Result<bool, String> {
-    if !table.has_selection() {
-        return Ok(false);
+    let mut ranges: Vec<_> = table.secondary_cursors.iter()
+        .chain(std::iter::once(&table.cursor))
+        .filter(|cursor| cursor.position != cursor.anchor)
+        .map(|cursor| (cursor.position.min(cursor.anchor), cursor.position.max(cursor.anchor)))
+        .collect();
+    if ranges.is_empty() { return Ok(false); }
+    ranges.sort_unstable();
+    let mut bytes = Vec::new();
+    for (index, (start, end)) in ranges.into_iter().enumerate() {
+        if index > 0 { bytes.push(b'\n'); }
+        bytes.extend(table.read_range(start, end - start).map_err(|error| error.to_string())?);
     }
-
-    let start =
-        table.selection_start();
-
-    let length =
-        table.selection_end()
-            .saturating_sub(start);
-
-    let bytes =
-        table.read_range(start, length)
-            .map_err(|error| error.to_string())?;
 
     let text =
         String::from_utf8(bytes)

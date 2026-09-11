@@ -1,5 +1,5 @@
 # LSP is opt-in. Install the server separately, then set enabled = true.
-# Servers start only when :hover or :definition is requested.
+# Servers start only when :hover, :definition, or :rename is requested.
 enabled = false
 
 [[servers]]

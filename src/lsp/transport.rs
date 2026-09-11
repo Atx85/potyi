@@ -5,6 +5,7 @@
 use super::{ServerConfig, file_uri};
 use crate::formatting::process::Running;
 use serde_json::{Value, json};
+use std::cell::Cell;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -75,6 +76,8 @@ pub(super) struct Transport {
     root: String,
     options: Value,
     initialized: bool,
+    failed: Cell<bool>,
+    quiescent: Cell<Option<bool>>,
 }
 
 impl Transport {
@@ -150,13 +153,37 @@ impl Transport {
             root: file_uri(root)?,
             options: config.initialization_options.clone(),
             initialized: false,
+            failed: Cell::new(false),
+            quiescent: Cell::new(None),
         })
     }
 
     fn send(&self, value: Value) -> Result<(), String> {
-        self.outgoing
-            .try_send(value)
-            .map_err(|_| "Language server is busy or disconnected; try :lsp-stop".into())
+        self.outgoing.try_send(value).map_err(|_| {
+            self.failed.set(true);
+            "Language server is busy or disconnected; try :lsp-stop".into()
+        })
+    }
+
+    pub fn has_failed(&self) -> bool { self.failed.get() }
+
+    /// Rust-analyzer initializes before project discovery finishes. Wait on its
+    /// pushed status on the worker, without timer work on the editor thread.
+    pub fn wait_until_ready(&self, timeout: Duration) -> Result<(), String> {
+        self.drain().inspect_err(|_| self.failed.set(true))?;
+        let deadline = Instant::now() + timeout;
+        while self.quiescent.get() != Some(true) {
+            if self.cancel.load(Ordering::Relaxed) { return Err("LSP stopped".into()); }
+            let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
+                return Err("Language server is still loading the project; try the command again shortly".into());
+            };
+            match self.incoming.recv_timeout(remaining.min(Duration::from_millis(50))) {
+                Ok(message) => self.handle_server_message(&message.inspect_err(|_| self.failed.set(true))?)?,
+                Err(mpsc::RecvTimeoutError::Timeout) => {},
+                Err(_) => { self.failed.set(true); return Err("Language server disconnected".into()); }
+            }
+        }
+        Ok(())
     }
 
     pub fn notify(&self, method: &str, params: Value) -> Result<(), String> {
@@ -169,6 +196,7 @@ impl Transport {
         params: Value,
         timeout: Duration,
     ) -> Result<Value, String> {
+        self.failed.set(true);
         let id = self.next_id;
         self.next_id += 1;
         self.send(json!({"jsonrpc":"2.0", "id":id, "method":method, "params":params}))?;
@@ -193,6 +221,8 @@ impl Transport {
                 self.handle_server_message(&message)?;
             } else if message.get("id").and_then(Value::as_u64) == Some(id) {
                 if let Some(error) = message.get("error") {
+                    // A valid feature error does not imply a broken connection.
+                    self.failed.set(false);
                     return Err(error
                         .get("message")
                         .and_then(Value::as_str)
@@ -201,15 +231,19 @@ impl Transport {
                         .take(500)
                         .collect());
                 }
-                return message
-                    .get("result")
-                    .cloned()
-                    .ok_or_else(|| "Invalid LSP response".into());
+                let result = message.get("result").cloned().ok_or("Invalid LSP response")?;
+                self.failed.set(false);
+                return Ok(result);
             }
         }
     }
 
     fn handle_server_message(&self, message: &Value) -> Result<(), String> {
+        if message["method"] == "experimental/serverStatus" {
+            if let Some(quiescent) = message["params"]["quiescent"].as_bool() {
+                self.quiescent.set(Some(quiescent));
+            }
+        }
         let Some(id) = message.get("id") else {
             return Ok(());
         };
@@ -237,7 +271,7 @@ impl Transport {
             "workspace/workspaceFolders" => json!([{"uri":self.root,"name":"project"}]),
             "window/workDoneProgress/create" | "window/showMessageRequest" => Value::Null,
             "workspace/applyEdit" => {
-                json!({"applied":false,"failureReason":"This LSP version supports navigation and hover only"})
+                json!({"applied":false,"failureReason":"Server-initiated edits are disabled; use the rename preview"})
             }
             _ => {
                 return self.send(json!({"jsonrpc":"2.0", "id":id,

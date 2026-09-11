@@ -3,7 +3,7 @@
 Read the [web version of this guide](lsp/) on the documentation website.
 
 Pötyi has an optional, initial LSP client for **hover information and
-go-to-definition**. It works with separately installed language servers that
+go-to-definition, and symbol rename**. It works with separately installed language servers that
 speak LSP over stdin/stdout. LSP is disabled by default; it creates no server
 processes or worker threads until an enabled command is requested.
 
@@ -18,7 +18,7 @@ working directory. This version does not download or install language servers.
 
 Keep `enabled = true` at the top of `config/lsp.toml`, before any `[[servers]]` entries. Add the entries for the languages you use. Names must be unique, and the first entry matching a file extension wins. Extensions have no leading dot. Root markers are exact file or directory names, not wildcard patterns.
 
-This guide covers all 18 language families in the bundled syntax configuration, with additional dialect notes. Highlighting and language-server compatibility are separate: clangd has been tested with Pötyi; the other recipes follow upstream setup instructions and still need end-to-end verification. Only hover and definition navigation are available in this editor version, even when a server offers more features.
+This guide covers all 18 language families in the bundled syntax configuration, with additional dialect notes. Highlighting and language-server compatibility are separate: clangd has been tested with Pötyi; the other recipes follow upstream setup instructions and still need end-to-end verification. Hover, definition navigation, and symbol rename are available; each feature depends on server support.
 
 ### Paths, Windows, and checking your setup
 
@@ -445,10 +445,13 @@ Replace the configuration path with your own sqls YAML file. Follow the upstream
 
 Pötyi highlights `.vue` files, but the current Vue language server uses custom `tsserver/request` and `tsserver/response` messages to communicate with its TypeScript plugin. Pötyi does not implement that bridge yet, so there is no verified Vue recipe for this client. Do not add `.vue` to the plain JavaScript entry and expect Vue type information. Ordinary `.js`, `.jsx`, `.ts`, and `.tsx` files can use the recipes above. See the [Vue language server integration instructions](https://github.com/vuejs/language-tools/blob/master/packages/language-server/README.md).
 
+While `:hover` is open, click another word in the document to refresh its information. You can keep the panel open and inspect words across either pane. Rapid clicks retain only the latest target while the server is busy; moving the mouse alone does not request analysis. Scroll over the editor to scroll code, or over the panel to scroll its contents. Enter repeats `:hover` or `:definition` at the current text cursor. Escape dismisses the panel and any queued hover refresh.
+
 ## Commands
 
 | Command | Behavior |
 | --- | --- |
+| `:rename new_name` | Preview a symbol rename across project files, then apply or cancel. |
 | `:hover` | Show documentation/type information at the document cursor. |
 | `:definition` | Jump to the first definition returned by the server. |
 | `:lsp-back` | Return to the previous definition-jump location. |
@@ -457,11 +460,11 @@ Pötyi highlights `.vue` files, but the current Vue language server uses custom 
 
 Commands work through the existing command bar in conventional and Vim modes.
 No existing shortcuts are reassigned. Hover information is displayed as plain
-text; use Up/Down to scroll and Escape to dismiss it. Markdown returned by a
+text; recognized documentation sections use the active language’s comment color, while signatures keep the normal text color. Use Up/Down to scroll and Escape to dismiss it. Markdown returned by a
 server is displayed literally. Results are bounded to prevent oversized UI
 allocations.
 
-Servers start on the first explicit `:hover` or `:definition` request. The
+Servers start on the first explicit `:hover`, `:definition`, or `:rename` request. The
 current unsaved contents of matching documents in both panes are synchronized
 before the request. Subsequent requests send a changed range when the server
 supports incremental synchronization, or a full update when it requires one.
@@ -475,6 +478,44 @@ no matching documents remain open. `:lsp-stop` applies configuration changes
 to the next newly started session. Changing `enabled` to false prevents new
 requests; use `:lsp-stop` to immediately terminate existing sessions.
 
+## Renaming a function or variable
+
+Put the text cursor on the symbol and run `:rename new_name`. The language
+server identifies references to that symbol. When supported, Pötyi asks the
+server whether the symbol can be renamed before requesting the changes.
+For rust-analyzer, rename waits for its project-loading status on the worker
+(up to 15 seconds). A loading timeout or a rejected symbol keeps the session
+alive, so another attempt can use the analysis already completed.
+
+The preview lists each affected file and whether it updates an unsaved buffer
+or writes an unopened file to disk. Click a file or use Up/Down and Enter to
+inspect its replacements. Enter returns to the file list. Select **Apply
+changes** to commit, or **Cancel rename** / Escape to discard the preview.
+Each file preview shows up to 40 replacements, with long text shortened.
+
+Normal Undo (Cmd/Ctrl+Z, or `u` in Vim normal mode) reverses the whole rename;
+Redo reapplies it. Both panes participate in one step. Undo any newer edits in
+an affected pane first. Keep affected open buffers open until you no longer
+need rename undo; their history is discarded when they close. If you open a
+previously unopened affected file, close it before undoing the rename.
+Saved open buffers become unsaved again on Undo, just like ordinary edits.
+
+All targets are checked before applying. Stale contents, mismatched versions,
+read-only files, overlapping edits, and targets outside the project are
+rejected. Disk replacements are staged before writing; a later write failure
+rolls earlier writes back. If external changes or an I/O failure prevent
+rollback, the error reports retained recovery images. As with ordinary saves,
+this does not lock other programs out of files or guarantee a multi-file
+transaction survives a process/system crash.
+
+Rename is bounded to 64 files, 10,000 edits, 2 MiB per file, and 16 MiB of total
+before/after text. Preparation runs on the LSP worker; Apply and Undo perform
+bounded validation and disk writes on the UI thread. Undo stores file images
+on disk instead of retaining whole documents in memory. Pötyi notifies active
+servers about its disk changes, without adding an idle scanner or file watcher.
+File creation/moves/deletion, annotated edits, and extract-to-file code actions
+are a later milestone.
+
 ## Protecting existing editing behavior
 
 - Pipe I/O, protocol handling and server startup/shutdown run on background
@@ -485,8 +526,9 @@ requests; use `:lsp-stop` to immediately terminate existing sessions.
   read-only state, selection history and undo history. A new file uses a clean
   pane. If both panes contain unsaved changes, the jump is refused.
 - A destination is validated before a new file replaces a pane.
-- LSP does not apply server-provided edits, run server-requested commands,
-  save documents, change formatting, or alter Vim keybindings.
+- Rename applies reviewed text edits only. It does not run server-requested
+  commands, change formatting, or alter Vim keybindings. Open buffers remain
+  unsaved; the preview identifies unopened files that Apply will write.
 - Unicode positions are converted between the editor's UTF-8 offsets and
   LSP's UTF-16 positions. File URI escaping handles spaces and Unicode.
 - Initialization has a 30-second limit; feature requests have a 15-second
@@ -496,7 +538,7 @@ requests; use `:lsp-stop` to immediately terminate existing sessions.
 ## Current limits
 
 This is the first LSP milestone. It does **not** yet display diagnostics,
-completion menus, signature help, rename, code actions, semantic highlighting,
+completion menus, signature help, code actions, semantic highlighting,
 or virtual documents such as generated/decompiled definitions. It does not
 implement dynamic capability registration or project file watchers.
 Open documents must have saved file paths, valid UTF-8, and be at most 2 MiB.

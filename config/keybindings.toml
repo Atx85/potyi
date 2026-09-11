@@ -1,5 +1,17 @@
 # config/keybindings.toml
 
+[[bindings]]
+key = "N"
+modifiers = ["Ctrl"]
+command = "NewFile"
+repeatable = false
+
+[[bindings]]
+key = "N"
+modifiers = ["Gui"]
+command = "NewFile"
+repeatable = false
+
 # ---------------------------------------------------------
 
 # Cursor movement
@@ -195,14 +207,32 @@ command = "Copy"
 repeatable = false
 
 [[bindings]]
+key = "C"
+modifiers = ["Gui"]
+command = "Copy"
+repeatable = false
+
+[[bindings]]
 key = "X"
 modifiers = ["Ctrl"]
 command = "Cut"
 repeatable = false
 
 [[bindings]]
+key = "X"
+modifiers = ["Gui"]
+command = "Cut"
+repeatable = false
+
+[[bindings]]
 key = "V"
 modifiers = ["Ctrl"]
+command = "Paste"
+repeatable = false
+
+[[bindings]]
+key = "V"
+modifiers = ["Gui"]
 command = "Paste"
 repeatable = false
 
@@ -303,3 +333,28 @@ key = "End"
 modifiers = ["Shift"]
 command = "SelectEnd"
 repeatable = true
+
+# Conventional mode: select the word, then add its next occurrence.
+[[bindings]]
+key = "D"
+modifiers = ["Gui"]
+command = "SelectNextOccurrence"
+repeatable = false
+
+[[bindings]]
+key = "D"
+modifiers = ["Ctrl"]
+command = "SelectNextOccurrence"
+repeatable = false
+
+[[bindings]]
+key = "Z"
+modifiers = ["Gui"]
+command = "Undo"
+repeatable = false
+
+[[bindings]]
+key = "Z"
+modifiers = ["Gui", "Shift"]
+command = "Redo"
+repeatable = false

@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-09-11T18:30:29.594704+00:00",
+  "git_commit": "e6473de510ddb782737d9716eb7aaf245a4df3fd",
+  "working_tree_dirty": true,
+  "rust_source_sha256": "aae0b9e8c1b88468ae285da90f8dd66a1eb840844626d38b605c379af568a164",
+  "environment": {
+    "os": "macOS-15.7.3-arm64-arm-64bit-Mach-O",
+    "cpu": "Apple M1 Max",
+    "logical_cpus": 10,
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6",
+    "shell": "/bin/zsh",
+    "profile": "release",
+    "sdl_video_driver": "dummy",
+    "window": "800x600 for terminal probes"
+  },
+  "warmups": 1,
+  "sample_count": 7,
+  "metrics": {
+    "open_1mib": {
+      "bytes": 1048576,
+      "samples_ms": [
+        0.5095419999999999,
+        0.870667,
+        0.544833,
+        0.687417,
+        0.545709,
+        0.488584,
+        0.726833
+      ],
+      "median_ms": 0.545709,
+      "min_ms": 0.488584,
+      "max_ms": 0.870667
+    },
+    "first_40_lines_1mib": {
+      "bytes": 1048576,
+      "samples_ms": [
+        0.298125,
+        0.235125,
+        0.23883300000000002,
+        0.225959,
+        0.25549999999999995,
+        0.23274999999999998,
+        0.253334
+      ],
+      "median_ms": 0.23883300000000002,
+      "min_ms": 0.225959,
+      "max_ms": 0.298125
+    },
+    "literal_scan_1mib": {
+      "bytes": 1048576,
+      "samples_ms": [
+        0.8275,
+        0.816458,
+        0.847625,
+        0.8171670000000001,
+        0.8434579999999999,
+        0.8506670000000001,
+        0.876209
+      ],
+      "median_ms": 0.8434579999999999,
+      "min_ms": 0.816458,
+      "max_ms": 0.876209
+    },
+    "1000_insert_delete_pairs_1mib": {
+      "bytes": 1048576,
+      "samples_ms": [
+        5.358875,
+        5.484625,
+        5.339625,
+        5.365875,
+        5.279584000000001,
+        5.358875,
+        5.46925
+      ],
+      "median_ms": 5.358875,
+      "min_ms": 5.279584000000001,
+      "max_ms": 5.484625
+    },
+    "open_100mib": {
+      "bytes": 104857600,
+      "samples_ms": [
+        0.884291,
+        1.276084,
+        0.535791,
+        1.353625,
+        0.727917,
+        1.025458,
+        0.657583
+      ],
+      "median_ms": 0.884291,
+      "min_ms": 0.535791,
+      "max_ms": 1.353625
+    },
+    "first_40_lines_100mib": {
+      "bytes": 104857600,
+      "samples_ms": [
+        0.238208,
+        0.344375,
+        0.21854099999999999,
+        0.222292,
+        0.287833,
+        0.239375,
+        0.22008299999999997
+      ],
+      "median_ms": 0.238208,
+      "min_ms": 0.21854099999999999,
+      "max_ms": 0.344375
+    },
+    "literal_scan_100mib": {
+      "bytes": 104857600,
+      "samples_ms": [
+        86.63787500000001,
+        86.626792,
+        86.46487499999999,
+        86.39287499999999,
+        86.440542,
+        85.919334,
+        86.145
+      ],
+      "median_ms": 86.440542,
+      "min_ms": 85.919334,
+      "max_ms": 86.63787500000001
+    },
+    "1000_insert_delete_pairs_100mib": {
+      "bytes": 104857600,
+      "samples_ms": [
+        5.329042,
+        5.391125,
+        5.3635,
+        5.485792,
+        5.4165410000000005,
+        5.310124999999999,
+        5.203958
+      ],
+      "median_ms": 5.3635,
+      "min_ms": 5.203958,
+      "max_ms": 5.485792
+    },
+    "open_1gb": {
+      "bytes": 1000000000,
+      "samples_ms": [
+        2.010375,
+        2.0681670000000003,
+        2.356792,
+        1.4495,
+        1.8552499999999998,
+        0.9978330000000001,
+        1.200333
+      ],
+      "median_ms": 1.8552499999999998,
+      "min_ms": 0.9978330000000001,
+      "max_ms": 2.356792
+    },
+    "first_40_lines_1gb": {
+      "bytes": 1000000000,
+      "samples_ms": [
+        0.298667,
+        0.458959,
+        0.39275,
+        0.464125,
+        0.345792,
+        0.356167,
+        0.29958399999999996
+      ],
+      "median_ms": 0.356167,
+      "min_ms": 0.298667,
+      "max_ms": 0.464125
+    },
+    "open_and_first_40_lines_1gb": {
+      "bytes": 1000000000,
+      "samples_ms": [
+        2.30925,
+        2.5274170000000002,
+        2.74975,
+        1.913917,
+        2.2012080000000003,
+        1.354208,
+        1.5000829999999998
+      ],
+      "median_ms": 2.2012080000000003,
+      "min_ms": 1.354208,
+      "max_ms": 2.74975
+    },
+    "terminal_printf_first_frame": {
+      "bytes": 0,
+      "samples_ms": [
+        19.368667,
+        19.240707999999998,
+        20.53725,
+        19.217458,
+        20.812416,
+        19.240792,
+        19.24675
+      ],
+      "median_ms": 19.24675,
+      "min_ms": 19.217458,
+      "max_ms": 20.812416
+    },
+    "terminal_grep_first_frame": {
+      "bytes": 0,
+      "samples_ms": [
+        36.234292,
+        35.086042,
+        34.983541,
+        35.039292,
+        36.235167,
+        35.015833,
+        35.013374999999996
+      ],
+      "median_ms": 35.039292,
+      "min_ms": 34.983541,
+      "max_ms": 36.235167
+    },
+    "terminal_pipe_first_frame": {
+      "bytes": 0,
+      "samples_ms": [
+        40.198291999999995,
+        43.318541,
+        39.351708,
+        40.964292,
+        39.328167,
+        39.720541,
+        39.701333
+      ],
+      "median_ms": 39.720541,
+      "min_ms": 39.328167,
+      "max_ms": 43.318541
+    },
+    "terminal_120_cached_frames": {
+      "bytes": 0,
+      "samples_ms": [
+        62.113834,
+        59.80375,
+        60.086167,
+        58.59775,
+        60.743208,
+        60.741875,
+        59.051709
+      ],
+      "median_ms": 60.086167,
+      "min_ms": 58.59775,
+      "max_ms": 62.113834
+    },
+    "terminal_append_layout_2mb": {
+      "bytes": 2060800,
+      "samples_ms": [
+        54.919958,
+        54.558792000000004,
+        55.072791,
+        55.536292,
+        54.652625,
+        55.168709,
+        55.1935
+      ],
+      "median_ms": 55.072791,
+      "min_ms": 54.558792000000004,
+      "max_ms": 55.536292
+    }
+  },
+  "idle_samples": [
+    {
+      "rss_mib": 48.47265625,
+      "cpu_percent_one_core": 0.0,
+      "seconds": 5.0127429170534015
+    },
+    {
+      "rss_mib": 47.83984375,
+      "cpu_percent_one_core": 0.0,
+      "seconds": 5.009011333982926
+    },
+    {
+      "rss_mib": 48.0,
+      "cpu_percent_one_core": 0.0,
+      "seconds": 5.01525529200444
+    }
+  ],
+  "idle_video_driver": "native",
+  "limitations": [
+    "Local measurements, not a comparison with other editors.",
+    "Fixtures are freshly written and warm in the OS cache; no cold-disk claim.",
+    "Open measures the lazy piece table only; first 40 lines measures text access, not a rendered editor window.",
+    "Terminal frames use the headless SDL driver, not desktop GPU presentation.",
+    "Idle samples use the actual release app, the reported idle display driver, a small file, and LSP disabled; RSS is resident memory at sample endpoints, not a peak or allocation budget.",
+    "Idle CPU uses ps cumulative CPU time, is quantized by the OS, and is expressed as percent of one core. Zero means below measurement resolution.",
+    "Full application startup, LSP servers, large-file idle memory and other platforms are not measured."
+  ]
+}

@@ -25,8 +25,11 @@ use crate::search::SearchMode;
 
 
 pub(crate) const COMMAND_BAR_MARGIN: i32 = 8;
-pub(crate) const COMMAND_INPUT_HEIGHT: i32 = 42;
-pub(crate) const COMMAND_SUGGESTION_HEIGHT: i32 = 32;
+pub(crate) const COMMAND_FONT_SIZE: f32 = 14.0;
+pub(crate) const COMMAND_INPUT_HEIGHT: i32 = 36;
+pub(crate) const COMMAND_SUGGESTION_HEIGHT: i32 = 28;
+const INFO_LINE_HEIGHT: i32 = 20;
+const INFO_PARAGRAPH_GAP: i32 = 6;
 pub(crate) const MAX_VISIBLE_SUGGESTIONS: usize = 9;
 pub(crate) const COMMAND_RUN_WIDTH: i32 = 86;
 
@@ -56,6 +59,10 @@ pub(crate) enum ParsedCommand {
         path: String,
     },
 
+    New {
+        path: Option<String>,
+    },
+
     SetFontSize {
         points: u16,
     },
@@ -75,6 +82,7 @@ pub(crate) enum ParsedCommand {
     Formatters,
     Hover,
     Definition,
+    Rename { name: String },
     LspBack,
     LspStatus,
     LspStop,
@@ -107,6 +115,7 @@ enum SuggestionAction {
     SetInput(&'static str),
     ToggleOption(&'static str),
     FormatProvider(usize),
+    Review(usize),
     None,
 }
 
@@ -161,6 +170,11 @@ const COMMANDS: &[CommandSpec] = &[
         usage: ":open path",
     },
     CommandSpec {
+        name: "new",
+        description: "Create a file or an unnamed document",
+        usage: ":new [path]",
+    },
+    CommandSpec {
         name: "term",
         description: "Open the command terminal",
         usage: ":term",
@@ -210,6 +224,7 @@ const COMMANDS: &[CommandSpec] = &[
         description: "Close Pötyi",
         usage: ":quit",
     },
+    CommandSpec { name: "rename", description: "Preview a symbol rename across the project", usage: ":rename new_name" },
     CommandSpec { name: "hover", description: "Show language-server help at the cursor", usage: ":hover" },
     CommandSpec { name: "definition", description: "Go to the definition at the cursor", usage: ":definition" },
     CommandSpec { name: "lsp-back", description: "Return from a definition jump", usage: ":lsp-back" },
@@ -329,9 +344,12 @@ pub(crate) struct CommandBar {
     input: String,
     cursor: usize,
     selected: usize,
+    selection_explicit: bool,
     status: Option<String>,
     formatter_choices: Vec<(String, bool)>,
+    review_choices: Vec<String>,
     info_lines: Vec<String>,
+    info_documentation: Vec<bool>,
     info_offset: usize,
     epoch: u64,
 }
@@ -343,9 +361,12 @@ impl CommandBar {
             input: String::new(),
             cursor: 0,
             selected: 0,
+            selection_explicit: false,
             status: None,
             formatter_choices: Vec::new(),
+            review_choices: Vec::new(),
             info_lines: Vec::new(),
+            info_documentation: Vec::new(),
             info_offset: 0,
             epoch: 0,
         }
@@ -356,15 +377,51 @@ impl CommandBar {
     pub(crate) fn epoch(&self) -> u64 { self.epoch }
 
     pub(crate) fn show_info(&mut self, text: &str) {
+        self.show_info_styled(text, &[]);
+    }
+
+    pub(crate) fn show_hover(&mut self, hover: &crate::lsp::HoverContent) {
+        self.show_info_styled(&hover.text, &hover.documentation);
+    }
+
+    pub(crate) fn info_is_documentation(&self, index: usize) -> bool {
+        self.is_info() && self.info_documentation.get(self.info_offset + index).copied().unwrap_or(false)
+    }
+
+    fn show_info_styled(&mut self, text: &str, documentation: &[std::ops::Range<usize>]) {
+        self.review_choices.clear();
+        self.info_documentation.clear();
         self.info_lines.clear();
         self.info_offset = 0;
         self.selected = 0;
-        for line in text.lines() {
-            let line = line.replace('\t', "    ");
+        self.selection_explicit = false;
+        let mut offset = 0;
+        for line in text.split_inclusive('\n') {
+            let end = offset + line.len();
+            let is_documentation = documentation.iter().any(|range| range.start < end && range.end > offset);
+            offset = end;
+            let line = line.trim_end_matches(['\r', '\n']).replace('\t', "    ");
             let chars: Vec<_> = line.chars().filter(|c| !c.is_control()).take(4096).collect();
-            if chars.is_empty() { self.info_lines.push(String::new()); }
-            for chunk in chars.chunks(64) { self.info_lines.push(chunk.iter().collect()); }
-            if self.info_lines.len() >= 256 { self.info_lines.truncate(256); break; }
+            if chars.iter().all(|c| c.is_whitespace()) {
+                if self.info_lines.last().is_some_and(|line| !line.is_empty()) {
+                    self.info_lines.push(String::new());
+                    self.info_documentation.push(false);
+                }
+            } else {
+                for chunk in chars.chunks(64) {
+                    self.info_lines.push(chunk.iter().collect());
+                    self.info_documentation.push(is_documentation);
+                }
+            }
+            if self.info_lines.len() >= 256 {
+                self.info_lines.truncate(256);
+                self.info_documentation.truncate(256);
+                break;
+            }
+        }
+        if self.info_lines.last().is_some_and(|line| line.is_empty()) {
+            self.info_lines.pop();
+            self.info_documentation.pop();
         }
         self.set_status("Up/Down scroll; Escape closes");
     }
@@ -382,11 +439,24 @@ impl CommandBar {
     }
 
     pub fn selected(&self) -> usize {
-        self.selected
-            .min(
-                self.suggestion_count()
-                    .saturating_sub(1)
-            )
+        self.selected.saturating_sub(self.suggestion_offset())
+    }
+
+    fn suggestion_offset(&self) -> usize {
+        if self.is_info() { 0 } else { self.selected / MAX_VISIBLE_SUGGESTIONS * MAX_VISIBLE_SUGGESTIONS }
+    }
+
+    fn total_suggestion_count(&self) -> usize {
+        (0..).take_while(|index| self.raw_suggestion(*index).is_some()).count()
+    }
+
+    pub fn navigation_hint(&self) -> Option<String> {
+        let total = self.total_suggestion_count();
+        (total > MAX_VISIBLE_SUGGESTIONS && !self.is_info()).then(|| format!(
+            "{}–{} of {total} · ↑↓/wheel · Enter selects",
+            self.suggestion_offset() + 1,
+            self.suggestion_offset() + self.suggestion_count(),
+        ))
     }
 
     pub fn status(&self) -> Option<&str> {
@@ -400,14 +470,29 @@ impl CommandBar {
         self.status = Some(status.into());
     }
 
+    pub(crate) fn show_review(&mut self, choices: Vec<String>) {
+        self.info_lines.clear();
+        self.info_documentation.clear();
+        self.selected = 0;
+        self.selection_explicit = false;
+        self.review_choices = choices;
+        self.set_status("Select a file to review; Apply changes commits; Escape cancels");
+    }
+
+    pub(crate) fn review_selection(&self) -> Option<usize> {
+        match self.suggestion(self.selected()).map(|s| s.action) {
+            Some(SuggestionAction::Review(index)) => Some(index),
+            _ => None,
+        }
+    }
+
     pub fn show_formatters(&mut self, choices: Vec<(String, bool)>) {
         self.selected = 0;
+        self.selection_explicit = false;
         self.status = Some(if choices.is_empty() {
             "No matching formatters configured".to_string()
-        } else if choices.len() > MAX_VISIBLE_SUGGESTIONS {
-            format!("First {MAX_VISIBLE_SUGGESTIONS} of {} matches; full list in formatters.toml", choices.len())
         } else {
-            "Choose a formatter, then Enter to run".to_string()
+            "Up/Down or wheel to choose a formatter; Enter runs".to_string()
         });
         self.formatter_choices = choices;
     }
@@ -429,8 +514,10 @@ impl CommandBar {
 
         self.cursor = self.input.len();
         self.selected = 0;
+        self.selection_explicit = false;
         self.status = None;
         self.info_lines.clear();
+        self.review_choices.clear();
         self.epoch = self.epoch.wrapping_add(1);
     }
 
@@ -439,6 +526,7 @@ impl CommandBar {
         self.formatter_choices = Vec::new();
         self.status = None;
         self.info_lines.clear();
+        self.review_choices.clear();
         self.epoch = self.epoch.wrapping_add(1);
     }
 
@@ -471,8 +559,10 @@ impl CommandBar {
             self.cursor += text.len();
         }
         self.selected = 0;
+        self.selection_explicit = false;
         self.status = None;
         self.info_lines.clear();
+        self.review_choices.clear();
         self.epoch = self.epoch.wrapping_add(1);
     }
 
@@ -493,8 +583,10 @@ impl CommandBar {
 
         self.cursor = previous;
         self.selected = 0;
+        self.selection_explicit = false;
         self.status = None;
         self.info_lines.clear();
+        self.review_choices.clear();
         self.epoch = self.epoch.wrapping_add(1);
     }
 
@@ -516,8 +608,10 @@ impl CommandBar {
         );
 
         self.selected = 0;
+        self.selection_explicit = false;
         self.status = None;
         self.info_lines.clear();
+        self.review_choices.clear();
         self.epoch = self.epoch.wrapping_add(1);
     }
 
@@ -589,10 +683,11 @@ impl CommandBar {
                 else { (self.info_offset + 1).min(self.info_lines.len().saturating_sub(MAX_VISIBLE_SUGGESTIONS)) };
             return;
         }
-        let count = self.suggestion_count();
+        let count = self.total_suggestion_count();
 
         if count == 0 {
             self.selected = 0;
+            self.selection_explicit = false;
             return;
         }
 
@@ -604,6 +699,17 @@ impl CommandBar {
             } else {
                 (self.selected + 1) % count
             };
+        self.selection_explicit = true;
+    }
+
+    pub fn scroll_suggestions(&mut self, direction: isize) {
+        if self.is_info() {
+            self.move_selection(direction);
+            return;
+        }
+        self.selected = self.selected.saturating_add_signed(direction)
+            .min(self.total_suggestion_count().saturating_sub(1));
+        self.selection_explicit = true;
     }
 
     pub fn select_suggestion(
@@ -611,8 +717,10 @@ impl CommandBar {
         index: usize,
     ) -> bool {
         if index < self.suggestion_count() {
+            let index = self.suggestion_offset() + index;
             let changed = self.selected != index;
             self.selected = index;
+            self.selection_explicit = true;
             changed
         } else {
             false
@@ -623,6 +731,34 @@ impl CommandBar {
         self.apply_suggestion(
             self.selected()
         )
+    }
+
+    // Enter accepts the highlighted completion before parsing the command.
+    // Commands needing arguments leave the completed usage prompt open.
+    pub fn selects_option_on_enter(&self) -> bool {
+        self.selection_explicit && matches!(
+            self.suggestion(self.selected()).map(|suggestion| suggestion.action),
+            Some(SuggestionAction::ToggleOption(_)),
+        )
+    }
+
+    pub fn prepare_execute(&mut self) -> bool {
+        if self.is_info() {
+            return matches!(self.parse(), Ok(ParsedCommand::Hover | ParsedCommand::Definition | ParsedCommand::Rename { .. }));
+        }
+        let action = self.suggestion(self.selected()).map(|suggestion| suggestion.action);
+        match action {
+            Some(SuggestionAction::CompleteCommand(_) | SuggestionAction::SetInput(_)
+                | SuggestionAction::FormatProvider(_)) => {
+                self.apply_selected();
+                self.parse().is_ok()
+            }
+            Some(SuggestionAction::ToggleOption(_)) if self.selection_explicit => {
+                self.apply_selected();
+                false
+            }
+            _ => true,
+        }
     }
 
     pub fn apply_suggestion(
@@ -660,15 +796,17 @@ impl CommandBar {
                 self.input = format!(":format {}", self.formatter_choices[index].0);
             }
 
-            SuggestionAction::None => {
+            SuggestionAction::None | SuggestionAction::Review(_) => {
                 return false;
             }
         }
 
         self.cursor = self.input.len();
         self.selected = 0;
+        self.selection_explicit = false;
         self.status = None;
         self.info_lines.clear();
+        self.review_choices.clear();
         self.epoch = self.epoch.wrapping_add(1);
 
         self.formatter_choices = Vec::new();
@@ -689,9 +827,19 @@ impl CommandBar {
         &self,
         visible_index: usize,
     ) -> Option<CommandSuggestion<'_>> {
+        if visible_index >= MAX_VISIBLE_SUGGESTIONS { return None; }
+        self.raw_suggestion(self.suggestion_offset() + visible_index)
+    }
+
+    fn raw_suggestion(&self, visible_index: usize) -> Option<CommandSuggestion<'_>> {
         if !self.info_lines.is_empty() {
             return self.info_lines.get(self.info_offset + visible_index).map(|line| CommandSuggestion {
                 label: line, description: "", active: false, action: SuggestionAction::None,
+            });
+        }
+        if !self.review_choices.is_empty() {
+            return self.review_choices.get(visible_index).map(|label| CommandSuggestion {
+                label, description: "", active: false, action: SuggestionAction::Review(visible_index),
             });
         }
         if self.input.trim() == ":formatters" && !self.formatter_choices.is_empty() {
@@ -808,14 +956,28 @@ impl CommandBar {
             })
     }
 
+    pub(crate) fn suggestion_row_height(&self, index: usize) -> i32 {
+        if self.is_info() {
+            if self.suggestion(index).is_some_and(|line| line.label.is_empty()) {
+                INFO_PARAGRAPH_GAP
+            } else { INFO_LINE_HEIGHT }
+        } else { COMMAND_SUGGESTION_HEIGHT }
+    }
+
+    pub(crate) fn suggestion_row_offset(&self, index: usize) -> i32 {
+        (0..index.min(self.suggestion_count())).map(|i| self.suggestion_row_height(i)).sum()
+    }
+
+    pub(crate) fn suggestions_height(&self) -> i32 {
+        self.suggestion_row_offset(self.suggestion_count())
+    }
+
     pub fn panel_height(&self) -> i32 {
         if !self.active {
             return 0;
         }
 
-        COMMAND_INPUT_HEIGHT
-            + self.suggestion_count() as i32
-                * COMMAND_SUGGESTION_HEIGHT
+        COMMAND_INPUT_HEIGHT + self.suggestions_height()
     }
 
     pub fn reserved_height(&self) -> i32 {
@@ -848,9 +1010,7 @@ impl CommandBar {
                 - self.panel_height();
 
         let suggestion_bottom =
-            top
-                + self.suggestion_count() as i32
-                    * COMMAND_SUGGESTION_HEIGHT;
+            top + self.suggestions_height();
 
         let bottom =
             suggestion_bottom
@@ -874,16 +1034,12 @@ impl CommandBar {
             };
         }
 
-        let index =
-            ((y - top)
-                / COMMAND_SUGGESTION_HEIGHT)
-                as usize;
-
-        if index < self.suggestion_count() {
-            CommandBarHit::Suggestion(index)
-        } else {
-            CommandBarHit::Outside
+        for index in 0..self.suggestion_count() {
+            if y < top + self.suggestion_row_offset(index + 1) {
+                return CommandBarHit::Suggestion(index);
+            }
         }
+        CommandBarHit::Outside
     }
 
     pub fn parse(&self) -> Result<ParsedCommand, String> {
@@ -1286,6 +1442,16 @@ fn parse_command(
             })
         }
 
+        "new" => {
+            reject_search_options(search_option_used, backward, all)?;
+            if arguments.len() > 1
+                || arguments.first().is_some_and(|path| path.is_empty())
+            {
+                return Err("Usage: :new [path] (quote paths containing spaces)".to_string());
+            }
+            Ok(ParsedCommand::New { path: arguments.into_iter().next() })
+        }
+
         "open" => {
             reject_search_options(
                 search_option_used,
@@ -1414,6 +1580,15 @@ fn parse_command(
             )?;
 
             Ok(ParsedCommand::Split)
+        }
+
+        "rename" => {
+            reject_search_options(search_option_used, backward, all)?;
+            if arguments.len() != 1 || arguments[0].is_empty() || arguments[0].len() > 256
+                || arguments[0].chars().any(|c| c.is_whitespace() || c.is_control()) {
+                return Err("Usage: :rename new_name".into());
+            }
+            Ok(ParsedCommand::Rename { name: arguments.remove(0) })
         }
 
         "format" => {
@@ -1847,6 +2022,84 @@ mod tests {
     use super::*;
 
     #[test]
+    fn new_command_accepts_optional_quoted_path() {
+        assert_eq!(parse_command(":new").unwrap(), ParsedCommand::New { path: None });
+        assert_eq!(parse_command(":new \"é notes.txt\"").unwrap(),
+            ParsedCommand::New { path: Some("é notes.txt".into()) });
+        for input in [":new a b", ":new \"\"", ":new --all", ":new --rel"] {
+            assert!(parse_command(input).is_err(), "{input}");
+        }
+    }
+
+    #[test]
+    fn all_commands_are_reachable_by_arrows_and_clicks_across_pages() {
+        let mut bar = CommandBar::new();
+        bar.open(":");
+        for spec in COMMANDS {
+            assert_eq!(bar.suggestion(bar.selected()).unwrap().label, spec.name);
+            assert!(bar.suggestion_count() <= MAX_VISIBLE_SUGGESTIONS);
+            let y = 600 - COMMAND_BAR_MARGIN - bar.panel_height()
+                + bar.selected() as i32 * COMMAND_SUGGESTION_HEIGHT + 1;
+            assert_eq!(bar.hit_test(800, 600, 30, y), CommandBarHit::Suggestion(bar.selected()));
+            bar.move_selection(1);
+        }
+        assert_eq!(bar.suggestion(bar.selected()).unwrap().label, COMMANDS[0].name);
+        bar.move_selection(-1);
+        assert_eq!(bar.suggestion(bar.selected()).unwrap().label, "lsp-stop");
+        assert!(bar.apply_suggestion(bar.selected()));
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::LspStop);
+    }
+
+    #[test]
+    fn enter_accepts_highlighted_commands_settings_and_options() {
+        let mut bar = CommandBar::new();
+        bar.open(":");
+        bar.move_selection(-1);
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::LspStop);
+        bar.open(":op");
+        assert!(!bar.prepare_execute());
+        assert_eq!(bar.input(), ":open ");
+        bar.insert_text("notes.txt");
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::Open { path: "notes.txt".into() });
+        bar.open(":set ");
+        assert!(!bar.prepare_execute());
+        assert_eq!(bar.input(), ":set font-size ");
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::SetFontSize { points: 12 });
+        bar.open(":find notes ");
+        bar.move_selection(1);
+        assert!(!bar.prepare_execute());
+        assert!(bar.input().contains("--ignore-case"));
+        assert!(bar.prepare_execute());
+    }
+
+    #[test]
+    fn wheel_reaches_lsp_and_editing_resets_the_page() {
+        let mut bar = CommandBar::new();
+        bar.open(":");
+        bar.scroll_suggestions(100);
+        assert_eq!(bar.suggestion(bar.selected()).unwrap().label, "lsp-stop");
+        assert!(bar.navigation_hint().unwrap().contains(&format!("of {}", COMMANDS.len())));
+        bar.insert_text("new");
+        assert_eq!(bar.suggestion(0).unwrap().label, "new");
+        assert_eq!(bar.selected(), 0);
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::New { path: None });
+    }
+
+    #[test]
+    fn formatter_choices_beyond_first_page_can_run_with_enter() {
+        let mut bar = CommandBar::new();
+        bar.open(":formatters");
+        bar.show_formatters((0..12).map(|i| (format!("formatter{i}"), true)).collect());
+        bar.scroll_suggestions(11);
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::Format { provider: Some("formatter11".into()) });
+    }
+
+    #[test]
     fn lsp_commands_are_explicit_and_reject_extra_arguments() {
         for (name, expected) in [
             ("hover", ParsedCommand::Hover), ("definition", ParsedCommand::Definition),
@@ -1857,6 +2110,79 @@ mod tests {
             for extra in ["extra", "--all", "--regex", "--rel"] {
                 assert!(parse_command(&format!(":{name} {extra}")).is_err());
             }
+        }
+    }
+
+    #[test]
+    fn hover_documentation_color_survives_wrapping_and_scrolling() {
+        let mut bar = CommandBar::new();
+        bar.open(":hover");
+        let text = format!("crate_name\n\nfn example()\n\n\n{}", "Documentation é中 ".repeat(70));
+        let hover = crate::lsp::hover_content(&serde_json::json!({"contents":{"kind":"plaintext","value":text}}));
+        bar.show_hover(&hover);
+        assert!(!bar.info_is_documentation(0));
+        assert!(!bar.info_is_documentation(2));
+        assert!(bar.info_is_documentation(4));
+        assert!(bar.info_is_documentation(5));
+        for _ in 0..5 { bar.scroll_suggestions(1); }
+        assert!(bar.info_is_documentation(0));
+        bar.show_info("Waiting for the language server…");
+        assert!(!bar.info_is_documentation(0), "status text must not inherit the documentation color");
+    }
+
+    #[test]
+    fn hover_spacing_collapses_blank_lines_and_keeps_hit_targets_aligned() {
+        let mut bar = CommandBar::new();
+        bar.open(":hover");
+        bar.show_info("\n  \npotyi_lsp_demo\n\nfn greeting() -> &'static str\n\n\nReturns a greeting.\n\n");
+        assert_eq!(bar.suggestion_count(), 5);
+        assert_eq!(bar.suggestion(0).unwrap().label, "potyi_lsp_demo");
+        assert_eq!(bar.suggestion(4).unwrap().label, "Returns a greeting.");
+        assert_eq!(bar.suggestions_height(), 3 * INFO_LINE_HEIGHT + 2 * INFO_PARAGRAPH_GAP);
+        assert_eq!(bar.panel_height(), COMMAND_INPUT_HEIGHT + 72);
+        let top = 600 - COMMAND_BAR_MARGIN - bar.panel_height();
+        for index in 0..bar.suggestion_count() {
+            let y = top + bar.suggestion_row_offset(index);
+            assert_eq!(bar.hit_test(800, 600, 40, y), CommandBarHit::Suggestion(index));
+            assert_eq!(bar.hit_test(800, 600, 40, y + bar.suggestion_row_height(index) - 1),
+                CommandBarHit::Suggestion(index));
+        }
+        let input_y = top + bar.suggestions_height();
+        assert_eq!(bar.hit_test(800, 600, 40, input_y), CommandBarHit::Input);
+        assert_eq!(bar.hit_test(800, 600, 780, input_y), CommandBarHit::Execute);
+        assert_eq!(bar.hit_test(800, 600, 40, top - 1), CommandBarHit::Outside);
+        bar.open(":");
+        assert_eq!(bar.suggestions_height(), bar.suggestion_count() as i32 * COMMAND_SUGGESTION_HEIGHT);
+    }
+
+    #[test]
+    fn hover_spacing_keeps_indentation_and_scrolled_layout_consistent() {
+        let mut bar = CommandBar::new();
+        bar.open(":hover");
+        bar.show_info(&"    code\n\n\nnext\n".repeat(12));
+        assert_eq!(bar.suggestion(0).unwrap().label, "    code");
+        bar.scroll_suggestions(3);
+        let top = 600 - COMMAND_BAR_MARGIN - bar.panel_height();
+        for index in 0..bar.suggestion_count() {
+            assert_eq!(bar.hit_test(800, 600, 40, top + bar.suggestion_row_offset(index)),
+                CommandBarHit::Suggestion(index));
+        }
+    }
+
+    #[test]
+    fn hover_and_definition_results_can_be_repeated_with_enter() {
+        let mut bar = CommandBar::new();
+        for command in [":hover", ":definition"] {
+            bar.open(command);
+            bar.show_info("Result at the previous cursor");
+            assert!(bar.prepare_execute());
+            assert_eq!(bar.input(), command);
+            assert_eq!(bar.hit_test(800, 600, 100, 50), CommandBarHit::Outside);
+        }
+        for command in [":lsp-status", ":format", ":save"] {
+            bar.open(command);
+            bar.show_info("Finished");
+            assert!(!bar.prepare_execute());
         }
     }
 

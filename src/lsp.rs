@@ -139,10 +139,11 @@ pub(crate) fn uri_path(uri: &str) -> Result<PathBuf, String> {
         .map_err(|_| "Invalid definition file URI".into())
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Action {
     Hover,
     Definition,
+    Rename(String),
 }
 
 #[derive(Clone, Debug)]
@@ -167,9 +168,16 @@ pub(crate) struct Location {
 }
 
 #[derive(Debug)]
+pub(crate) struct HoverContent {
+    pub text: String,
+    pub documentation: Vec<std::ops::Range<usize>>,
+}
+
+#[derive(Debug)]
 pub(crate) enum Reply {
-    Hover(String),
+    Hover(HoverContent),
     Definition(Vec<Location>),
+    Rename(crate::workspace_edit::PreparedRename),
 }
 
 #[derive(Debug)]
@@ -181,6 +189,7 @@ pub(crate) struct Event {
 enum Job {
     Request(Request),
     Keep(Vec<PathBuf>),
+    Changed(Vec<PathBuf>),
 }
 
 pub(crate) struct Client {
@@ -214,14 +223,24 @@ impl Client {
                                 }
                                 server.as_mut().unwrap().execute(&config, &request)
                             })();
-                            let failed = result.is_err();
+                            let failed = server.as_ref().is_some_and(|session| session.transport.has_failed());
                             notify(Event {
                                 id: request.id,
                                 result,
                             });
-                            // Reconnect on the next explicit request after a failure.
+                            // Reconnect only after a broken transport, not an ordinary feature error.
                             if failed {
                                 server = None;
+                            }
+                        }
+                        Ok(Job::Changed(paths)) => {
+                            if let Some(session) = server.as_mut() {
+                                let changes: Result<Vec<_>,_> = paths.iter().map(|path|
+                                    file_uri(path).map(|uri| json!({"uri":uri,"type":2}))).collect();
+                                if changes.and_then(|changes| session.transport.notify(
+                                    "workspace/didChangeWatchedFiles", json!({"changes":changes}))).is_err() {
+                                    server = None;
+                                }
                             }
                         }
                         Ok(Job::Keep(paths)) => {
@@ -258,6 +277,10 @@ impl Client {
             .map_err(|_| "LSP is busy; wait for the current request or use :lsp-stop".into())
     }
 
+    pub fn files_changed(&self, paths: Vec<PathBuf>) -> bool {
+        self.jobs.try_send(Job::Changed(paths)).is_ok()
+    }
+
     pub fn keep(&self, paths: Vec<PathBuf>) -> bool {
         self.jobs.try_send(Job::Keep(paths)).is_ok()
     }
@@ -277,6 +300,10 @@ struct Session {
     sync: u64,
     hover: bool,
     definition: bool,
+    rename: bool,
+    prepare_rename: bool,
+    reports_readiness: bool,
+    root: PathBuf,
     documents: HashMap<PathBuf, (String, i64)>,
 }
 
@@ -289,8 +316,9 @@ impl Session {
             "rootUri":root_uri, "workspaceFolders":[{"uri":root_uri,"name":"project"}],
             "capabilities":{
                 "general":{"positionEncodings":["utf-16"]},
-                "workspace":{"workspaceFolders":true,"configuration":true,"applyEdit":false},
-                "textDocument":{"hover":{"contentFormat":["plaintext"]},"definition":{"linkSupport":true},
+                "experimental":{"serverStatusNotification":true},
+                "workspace":{"workspaceFolders":true,"configuration":true,"applyEdit":false,"workspaceEdit":{"documentChanges":true}},
+                "textDocument":{"rename":{"prepareSupport":true},"hover":{"contentFormat":["plaintext"]},"definition":{"linkSupport":true},
                     "synchronization":{"dynamicRegistration":false,"didSave":false,"willSave":false}}
             },
             "initializationOptions":config.initialization_options
@@ -325,6 +353,10 @@ impl Session {
             sync,
             hover,
             definition,
+            rename: supported(&capabilities["renameProvider"]),
+            prepare_rename: capabilities["renameProvider"]["prepareProvider"] == true,
+            reports_readiness: result["serverInfo"]["name"].as_str() == Some("rust-analyzer"),
+            root: root.to_path_buf(),
             documents: HashMap::new(),
         })
     }
@@ -349,6 +381,7 @@ impl Session {
     fn execute(&mut self, config: &ServerConfig, request: &Request) -> Result<Reply, String> {
         if (request.action == Action::Hover && !self.hover)
             || (request.action == Action::Definition && !self.definition)
+            || (matches!(request.action, Action::Rename(_)) && !self.rename)
         {
             return Err("This language server does not support that command".into());
         }
@@ -382,6 +415,20 @@ impl Session {
                     .insert(doc.path.clone(), (doc.text.clone(), 1));
             }
         }
+        if let Action::Rename(name) = &request.action {
+            let started = std::time::SystemTime::now();
+            if self.reports_readiness { self.transport.wait_until_ready(TIMEOUT)?; }
+            let mut params = json!({"textDocument":{"uri":file_uri(&focused.path)?},
+                "position":position(&focused.text, request.cursor)?});
+            if self.prepare_rename {
+                let prepared = self.transport.request("textDocument/prepareRename", params.clone(), TIMEOUT)?;
+                if prepared.is_null() { return Err("This symbol cannot be renamed".into()); }
+            }
+            params["newName"] = json!(name);
+            let edit = self.transport.request("textDocument/rename", params, TIMEOUT)?;
+            return crate::workspace_edit::prepare(&edit, &self.root, &request.documents,
+                &self.documents, started).map(Reply::Rename);
+        }
         let method = if request.action == Action::Hover {
             "textDocument/hover"
         } else {
@@ -391,7 +438,7 @@ impl Session {
             "textDocument":{"uri":file_uri(&focused.path)?},"position":position(&focused.text, request.cursor)?
         }), TIMEOUT)?;
         if request.action == Action::Hover {
-            Ok(Reply::Hover(hover_text(&result)))
+            Ok(Reply::Hover(hover_content(&result)))
         } else {
             Ok(Reply::Definition(definitions(&result)?))
         }
@@ -462,8 +509,8 @@ fn incremental_change(old: &str, new: &str) -> Result<Value, String> {
     )
 }
 
-fn hover_text(result: &Value) -> String {
-    fn append(value: &Value, output: &mut String) {
+pub(crate) fn hover_content(result: &Value) -> HoverContent {
+    fn append(value: &Value, output: &mut String, documentation: &mut Vec<std::ops::Range<usize>>) {
         if output.len() >= 16384 {
             return;
         }
@@ -471,24 +518,56 @@ fn hover_text(result: &Value) -> String {
             if !output.is_empty() {
                 output.push('\n');
             }
+            let start = output.len();
             output.extend(
                 text.chars()
                     .take(4096)
                     .filter(|c| !c.is_control() || *c == '\n' || *c == '\t'),
             );
+            let rendered = &output[start..];
+            if value["kind"].as_str() == Some("plaintext") {
+                // Plaintext has no semantic spans. rust-analyzer separates its
+                // signature blocks from documentation with two empty lines.
+                if let Some(separator) = rendered.find("\n\n\n") {
+                    documentation.push(start + separator + 3..output.len());
+                }
+            } else if value.get("language").is_none() {
+                // MarkedString language blocks are code; prose is documentation.
+                // Keep fenced Markdown examples in the normal text color too.
+                let mut offset = start;
+                let mut fenced = false;
+                for line in rendered.split_inclusive('\n') {
+                    if line.trim_start().starts_with("```") || line.trim_start().starts_with("~~~") {
+                        fenced = !fenced;
+                    } else if !fenced {
+                        if let Some(last) = documentation.last_mut() && last.end == offset {
+                            last.end += line.len();
+                        } else {
+                            documentation.push(offset..offset + line.len());
+                        }
+                    }
+                    offset += line.len();
+                }
+            }
         } else if let Some(items) = value.as_array() {
             for item in items {
-                append(item, output);
+                append(item, output, documentation);
             }
         }
     }
     let mut text = String::new();
-    append(&result["contents"], &mut text);
+    let mut documentation = Vec::new();
+    append(&result["contents"], &mut text, &mut documentation);
     if text.trim().is_empty() {
-        "No hover information at the cursor".into()
-    } else {
-        text
+        text = "No hover information at the cursor".into();
+        documentation.clear();
     }
+    HoverContent { text, documentation }
+}
+
+#[cfg(test)]
+fn hover_text(result: &Value) -> String {
+    hover_content(result).text
 }
 
 fn definitions(result: &Value) -> Result<Vec<Location>, String> {

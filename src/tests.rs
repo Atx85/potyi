@@ -137,6 +137,54 @@ fn temporary_path() -> std::path::PathBuf {
 }
 
 #[test]
+fn new_document_creates_named_file_and_saves_edits_to_it() {
+    let path = temporary_path().with_extension("é new.txt");
+    let mut editor = test_editor("old document");
+    editor.read_only = true;
+    editor.new_document(Some(path.to_str().unwrap())).unwrap();
+    assert_eq!(fs::read(&path).unwrap(), b"");
+    assert_eq!(editor.document.text().unwrap(), "");
+    assert_eq!(editor.path.as_ref(), Some(&path));
+    assert!(!editor.dirty);
+    assert!(!editor.read_only);
+    assert!(editor.undo_stack.is_empty());
+    assert!(editor.redo_stack.is_empty());
+    editor.insert_text("new contents").unwrap();
+    editor.save().unwrap();
+    assert_eq!(fs::read_to_string(&path).unwrap(), "new contents");
+    editor.new_document(None).unwrap();
+    assert!(editor.path.is_none());
+    assert_eq!(editor.document.len(), 0);
+    assert_eq!(editor.document.cursor.position, 0);
+    assert!(editor.undo_stack.is_empty());
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn new_document_preserves_unsaved_edits_and_existing_destinations() {
+    let path = temporary_path();
+    let mut editor = test_editor("original");
+    editor.insert_text("unsaved ").unwrap();
+    let before = editor.document.text().unwrap();
+    let cursor = editor.cursor_state();
+    let history = editor.undo_stack.len();
+    assert!(editor.new_document(Some(path.to_str().unwrap())).is_err());
+    assert!(editor.new_document(None).is_err());
+    assert!(!path.exists());
+    assert_eq!(editor.document.text().unwrap(), before);
+    assert_eq!(editor.document.cursor.position, cursor.position);
+    assert_eq!(editor.undo_stack.len(), history);
+    editor.dirty = false;
+    fs::write(&path, "existing contents").unwrap();
+    assert_eq!(editor.new_document(Some(path.to_str().unwrap())).unwrap_err().kind(), io::ErrorKind::AlreadyExists);
+    assert_eq!(fs::read_to_string(&path).unwrap(), "existing contents");
+    assert_eq!(editor.document.text().unwrap(), before);
+    assert!(editor.new_document(Some(path.join("missing/file.txt").to_str().unwrap())).is_err());
+    assert_eq!(editor.document.text().unwrap(), before);
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
 fn save_as_preserves_original_cursor_history_and_uses_new_path_for_later_saves() {
     let source = temporary_path();
     let target = temporary_path().with_extension("é saved.rs");
@@ -307,8 +355,10 @@ fn goto_executes_command_and_renders_destination() {
             18.0,
         ).unwrap()
     };
+    let canvas = window.into_canvas();
+    let texture_creator = canvas.texture_creator();
     let mut renderer = Renderer::new(
-        window.into_canvas(), font(), font(), 18.0,
+        canvas, &texture_creator, font(), font(), 18.0, (font(), font()),
         window::WindowHitTestState::new(800, 1.0),
     ).unwrap();
     let mut other = test_editor("");
@@ -349,7 +399,7 @@ fn goto_executes_command_and_renders_destination() {
 
             let outcome = execute_command_bar(
                 &mut bar, &mut search, &mut editor, &mut other,
-                &mut renderer, &mut terminal, &mut formatting_vim, false, &mut lsp_ui,
+                &mut renderer, &mut terminal, &mut formatting_vim, false, &mut VimController::new(), &mut lsp_ui,
             );
             assert!(outcome.cursor_changed, "{input}: {:?}", bar.status());
             assert!(!bar.is_active(), "{input}: {:?}", bar.status());
@@ -369,7 +419,7 @@ fn goto_executes_command_and_renders_destination() {
         bar.open(":goto 3");
         let outcome = execute_command_bar(
             &mut bar, &mut search, &mut editor, &mut other,
-            &mut renderer, &mut terminal, &mut formatting_vim, false, &mut lsp_ui,
+            &mut renderer, &mut terminal, &mut formatting_vim, false, &mut VimController::new(), &mut lsp_ui,
         );
         if configured == LineNumberMode::Normal {
             assert!(outcome.cursor_changed);
@@ -395,7 +445,7 @@ fn goto_executes_command_and_renders_destination() {
         bar.open(input);
         let outcome = execute_command_bar(
             &mut bar, &mut search, &mut editor, &mut other,
-            &mut renderer, &mut terminal, &mut formatting_vim, false, &mut lsp_ui,
+            &mut renderer, &mut terminal, &mut formatting_vim, false, &mut VimController::new(), &mut lsp_ui,
         );
         assert!(!outcome.cursor_changed, "{input}");
         assert!(bar.is_active(), "{input}");
@@ -407,7 +457,7 @@ fn goto_executes_command_and_renders_destination() {
     bar.open(":goto 2");
     let outcome = execute_command_bar(
         &mut bar, &mut search, &mut editor, &mut other,
-        &mut renderer, &mut terminal, &mut formatting_vim, false, &mut lsp_ui,
+        &mut renderer, &mut terminal, &mut formatting_vim, false, &mut VimController::new(), &mut lsp_ui,
     );
     assert!(outcome.cursor_changed);
     assert!(!bar.is_active());
@@ -428,12 +478,44 @@ fn goto_executes_command_and_renders_destination() {
     bar.open(":hover");
     let outcome = execute_command_bar(
         &mut bar, &mut search, &mut editor, &mut other,
-        &mut renderer, &mut terminal, &mut formatting_vim, false, &mut lsp_ui,
+        &mut renderer, &mut terminal, &mut formatting_vim, false, &mut VimController::new(), &mut lsp_ui,
     );
     assert!(!outcome.document_changed);
     assert!(!outcome.cursor_changed);
     assert!(bar.suggestion(0).unwrap().label.contains("disabled"));
     assert!(lsp_ui.status(&editor).contains("0 background session(s)"));
+
+    // Selecting a command from a later page follows the same dispatch as Enter.
+    bar.open(":");
+    bar.scroll_suggestions(100);
+    assert_eq!(bar.suggestion(bar.selected()).unwrap().label, "lsp-stop");
+    execute_command_bar(
+        &mut bar, &mut search, &mut editor, &mut other,
+        &mut renderer, &mut terminal, &mut formatting_vim, false, &mut VimController::new(), &mut lsp_ui,
+    );
+    assert!(bar.suggestion(0).unwrap().label.contains("stopped"));
+
+    editor = test_editor("MATCH");
+    bar.open(":find match ");
+    sync_command_search(&bar, &mut search, &mut editor.document, None).unwrap();
+    assert!(search.current_match().is_none());
+    bar.move_selection(1);
+    execute_command_bar(
+        &mut bar, &mut search, &mut editor, &mut other,
+        &mut renderer, &mut terminal, &mut formatting_vim, false, &mut VimController::new(), &mut lsp_ui,
+    );
+    assert!(search.current_match().is_some());
+
+    let created = temporary_path();
+    bar.open(&format!(":new {}", quote_argument(created.to_str().unwrap())));
+    let outcome = execute_command_bar(
+        &mut bar, &mut search, &mut editor, &mut other,
+        &mut renderer, &mut terminal, &mut formatting_vim, false, &mut VimController::new(), &mut lsp_ui,
+    );
+    assert!(outcome.document_reloaded && outcome.path_changed);
+    assert_eq!(editor.path.as_ref(), Some(&created));
+    assert_eq!(fs::read(&created).unwrap(), b"");
+    fs::remove_file(created).unwrap();
 }
 
 #[test]
@@ -580,6 +662,7 @@ fn editor_typing_hello_then_space() {
         },
         undo_stack: Vec::new(),
         redo_stack: Vec::new(),
+        multi_edit_group: None,
         applying_history: false,
         dirty: false,
         read_only: false,
@@ -2639,4 +2722,15 @@ fn terminal_failed_open_preserves_both_documents() {
     assert!(open_terminal_document(missing.to_str().unwrap(), false, &mut editor, &mut other).is_err());
     assert_eq!(editor.document.text().unwrap(), "unsaved draft");
     assert_eq!(other.document.text().unwrap(), "existing clean file");
+}
+
+#[test]
+fn terminal_locations_jump_to_reported_lines_and_unicode_byte_columns() {
+    let mut editor = test_editor("first\né🙂 fn main\nlast\n");
+    move_to_terminal_location(&mut editor.document, 2, None, false).unwrap();
+    assert_eq!(editor.document.cursor_line_column().unwrap(), (1, 0));
+    move_to_terminal_location(&mut editor.document, 2, Some(8), true).unwrap();
+    assert_eq!(editor.document.cursor_line_column().unwrap(), (1, 3));
+    move_to_terminal_location(&mut editor.document, 2, Some(4), false).unwrap();
+    assert_eq!(editor.document.cursor_line_column().unwrap(), (1, 3));
 }

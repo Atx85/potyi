@@ -1,35 +1,36 @@
-## License
+# Pötyi (Potyi) — lightweight Rust text editor
 
-Pötyi is free and open-source software licensed under the GNU General Public License v3.0 (GPLv3).
+A free, open-source text and code editor for **macOS, Windows, and Linux**, built with **Rust and SDL3**. Pötyi focuses on low memory use, quiet idle behavior, and practical editing tools.
 
-Copyright © 2026 Attila Banko.
+[Download Pötyi](https://github.com/Atx85/potyi/releases/latest) · [Editor homepage](https://atx85.github.io/potyi/) · [Reproducible benchmarks](https://atx85.github.io/potyi/benchmarks/) · [Language server setup](docs/lsp.md)
 
-You are free to use, study, modify, and distribute Pötyi. If you distribute a modified version of Pötyi, you must make the corresponding source code available under the terms of the GPLv3 or any later version.
+- Conventional shortcuts and optional Vim-style Normal, Insert, and Visual modes.
+- Split panes, incremental search, regular expressions, and multi-cursor occurrence editing.
+- A command terminal with streaming output and clickable file locations.
+- Optional LSP hover, definitions, and reviewed symbol rename across files.
+- File-backed editing and undo, with no full in-memory copy required to open a large file.
 
-See [LICENSE](LICENSE) for the full license text.
-
-### Third-Party Assets
-
-Pötyi includes the DejaVu Sans Mono font. The font is distributed under its own license and is not covered by Pötyi's GPLv3 license.
-
-See [`fonts/LICENSE-DejaVuSans.md`](fonts/LICENSE-DejaVuSans.md) for the font's license information.
-
-
-# Pötyi
-
-A lightweight Rust text editor built with SDL3, designed with low memory and CPU usage in mind.
+**Pötyi and Potyi are the same editor**; Potyi is the spelling without accents. This README describes the current source tree; packaged releases may lag behind development. See the [benchmark method](tools/benchmarks/README.md) for measured workloads and limits.
 
 ## Command Bar
 
 Pötyi uses one discoverable command bar for search, replacement, navigation, and file commands. Press `Ctrl+P`, or type `:` on an empty line, to open it. Colons typed in normal content such as `foo: bar` are inserted into the document. Type `::` on an empty line to insert a literal colon there.
 
-Commands and their available options appear above the input. Use the arrow keys and `Tab`, or point and click, to select them. `Escape` closes the bar.
+Commands and their available options appear above the input. Use Up/Down or the mouse wheel to browse the full list, including the LSP commands. The list shows nine entries at a time. Click or press `Enter` to accept the highlighted command and run it when its required arguments are present. `Tab` fills in a suggestion without running it. Commands needing arguments leave the input ready for typing. Highlight an option with the arrow keys and press `Enter` to toggle it. `Escape` closes the bar.
+
+The command panel uses compact 14-point text independently of the editor font size.
 
 Familiar shortcuts remain available:
 
 - `Ctrl+F` opens `:find `.
 - `Ctrl+H` opens `:replace `.
+- `Ctrl+N` (also `Cmd+N` on macOS) opens `:new `.
 - `Ctrl+Shift+S` (also `Cmd+Shift+S` on macOS) opens `:save-as `.
+
+Use `:new "path with spaces/file.txt"` to create and open an empty file,
+or `:new` to start an unnamed document. Relative paths use the app's working
+directory, and the parent folder must already exist. Existing files are never
+overwritten. Save any unsaved edits in the focused pane before creating a file.
 
 Use `:save-as "path with spaces/file.txt"` to save the focused document
 under a new name. Later saves use that name; the original file, cursor,
@@ -48,7 +49,10 @@ Quit with `Ctrl+Q` or `Cmd+Q` on macOS. `Escape` closes active panels or leaves 
 
 | Action | Default shortcut |
 | --- | --- |
+| Select word / add next occurrence (conventional mode) | `Ctrl+D` (also `Cmd+D` on macOS) |
+| Undo / redo | `Ctrl+Z` / `Ctrl+Y` (also `Cmd+Z` / `Cmd+Shift+Z` on macOS) |
 | Select all | `Ctrl+A` (also `Cmd+A` on macOS) |
+| Copy / cut / paste | `Ctrl+C/X/V` (also `Cmd+C/X/V` on macOS) |
 | Previous / next word | `Ctrl+Left/Right` (also `Option+Left/Right` on macOS) |
 | Select by word | Add `Shift` to the word shortcut |
 | Page up / down | `Page Up/Down` |
@@ -56,6 +60,10 @@ Quit with `Ctrl+Q` or `Cmd+Q` on macOS. `Escape` closes active panels or leaves 
 | Select to line start / end | `Shift+Home/End` |
 
 Page movement uses the visible editor height, keeps the preferred column across shorter lines, and stops at the first or last line. Word movement treats Unicode letters, numbers, and underscores as words, with punctuation and whitespace as separate groups. These shortcuts can be changed in `config/keybindings.toml`.
+
+In conventional mode, press `Cmd+D` / `Ctrl+D` to select the word under the cursor, then press again to add the next occurrence. An existing selection can be any literal text, including multiple lines. Matching is case-sensitive, wraps around the file, and skips already selected or overlapping matches. Type or paste to replace all selections together; Backspace, Delete, Enter, and Tab also work at every cursor. Consecutive edits at those cursors form one undo step. Copy joins selections in document order with newlines; paste inserts the same clipboard text at each cursor.
+
+Press `Escape` to keep only the most recent selection or cursor. Arrow keys move every cursor together; Shift+arrows select text at each cursor so you can edit just part of each occurrence. Word, Home/End, and page movements also apply to every cursor, including their selection variants. Cursors or selections that converge are merged. Clicking elsewhere or opening search returns to one cursor. For this workflow from Vim, use `:set keybindings conventional`, make the edits, then open the command bar with `Ctrl+P` and use `:set keybindings vim`. Switching back keeps the edits and drops extra cursors; Vim's `Ctrl+D` half-page motion is unchanged.
 
 ## Vim-like Keybindings
 
@@ -99,6 +107,7 @@ Examples:
 :goto 12 --rel
 :goto -6 --rel
 :open "path with spaces/file.txt"
+:new "notes.txt"
 :term
 :set font-size 20
 :set line-numbers dynamic
@@ -114,13 +123,17 @@ Examples:
 
 ## Language Server Support (LSP)
 
-Optional LSP support provides `:hover`, `:definition`, and `:lsp-back` through
+Use `:rename new_name` on a function or variable to preview its project-wide references. Click a file or press Enter to review its replacements, then select **Apply changes**. Open buffers stay unsaved; the preview marks unopened files that will be written. Normal Undo reverses the rename across files. Keep affected buffers open while you need their rename undo history. Extract-to-file is not implemented yet.
+
+With `:hover` open, click another word to refresh its information without closing the command bar. Scroll over the code or result panel to scroll that area. Enter repeats `:hover` or `:definition` at the current cursor; Escape closes the panel.
+
+Optional LSP support provides `:hover`, `:definition`, `:lsp-back`, and `:rename new_name` through
 the command bar, including in Vim mode. It is disabled by default. Run
 `:extract-config`, enable `config/lsp.toml`, and configure a separately
 installed stdio language server. `:lsp-status` shows configuration and
 `:lsp-stop` stops background sessions.
 
-Servers start only when help is requested. Current unsaved text is synchronized
+Servers start only when an LSP command is requested. Current unsaved text is synchronized
 on each request, using incremental updates when supported. Server communication
 runs in the background; definition jumps preserve unsaved buffers and undo
 history. This initial version supports saved UTF-8 documents up to 2 MiB and
@@ -242,20 +255,31 @@ sample preview, TOML import, and downloads for these definitions.
 
 ## Command Terminal
 
-Run `:term` to open Pötyi's lightweight command terminal. `Ctrl+\`` switches between the terminal and editor; `Escape`, the `Editor` button, and the `exit` command also return to the editor.
+Run `:term` to open Pötyi's lightweight command terminal. `Ctrl+\`` switches between the terminal and editor; `Escape` from the command input, the `Editor` button, and the `exit` command also return to the editor.
 
 The terminal runs normal non-interactive shell commands in one persistent working directory, so tools such as Git, Cargo, Node, PHP, CMake, and shell scripts can be used. These built-in commands help with file navigation:
 
 ```text
 cd path
 pwd
+ls
+touch notes.txt "another file.txt"
 edit src/main.rs
 edit src/main.rs:42:7
+Cargo.lock
+./Cargo.lock
 view README.md
 clear
 help
 exit
 ```
+
+`touch` creates empty files or updates existing files' access and modification
+times without changing their contents. It works on Windows, macOS, and Linux.
+Quote filenames containing spaces; multiple paths are supported. Use `touch -c`
+or `touch --no-create` to skip missing files, and `touch -- -notes.txt` for a name
+starting with a dash. Relative paths use the terminal's current directory;
+parent folders must already exist. Other touch flags are not built in.
 
 `ls` shows text files in green, folders in blue with a trailing `/`, and binary files in amber. Underlined names are clickable: text files open in the editor, and folders change the terminal directory and show its contents. A clickable `../` entry at the start of each folder listing goes up one folder; it is omitted at the filesystem root. Binary and unreadable files are not links. Listing links remember their original paths, including names with spaces. File types are detected from a small content sample.
 
@@ -269,11 +293,46 @@ grep -nE 'error|warning' build.log
 ls | grep -i 'readme'
 ```
 
+On macOS and Linux, external commands use the selected shell with `-c`, inheriting Pötyi's environment and `PATH`. Login profiles are not rerun for every command, avoiding repeated shell setup delays. Pipes, redirection, quoting, and variable expansion still work. If a command specifically needs login-profile setup, request it explicitly, for example `zsh -lc 'your-command'`. Tools installed through a login profile must be on the environment inherited by Pötyi; starting Pötyi from that configured shell provides it.
+
 Pipelines, redirects, and command lists use the system shell, even when they start with a built-in such as `ls` or `cd`. For example, `cd src && grep -n 'main' main.rs` changes directory for that command only; use standalone `cd src` to change the terminal's persistent directory. Quote paths containing shell operators, such as `edit "a&b.txt"`.
+
+Search results with locations are underlined and clickable across the whole result row, including wrapped text. For example, `grep -nH 'fn main' src/main.rs` opens the reported file and line. Single-file output from `grep -n 'fn main' src/main.rs` also works: the terminal remembers the command's filename. Links keep their original directory when you later use `cd`, and dragging selects text without opening it. Standard grep reports lines without columns, so those links land at the start of the line. Output with columns, such as `rg --column 'fn main' src/main.rs`, jumps to the reported column; ripgrep's byte columns are converted correctly for Unicode text. Omitted filenames are inferred only for an unambiguous standalone command with one literal file argument.
 
 Pötyi does not bundle `grep`: it must be available on the shell's PATH (including on Windows). GNU and BSD grep have different flag sets. Supply files, a pipe, or input redirection when searching; interactive standard input is unavailable. The terminal displays plain text and strips ANSI colors and control bytes such as NUL; pipe or redirect output when those bytes need to be preserved.
 
-The terminal supports command history with the arrow keys, scrolling, paste with `Ctrl+V`, copying its capped output with `Ctrl+Shift+C`, stopping a running command with `Ctrl+C`, clearing with `Ctrl+L`, and clickable `Stop`/`Again`/`Clear`/`Editor` controls.
+A text-file path on its own, such as `Cargo.lock`, `./Cargo.lock`, or
+`"notes with spaces.txt"`, opens that file in the editor. Existing unsaved
+documents receive the same protection as when clicking a file in a listing.
+Executable files and installed commands still run normally; use `edit PATH`
+to explicitly edit a script or a file whose name matches a command.
+
+After `ls`, type a filename prefix and press `Tab` to complete it. Repeated
+`Tab` cycles through matching names; `Shift+Tab` cycles backwards. Spaces and
+shell punctuation are quoted automatically. Completion replaces the argument
+at the cursor and preserves other arguments. `cd` suggests folders only.
+Editing the input or moving the cursor starts a fresh completion cycle.
+
+Suggestions come from the latest built-in directory listing, including the
+listing shown after `cd` or clicking a folder. Tab does not scan the disk or
+run a background search. The cache holds up to 4,096 entries and 256 KiB of
+path text; a new listing replaces it. Files changed elsewhere may remain in
+the suggestions until the next listing. Shell pipelines such as `ls | grep`
+do not populate this cache.
+
+Directory scans and file-type detection run in a background worker and stream
+small batches into the terminal. Entries appear in filesystem discovery order;
+completion choices are sorted alphabetically. `Ctrl+C` or **Stop** cancels a
+listing. External commands also stream output through background readers, with
+bounded batches per UI update to keep input and drawing responsive.
+
+The terminal supports command history with the arrow keys in the command input, scrolling, paste with `Ctrl+V` or `Ctrl+Shift+V` (`Cmd+V` on macOS), clearing with `Ctrl+L`, and clickable `Stop`/`Again`/`Clear`/`Editor` controls. Pasting returns focus to the command input. The command bar also accepts `Ctrl+V` / `Cmd+V` to paste into its input.
+
+Terminal output is selectable, read-only text. Drag with the mouse to select; clicking an underlined link without dragging still opens it. `Shift+Up` from the command input starts selecting output; keep holding Shift and use the arrows to extend the selection. `Escape` returns to typing. `F6` also remains available to switch focus. While output is focused, arrows move through displayed rows, `Shift` plus arrows/Home/End extends a selection, `Ctrl`/`Option` plus Left/Right moves by word, and `Ctrl+A` / `Cmd+A` selects all output. `Ctrl+C` / `Cmd+C` copies selected text; `Ctrl+Shift+C` / `Cmd+Shift+C` always copies all retained output. With no selection, `Ctrl+C` stops the running command and `Cmd+C` copies all output. `Escape` clears the selection and returns to the command input.
+
+With Vim enabled, focused output also accepts `h/j/k/l`, `w/b`, `0/$`, `gg/G`, `v` for character selection, `V` for whole-line selection, and `y` to copy the selection to the system clipboard. Output cannot be edited. Selection remains anchored as new output streams in; when the 8 MB limit removes old output, only the retained part of a selection remains available.
+
+Terminal output is consumed in bounded batches, with keyboard and mouse events handled between batches. Streaming redraws run at most about 60 times per second; input can redraw immediately. Textures are reused in a cache with an 8 MB pixel-storage budget and a 512-entry limit, released when returning to the editor. Appending output rewraps only the final displayed row, and trimming complete history lines reuses the retained layout. History stays file-backed instead of adding a second full copy in RAM. Workers wake the UI when output or directory results arrive; a quiet terminal uses the same idle wait as the editor, even while a silent command runs. There is no continuous redraw timer when nothing changes.
 
 This is deliberately a command buffer rather than a full terminal emulator. Full-screen or raw interactive programs such as Vim, `top`, and interactive debuggers are not supported. Terminal output is file-backed and capped at 8 MB, and the app sleeps while idle to keep memory and CPU use predictable.
 
@@ -430,3 +489,20 @@ slower, but later builds reuse Cargo's build cache.
 Pötyi uses a **Piece Table** for document storage. This allows large files to be edited without creating a complete in-memory copy of the file.
 
 The project is designed with low memory usage and low CPU overhead as priorities.
+
+
+## License
+
+Pötyi is free and open-source software licensed under the GNU General Public License v3.0 (GPLv3).
+
+Copyright © 2026 Attila Banko.
+
+You are free to use, study, modify, and distribute Pötyi. If you distribute a modified version of Pötyi, you must make the corresponding source code available under the terms of the GPLv3 or any later version.
+
+See [LICENSE](LICENSE) for the full license text.
+
+### Third-Party Assets
+
+Pötyi includes the DejaVu Sans Mono font. The font is distributed under its own license and is not covered by Pötyi's GPLv3 license.
+
+See [`fonts/LICENSE-DejaVuSans.md`](fonts/LICENSE-DejaVuSans.md) for the font's license information.
