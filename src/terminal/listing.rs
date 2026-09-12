@@ -79,7 +79,7 @@ pub(super) fn start(
                     writer
                         .chunk
                         .text
-                        .push_str(&format!("{}:\n", target.display()));
+                        .push_str(&format!("{}:\n", super::display_path(&target)));
                     target
                 } else {
                     writer.send(Message::Started(None))?;
@@ -175,7 +175,7 @@ impl Writer {
             return self.entry(path, name, options);
         }
         if header {
-            self.chunk.text.push_str(&format!("{name}:\n"));
+            self.chunk.text.push_str(&format!("{}:\n", super::display_path(Path::new(name))));
         }
         if let Some(parent) = path.canonicalize()?.parent() {
             self.entry(parent, "..", options)?;
@@ -196,7 +196,7 @@ impl Writer {
                 self.chunk.text.push('\n');
                 self.path(
                     &entry.path(),
-                    &entry.path().display().to_string(),
+                    &super::display_path(&entry.path()),
                     options,
                     true,
                 )?;

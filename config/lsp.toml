@@ -1,5 +1,5 @@
 # LSP is opt-in. Install the server separately, then set enabled = true.
-# Servers start only when :hover, :definition, or :rename is requested.
+# Servers start on member-access autocomplete or an explicit LSP command.
 enabled = false
 
 [[servers]]
@@ -17,3 +17,12 @@ checkOnSave = false
 
 # Add more [[servers]] entries for other installed stdio language servers.
 # Each entry needs name, command, extensions, and language_id.
+
+# C# and Unity: install csharp-ls separately. Unity project files must be generated.
+[[servers]]
+name = "csharp"
+command = "csharp-ls"
+args = []
+extensions = ["cs", "csx"]
+language_id = "csharp"
+root_markers = ["global.json", "Directory.Build.props", ".git"]

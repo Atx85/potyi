@@ -603,7 +603,7 @@ ls links: green = edit file, blue = enter folder; amber = binary\n"
                 self.append_text(
                     &format!(
                         "{}\n",
-                        self.cwd.display(),
+                        display_path(&self.cwd),
                     )
                 )?;
                 Ok(TerminalAction::None)
@@ -1548,7 +1548,7 @@ fn append_ls_path(
     }
 
     if show_header {
-        output.text.push_str(display_name);
+        output.text.push_str(&display_path(Path::new(display_name)));
         output.text.push_str(":\n");
     }
 
@@ -1590,7 +1590,7 @@ fn append_ls_path(
                 append_ls_path(
                     output,
                     &entry.path(),
-                    &entry.path().display().to_string(),
+                    &display_path(&entry.path()),
                     options,
                     true,
                 )?;
@@ -1790,7 +1790,7 @@ fn touch_files(arguments: &str, cwd: &Path) -> io::Result<()> {
             .open(&path).and_then(|file| file.set_times(times));
         if let Err(error) = result {
             if no_create && error.kind() == io::ErrorKind::NotFound { continue; }
-            errors.push(format!("{}: {error}", path.display()));
+            errors.push(format!("{}: {error}", display_path(&path)));
         }
     }
     if errors.is_empty() { Ok(()) } else { Err(io::Error::other(errors.join("\n"))) }
@@ -1876,6 +1876,30 @@ fn command_on_path(name: &str, cwd: &Path) -> bool {
             fs::metadata(&path).is_ok_and(|metadata| metadata.is_file() && executable_file(&path, &metadata))
         })
     })
+}
+
+/// Keep canonical paths for filesystem access; use ordinary Windows spelling in output.
+pub(crate) fn display_path(path: &Path) -> String {
+    let text = path.to_string_lossy();
+    #[cfg(windows)]
+    { windows_display_path(&text) }
+    #[cfg(not(windows))]
+    { text.into_owned() }
+}
+
+#[cfg(any(windows, test))]
+fn windows_display_path(path: &str) -> String {
+    if let Some(rest) = path.strip_prefix(r"\\?\") {
+        if let Some(share) = rest.strip_prefix(r"UNC\") {
+            return format!(r"\\{share}");
+        }
+        let bytes = rest.as_bytes();
+        if bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
+            && matches!(bytes[2], b'\\' | b'/') {
+            return rest.to_owned();
+        }
+    }
+    path.to_owned()
 }
 
 fn normalize_initial_directory(
@@ -1965,6 +1989,24 @@ mod tests {
         assert_eq!(terminal.output_color(5), Some((150,220,165)));
         terminal.clear().unwrap(); terminal.append_text("+plain\n").unwrap();
         assert_eq!(terminal.output_color(0), None);
+    }
+
+    #[test]
+    fn windows_display_paths_remove_only_verbatim_disk_and_unc_prefixes() {
+        for (raw, expected) in [
+            (r"\\?\C:\Windows", r"C:\Windows"),
+            (r"\\?\c:/Windows", "c:/Windows"),
+            (r"\\?\D:\", r"D:\"),
+            (r"\\?\C:\Users\Name With Spaces\東京", r"C:\Users\Name With Spaces\東京"),
+            (r"\\?\UNC\server\share\folder", r"\\server\share\folder"),
+            (r"\\server\share", r"\\server\share"),
+            (r"C:\Windows", r"C:\Windows"),
+            ("/tmp/project", "/tmp/project"),
+            (r"\\?\Volume{example}\", r"\\?\Volume{example}\"),
+            (r"\\.\pipe\example", r"\\.\pipe\example"),
+        ] {
+            assert_eq!(windows_display_path(raw), expected);
+        }
     }
 
     #[test]

@@ -86,6 +86,8 @@ pub(crate) enum ParsedCommand {
     Actions { refactor_only: bool },
     LspBack,
     LspStatus,
+    LspStart,
+    LspRestart,
     LspStop,
     Save,
     SaveAs {
@@ -225,14 +227,20 @@ const COMMANDS: &[CommandSpec] = &[
         description: "Close Pötyi",
         usage: ":quit",
     },
-    CommandSpec { name: "actions", description: "Choose a quick fix or refactoring at the cursor or selection", usage: ":actions" },
-    CommandSpec { name: "refactor", description: "Choose a refactoring, such as moving a type or module to a file", usage: ":refactor" },
-    CommandSpec { name: "rename", description: "Preview a symbol rename across the project", usage: ":rename new_name" },
-    CommandSpec { name: "hover", description: "Show language-server help at the cursor", usage: ":hover" },
-    CommandSpec { name: "definition", description: "Go to the definition at the cursor", usage: ":definition" },
-    CommandSpec { name: "lsp-back", description: "Return from a definition jump", usage: ":lsp-back" },
-    CommandSpec { name: "lsp-status", description: "Show language-server configuration and sessions", usage: ":lsp-status" },
-    CommandSpec { name: "lsp-stop", description: "Stop all language servers", usage: ":lsp-stop" },
+    CommandSpec { name: "lsp", description: "Language-server help, navigation, rename and refactoring", usage: ":lsp <command>" },
+];
+
+const LSP_COMMANDS: &[CommandSpec] = &[
+    CommandSpec { name: "lsp start", description: "Enable LSP for this window and connect to this file's server", usage: ":lsp start" },
+    CommandSpec { name: "lsp restart", description: "Reload configuration and reconnect language servers", usage: ":lsp restart" },
+    CommandSpec { name: "lsp hover", description: "Show language-server help at the cursor", usage: ":lsp hover" },
+    CommandSpec { name: "lsp definition", description: "Go to the definition at the cursor", usage: ":lsp definition" },
+    CommandSpec { name: "lsp rename", description: "Preview a symbol rename across the project", usage: ":lsp rename new_name" },
+    CommandSpec { name: "lsp actions", description: "Choose a quick fix or refactoring at the cursor or selection", usage: ":lsp actions" },
+    CommandSpec { name: "lsp refactor", description: "Choose a refactoring, such as moving a type or module to a file", usage: ":lsp refactor" },
+    CommandSpec { name: "lsp back", description: "Return from a definition jump", usage: ":lsp back" },
+    CommandSpec { name: "lsp status", description: "Show language-server configuration and sessions", usage: ":lsp status" },
+    CommandSpec { name: "lsp stop", description: "Stop all language servers", usage: ":lsp stop" },
 ];
 
 const FIND_OPTIONS: &[OptionSpec] = &[
@@ -747,7 +755,7 @@ impl CommandBar {
 
     pub fn prepare_execute(&mut self) -> bool {
         if self.is_info() {
-            return matches!(self.parse(), Ok(ParsedCommand::Hover | ParsedCommand::Definition | ParsedCommand::Rename { .. } | ParsedCommand::Actions { .. }));
+            return matches!(self.parse(), Ok(ParsedCommand::Hover | ParsedCommand::Definition | ParsedCommand::Rename { .. } | ParsedCommand::Actions { .. } | ParsedCommand::LspStart | ParsedCommand::LspRestart | ParsedCommand::LspStatus));
         }
         let action = self.suggestion(self.selected()).map(|suggestion| suggestion.action);
         match action {
@@ -884,6 +892,10 @@ impl CommandBar {
                             ),
                     }
                 });
+        }
+
+        if command == "lsp" {
+            return lsp_suggestion(&body[first_end..], visible_index);
         }
 
         if command == "set" {
@@ -1106,6 +1118,25 @@ impl CommandBar {
     }
 }
 
+fn lsp_suggestion(tail: &str, index: usize) -> Option<CommandSuggestion<'static>> {
+    let tail = tail.trim_start();
+    let end = tail.find(char::is_whitespace).unwrap_or(tail.len());
+    let subcommand = &tail[..end];
+    if end == tail.len() {
+        LSP_COMMANDS.iter().filter(|spec| spec.name.strip_prefix("lsp ").unwrap().starts_with(subcommand))
+            .nth(index).map(|spec| CommandSuggestion {
+                label: spec.name, description: spec.description, active: false,
+                action: SuggestionAction::CompleteCommand(spec.name),
+            })
+    } else {
+        LSP_COMMANDS.iter().find(|spec| spec.name.strip_prefix("lsp ") == Some(subcommand))
+            .filter(|_| index == 0).map(|spec| CommandSuggestion {
+                label: spec.usage, description: "Press Enter to run", active: false,
+                action: SuggestionAction::None,
+            })
+    }
+}
+
 fn setting_suggestion(
     body: &str,
     visible_index: usize,
@@ -1257,7 +1288,19 @@ pub(crate) fn quote_argument(
 fn parse_command(
     input: &str,
 ) -> Result<ParsedCommand, String> {
-    let words = tokenize(input)?;
+    let mut words = tokenize(input)?;
+    if words.first().is_some_and(|word| word.text == "lsp") {
+        let subcommand = words.get(1).ok_or("Choose an LSP command: start, restart, hover, definition, rename, actions, refactor, back, status or stop")?;
+        let alias = match subcommand.text.as_str() {
+            "hover" => "hover", "definition" => "definition", "rename" => "rename",
+            "actions" => "actions", "refactor" => "refactor",
+            "back" => "lsp-back", "status" => "lsp-status", "stop" => "lsp-stop",
+            "start" => "lsp-start", "restart" => "lsp-restart",
+            _ => return Err("Unknown LSP command. Choose start, restart, hover, definition, rename, actions, refactor, back, status or stop".into()),
+        };
+        words.remove(1);
+        words[0].text = alias.into();
+    }
 
     let Some(command_word) = words.first()
     else {
@@ -1587,14 +1630,14 @@ fn parse_command(
 
         "actions" | "refactor" => {
             reject_search_options(search_option_used, backward, all)?;
-            if !arguments.is_empty() { return Err("Usage: :actions or :refactor".into()); }
+            if !arguments.is_empty() { return Err("Usage: :lsp actions or :lsp refactor".into()); }
             Ok(ParsedCommand::Actions { refactor_only: command == "refactor" })
         }
         "rename" => {
             reject_search_options(search_option_used, backward, all)?;
             if arguments.len() != 1 || arguments[0].is_empty() || arguments[0].len() > 256
                 || arguments[0].chars().any(|c| c.is_whitespace() || c.is_control()) {
-                return Err("Usage: :rename new_name".into());
+                return Err("Usage: :lsp rename new_name".into());
             }
             Ok(ParsedCommand::Rename { name: arguments.remove(0) })
         }
@@ -1607,13 +1650,15 @@ fn parse_command(
             Ok(ParsedCommand::Format { provider: arguments.into_iter().next() })
         }
 
-        "hover" | "definition" | "lsp-back" | "lsp-status" | "lsp-stop" => {
+        "hover" | "definition" | "lsp-back" | "lsp-status" | "lsp-start" | "lsp-restart" | "lsp-stop" => {
             reject_no_arguments(command, &arguments, search_option_used, backward, all)?;
             Ok(match command.as_str() {
                 "hover" => ParsedCommand::Hover,
                 "definition" => ParsedCommand::Definition,
                 "lsp-back" => ParsedCommand::LspBack,
                 "lsp-status" => ParsedCommand::LspStatus,
+                "lsp-start" => ParsedCommand::LspStart,
+                "lsp-restart" => ParsedCommand::LspRestart,
                 _ => ParsedCommand::LspStop,
             })
         }
@@ -1717,9 +1762,13 @@ fn reject_no_arguments(
     if arguments.is_empty() {
         Ok(())
     } else {
-        Err(format!(
-            ":{command} does not accept arguments"
-        ))
+        let command = match command {
+            "hover" => "lsp hover", "definition" => "lsp definition",
+            "lsp-back" => "lsp back", "lsp-status" => "lsp status", "lsp-stop" => "lsp stop",
+            "lsp-start" => "lsp start", "lsp-restart" => "lsp restart",
+            _ => command,
+        };
+        Err(format!(":{command} does not accept arguments"))
     }
 }
 
@@ -2053,7 +2102,14 @@ mod tests {
         }
         assert_eq!(bar.suggestion(bar.selected()).unwrap().label, COMMANDS[0].name);
         bar.move_selection(-1);
-        assert_eq!(bar.suggestion(bar.selected()).unwrap().label, "lsp-stop");
+        assert_eq!(bar.suggestion(bar.selected()).unwrap().label, "lsp");
+        assert!(bar.apply_suggestion(bar.selected()));
+        assert_eq!(bar.input(), ":lsp ");
+        for spec in LSP_COMMANDS {
+            assert_eq!(bar.suggestion(bar.selected()).unwrap().label, spec.name);
+            bar.move_selection(1);
+        }
+        bar.move_selection(-1);
         assert!(bar.apply_suggestion(bar.selected()));
         assert_eq!(bar.parse().unwrap(), ParsedCommand::LspStop);
     }
@@ -2062,6 +2118,9 @@ mod tests {
     fn enter_accepts_highlighted_commands_settings_and_options() {
         let mut bar = CommandBar::new();
         bar.open(":");
+        bar.move_selection(-1);
+        assert!(!bar.prepare_execute());
+        assert_eq!(bar.input(), ":lsp ");
         bar.move_selection(-1);
         assert!(bar.prepare_execute());
         assert_eq!(bar.parse().unwrap(), ParsedCommand::LspStop);
@@ -2088,7 +2147,7 @@ mod tests {
         let mut bar = CommandBar::new();
         bar.open(":");
         bar.scroll_suggestions(100);
-        assert_eq!(bar.suggestion(bar.selected()).unwrap().label, "lsp-stop");
+        assert_eq!(bar.suggestion(bar.selected()).unwrap().label, "lsp");
         assert!(bar.navigation_hint().unwrap().contains(&format!("of {}", COMMANDS.len())));
         bar.insert_text("new");
         assert_eq!(bar.suggestion(0).unwrap().label, "new");
@@ -2119,6 +2178,56 @@ mod tests {
                 assert!(parse_command(&format!(":{name} {extra}")).is_err());
             }
         }
+    }
+
+    #[test]
+    fn grouped_lsp_commands_match_aliases_and_validate_arguments() {
+        for (subcommand, alias) in [("hover","hover"),("definition","definition"),
+            ("actions","actions"),("refactor","refactor"),("back","lsp-back"),
+            ("status","lsp-status"),("stop","lsp-stop"),("start","lsp-start"),("restart","lsp-restart")] {
+            assert_eq!(parse_command(&format!(":lsp {subcommand}")).unwrap(), parse_command(&format!(":{alias}")).unwrap());
+            for extra in ["extra", "--all", "--regex", "--rel"] {
+                assert!(parse_command(&format!(":lsp {subcommand} {extra}")).is_err());
+            }
+        }
+        assert_eq!(parse_command(":lsp rename \"greeting_é\"").unwrap(), ParsedCommand::Rename {name:"greeting_é".into()});
+        for input in [":lsp",":lsp nope",":lsp rename",":lsp rename a b",":lsp rename \"a b\"",":lsp rename --all"] {
+            assert!(parse_command(input).is_err(), "{input}");
+        }
+    }
+
+    #[test]
+    fn lsp_group_supports_prefixes_clicks_and_rename_arguments() {
+        let mut bar = CommandBar::new();
+        bar.open(":lsp");
+        assert!(!bar.prepare_execute());
+        assert_eq!(bar.input(), ":lsp ");
+        assert_eq!(bar.total_suggestion_count(), LSP_COMMANDS.len());
+        for spec in LSP_COMMANDS {
+            bar.open(":lsp ");
+            let index=LSP_COMMANDS.iter().position(|s| s.name==spec.name).unwrap();
+            bar.scroll_suggestions(index as isize);
+            let row=bar.selected();
+            let y=600-COMMAND_BAR_MARGIN-bar.panel_height()+bar.suggestion_row_offset(row)+1;
+            assert_eq!(bar.hit_test(800,600,30,y),CommandBarHit::Suggestion(row));
+            bar.select_suggestion(row);
+            let ready=bar.prepare_execute();
+            assert_eq!(bar.input(),format!(":{} ",spec.name));
+            assert_eq!(ready,spec.name!="lsp rename");
+            if !ready {
+                bar.insert_text("new_name");
+                assert!(bar.prepare_execute());
+                assert_eq!(bar.parse().unwrap(),ParsedCommand::Rename {name:"new_name".into()});
+            }
+        }
+        bar.open(":lsp h");
+        assert_eq!(bar.total_suggestion_count(),1);
+        assert_eq!(bar.suggestion(0).unwrap().label,"lsp hover");
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(),ParsedCommand::Hover);
+        bar.open(":lsp rename preserved_name");
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(),ParsedCommand::Rename {name:"preserved_name".into()});
     }
 
     #[test]
@@ -2187,7 +2296,7 @@ mod tests {
             assert_eq!(bar.input(), command);
             assert_eq!(bar.hit_test(800, 600, 100, 50), CommandBarHit::Outside);
         }
-        for command in [":lsp-status", ":format", ":save"] {
+        for command in [":format", ":save"] {
             bar.open(command);
             bar.show_info("Finished");
             assert!(!bar.prepare_execute());

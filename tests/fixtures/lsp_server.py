@@ -56,6 +56,7 @@ while True:
         send({"id": message["id"], "result": {"capabilities": {
             "hoverProvider": True, "definitionProvider": True,
             "codeActionProvider": {"resolveProvider": True},
+            "completionProvider": {"triggerCharacters": [".", ":", ">"], "resolveProvider": True},
             "textDocumentSync": {"openClose": True, "change": 1 if mode == "full" else 2}
         }}})
     elif method == "textDocument/didOpen":
@@ -96,6 +97,18 @@ while True:
             "range": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 0}},
             "newText": "use std::fmt;\n"
         }]}}
+        send({"id": message["id"], "result": params})
+    elif method == "textDocument/completion":
+        assert params["context"]["triggerKind"] == 2
+        assert params["context"]["triggerCharacter"] in [".", ":", ">"]
+        if mode == "slow-completion":
+            time.sleep(0.25)
+        send({"id": message["id"], "result": {"isIncomplete": False, "items": [
+            {"label": "position", "sortText": "1", "data": {"member": "position"}},
+            {"label": "Translate", "sortText": "2", "data": {"member": "Translate"}}
+        ]}})
+    elif method == "completionItem/resolve":
+        params["insertText"] = params["data"]["member"]
         send({"id": message["id"], "result": params})
     elif method == "textDocument/hover":
         hover_attempts += 1

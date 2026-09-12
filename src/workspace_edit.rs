@@ -109,7 +109,7 @@ fn read(path: &Path) -> Result<Vec<u8>, String> {
     }
     Ok(bytes)
 }
-fn byte_position(text: &str, position: &Value) -> Result<usize, String> {
+pub(crate) fn byte_position(text: &str, position: &Value) -> Result<usize, String> {
     let line = position["line"].as_u64().ok_or("Invalid edit line")?;
     let units = position["character"]
         .as_u64()

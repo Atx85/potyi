@@ -3,14 +3,16 @@
 Read the [web version of this guide](lsp/) on the documentation website.
 
 Pötyi has an optional LSP client for **hover information, go-to-definition,
-symbol rename, quick fixes, and file refactorings**. It works with separately installed language servers that
+symbol rename, quick fixes, file refactorings, and member autocomplete**. It works with separately installed language servers that
 speak LSP over stdin/stdout. LSP is disabled by default; it creates no server
-processes or worker threads until an enabled command is requested.
+processes or worker threads until an enabled member trigger or LSP command is requested.
 
 ## Setup
 
 Run `:extract-config` to create `config/lsp.toml` without overwriting existing
-configuration. Set `enabled = true`, then configure an installed server.
+configuration, then configure an installed server. Use `:lsp start` to enable
+LSP for this window, even if the configuration has `enabled = false`.
+Set `enabled = true` for automatic LSP in future windows.
 Configuration paths, like the other editor settings, are relative to Pötyi's
 working directory. This version does not download or install language servers.
 
@@ -18,7 +20,7 @@ working directory. This version does not download or install language servers.
 
 Keep `enabled = true` at the top of `config/lsp.toml`, before any `[[servers]]` entries. Add the entries for the languages you use. Names must be unique, and the first entry matching a file extension wins. Extensions have no leading dot. Root markers are exact file or directory names, not wildcard patterns.
 
-This guide covers all 18 language families in the bundled syntax configuration, with additional dialect notes. Highlighting and language-server compatibility are separate: clangd has been tested with Pötyi; the other recipes follow upstream setup instructions and still need end-to-end verification. Hover, definition navigation, and symbol rename are available; each feature depends on server support.
+This guide covers all 18 language families in the bundled syntax configuration, with additional dialect notes. Highlighting and language-server compatibility are separate: rust-analyzer and clangd have been tested with Pötyi; the other recipes follow upstream setup instructions and still need end-to-end verification. Hover, definition navigation, symbol rename, code actions and member autocomplete are available; each feature depends on server support.
 
 ### Paths, Windows, and checking your setup
 
@@ -28,7 +30,7 @@ On Windows, native servers use their `.exe` executable. TOML literal strings mak
 
 To find that script, run `npm root -g`, open the server package’s `package.json` below that directory, and find the `bin` entry matching the command name. Resolve that entry relative to the package directory. For example, a Node launch has the shape `args = ['C:\absolute\package\server.js', '--stdio']`; replace the script path with the actual bin entry. Keep `start` instead of `--stdio` for Bash Language Server. A desktop shortcut may inherit a different PATH from your terminal.
 
-After adding a recipe, save the configuration and run `:lsp-stop`. Open a saved file with a matching extension, place the document cursor on a symbol or documented property, and run `:hover`. Try `:definition` on a symbol whose source exists locally, then `:lsp-back`. Use `:lsp-status` to check configuration and active sessions. Installing a package alone does not verify that it can analyze your project.
+After adding a recipe, save the configuration and run `:lsp restart`. Open a saved file with a matching extension, place the document cursor on a symbol or documented property, and run `:lsp hover`. Try `:lsp definition` on a symbol whose source exists locally, then `:lsp back`. Use `:lsp status` to check configuration and active sessions. Installing a package alone does not verify that it can analyze your project.
 
 ### Rust · rust-analyzer
 
@@ -111,6 +113,44 @@ root_markers = ["global.json", "Directory.Build.props", ".git"]
 Restore the project dependencies with `dotnet restore`. For a non-Git project, add your exact solution or project filename to `root_markers`, such as `MyApp.sln` or `MyApp.csproj`. With multiple solutions, use `args = ["--solution", "/absolute/path/MyApp.sln"]`. Standalone `.csx` scripts depend on the server’s project support. Keep metadata URI mode disabled; Pötyi opens local files only.
 
 [csharp-ls setup](https://github.com/razzmatazz/csharp-language-server).
+
+### Unity on Windows, macOS and Linux
+
+The Unity project detection and C# autocomplete implementation are shared across
+all builds. Install `csharp-ls` using the C# recipe above and enable LSP. New
+extracted defaults include its server entry; update that entry rather than
+adding a duplicate. Older configurations need the entry added manually.
+
+1. In Unity, generate/regenerate the C# project files under **Preferences >
+   External Tools**, using Unity's Visual Studio Editor package. Keep the
+   generated `.sln` and `.csproj` files at the project root.
+2. Open a saved C# script under the project's `Assets` folder in Pötyi.
+3. Type `transform.` inside a `MonoBehaviour` method. Select `position` or
+   another member with Up/Down and Enter, Tab, or a mouse click.
+4. If nothing appears, check `:lsp status` for the last autocomplete error.
+   Use `:lsp start` to connect explicitly and `:lsp status` to inspect the result.
+   C# project indexing may continue after connection. After changing server
+   settings or regenerating the solution, use `:lsp restart`.
+
+Pötyi finds the Unity root using `Assets` and
+`ProjectSettings/ProjectVersion.txt`, even when the Git repository is higher
+up. For `csharp-ls`, it prefers `<project-folder>.sln`, otherwise the single
+root-level `.sln`. Multiple solutions need an explicit
+`args = ["--solution", "YourGame.sln"]`. Existing arguments and solution settings
+are preserved. It does not scan `Library`, generate project files, or install
+Unity/.NET packages. Other configured C# servers receive the Unity root but
+retain their own launch arguments.
+
+On Windows, if the global .NET tools folder is absent from the editor's PATH,
+set `command` to the absolute installed `csharp-ls.exe` path. On macOS/Linux,
+use the absolute `csharp-ls` path when needed. Unity assemblies must be present
+and resolvable by the C# server. This is external-editor LSP support; Unity
+console navigation, debugging and a Unity editor plugin are outside this change.
+
+Project discovery and C# protocol behavior have automated tests. A real Unity
+project has **not yet been verified** on Windows, macOS or Linux.
+
+[Unity project generation](https://docs.unity3d.com/Packages/com.unity.ide.visualstudio@2.0/manual/using-visual-studio-editor.html).
 
 ### Python · python-lsp-server
 
@@ -437,7 +477,7 @@ language_id = "sql"
 root_markers = [".git"]
 ```
 
-Replace the configuration path with your own sqls YAML file. Follow the upstream database configuration instructions to connect it to your database; schema-aware hover needs that connection. Keep credentials in your local server configuration. Pötyi does not expose sqls query execution, connection switching, or completion. This recipe is primarily useful for hover; do not expect source-file definition navigation for database objects.
+Replace the configuration path with your own sqls YAML file. Follow the upstream database configuration instructions to connect it to your database; schema-aware hover needs that connection. Keep credentials in your local server configuration. Pötyi does not expose sqls query execution or connection switching. Member completion depends on advertised triggers. This recipe is primarily useful for hover; do not expect source-file definition navigation for database objects.
 
 [sqls installation and database configuration](https://github.com/sqls-server/sqls).
 
@@ -445,18 +485,70 @@ Replace the configuration path with your own sqls YAML file. Follow the upstream
 
 Pötyi highlights `.vue` files, but the current Vue language server uses custom `tsserver/request` and `tsserver/response` messages to communicate with its TypeScript plugin. Pötyi does not implement that bridge yet, so there is no verified Vue recipe for this client. Do not add `.vue` to the plain JavaScript entry and expect Vue type information. Ordinary `.js`, `.jsx`, `.ts`, and `.tsx` files can use the recipes above. See the [Vue language server integration instructions](https://github.com/vuejs/language-tools/blob/master/packages/language-server/README.md).
 
-While `:hover` is open, click another word in the document to refresh its information. You can keep the panel open and inspect words across either pane. Rapid clicks retain only the latest target while the server is busy; moving the mouse alone does not request analysis. Scroll over the editor to scroll code, or over the panel to scroll its contents. Enter repeats `:hover` or `:definition` at the current text cursor. Escape dismisses the panel and any queued hover refresh.
+While `:lsp hover` is open, click another word in the document to refresh its information. You can keep the panel open and inspect words across either pane. Rapid clicks retain only the latest target while the server is busy; moving the mouse alone does not request analysis. Scroll over the editor to scroll code, or over the panel to scroll its contents. Enter repeats `:lsp hover` or `:lsp definition` at the current text cursor. Escape dismisses the panel and any queued hover refresh.
+
+## Member autocomplete
+
+With LSP enabled, type `.` in a saved document. Pötyi requests completions only
+if the server advertises that trigger. It also supports Lua/Luau `:` and `::` / `->` through
+the server's `:` and `>` triggers. This runs in conventional mode and Vim insert
+mode on Windows, macOS and Linux. Use Up/Down to select, Enter or Tab to insert,
+or click a row. Escape closes the popup; further typing, moving the cursor or
+opening another view dismisses it. There is no completion while selecting
+multiple occurrences or viewing a read-only file.
+
+This first version offers members at the operator, without ongoing word
+filtering, snippet placeholders, parameter hints or server commands. Plain
+text edits, insert/replace ranges and resolved additional imports in the same
+file are supported as one undo step. The document stays unsaved. Stale replies
+are discarded, and cancellation keeps a healthy server session available.
+
+The popup shows eight rows at a time, retaining at most 256 items and 512 KiB
+of item data. Documents keep the existing 2 MiB LSP limit. Communication and
+edit preparation run on the worker; bounded snapshots and applying the selected
+edit run on the editor thread. Autocomplete adds no timers, idle scans or file
+watchers. Language servers retain their own background work and resource costs.
+
+## Starting, checking and restarting LSP
+
+- `:lsp start` enables LSP for the current window and connects to the server
+  for the saved file. It shows connection/loading progress and then the result.
+  No configuration file is rewritten.
+- `:lsp restart` cancels existing sessions, reloads configuration and connects
+  again for the current file. Use it after settings changes or a failed connection.
+- `:lsp status` shows whether LSP is enabled, startup progress, and the last
+  connection or autocomplete result. Enter refreshes the status panel.
+- `:lsp stop` stops all sessions and pauses autocomplete until `:lsp start`.
+  It no longer implicitly restarts when you type a dot.
+
+Escape can close the connection panel while the background startup continues.
+The completion popup displays “Loading suggestions…” while waiting. For
+rust-analyzer, completion and Start wait for its project-ready notification,
+so the first dot can work without retyping it. Other servers can continue
+indexing after initialization; “connected” does not guarantee their project
+has finished loading. Initialization is bounded to 30 seconds, and a readiness
+wait to 15 seconds; stopping/restarting cancels the old worker.
 
 ## Commands
 
+Type `:lsp` and press Enter or Tab to browse the language-server commands.
+Use Up/Down and Enter, or click a command. Typing `:lsp h` narrows the list
+to hover. Existing names (`:hover`, `:definition`, `:rename`, `:actions`,
+`:refactor`, `:lsp-back`, `:lsp-status`, `:lsp-stop`) still work as aliases,
+but only the grouped names appear in suggestions.
+
 | Command | Behavior |
 | --- | --- |
-| `:rename new_name` | Preview a symbol rename across project files, then apply or cancel. |
-| `:hover` | Show documentation/type information at the document cursor. |
-| `:definition` | Jump to the first definition returned by the server. |
-| `:lsp-back` | Return to the previous definition-jump location. |
-| `:lsp-status` | Show configuration and background-session count. |
-| `:lsp-stop` | Cancel pending work and stop all language-server sessions. |
+| `:lsp rename new_name` | Preview a symbol rename across project files, then apply or cancel. |
+| `:lsp actions` | Choose a quick fix, missing import or refactoring. |
+| `:lsp refactor` | Choose a type/module extraction or another refactoring. |
+| `:lsp hover` | Show documentation/type information at the document cursor. |
+| `:lsp definition` | Jump to the first definition returned by the server. |
+| `:lsp back` | Return to the previous definition-jump location. |
+| `:lsp status` | Show configuration and background-session count. |
+| `:lsp start` | Enable LSP for this window and connect for the current file. |
+| `:lsp restart` | Reload configuration and reconnect. |
+| `:lsp stop` | Stop sessions and pause LSP until Start. |
 
 Commands work through the existing command bar in conventional and Vim modes.
 No existing shortcuts are reassigned. Hover information is displayed as plain
@@ -464,23 +556,24 @@ text; recognized documentation sections use the active language’s comment colo
 server is displayed literally. Results are bounded to prevent oversized UI
 allocations.
 
-Servers start on the first explicit `:hover`, `:definition`, or `:rename` request. The
+Servers start on the first member-access trigger or explicit LSP command. The
 current unsaved contents of matching documents in both panes are synchronized
 before the request. Subsequent requests send a changed range when the server
 supports incremental synchronization, or a full update when it requires one.
-Typing alone does not trigger synchronization or analysis requests.
+Ordinary typing does not synchronize; member triggers and completion acceptance do.
 
 There is one session per configured server and project, with at most two
-sessions. A configured `.git` marker takes precedence to keep repository files
+sessions. A detected Unity root takes precedence for C#; otherwise a configured `.git` marker takes precedence to keep repository files
 together; otherwise the nearest matching root marker is used, falling back to
 the file's directory. Sessions close documents as panes change and stop when
-no matching documents remain open. `:lsp-stop` applies configuration changes
-to the next newly started session. Changing `enabled` to false prevents new
-requests; use `:lsp-stop` to immediately terminate existing sessions.
+no matching documents remain open. `:lsp restart` reloads configuration and
+reconnects. Start/Stop override `enabled` for the current window; changing the
+file setting affects windows without such an override. Use `:lsp stop` to
+terminate existing sessions and pause LSP.
 
 ## Renaming a function or variable
 
-Put the text cursor on the symbol and run `:rename new_name`. The language
+Put the text cursor on the symbol and run `:lsp rename new_name`. The language
 server identifies references to that symbol. When supported, Pötyi asks the
 server whether the symbol can be renamed before requesting the changes.
 For rust-analyzer, rename waits for its project-loading status on the worker
@@ -517,7 +610,7 @@ File creation, moves, deletion, and annotated edits are supported in reviewed wo
 
 ## Missing imports, includes and using directives
 
-Place the cursor on an unresolved name and run `:actions`. Pötyi sends the
+Place the cursor on an unresolved name and run `:lsp actions`. Pötyi sends the
 current selection and matching server diagnostics, then lists the server's
 quick fixes and refactorings. Click an action or use Up/Down and Enter.
 Review the proposed files, then choose **Apply changes**. Escape cancels.
@@ -533,7 +626,7 @@ reports. This does not add a diagnostic display or synchronize every keystroke.
 
 ## Extract or move a type/module to a file
 
-Place the cursor on the declaration (or select the code) and run `:refactor`.
+Place the cursor on the declaration (or select the code) and run `:lsp refactor`.
 Choose the server's extract/move action, inspect the preview, then select
 **Apply changes**. For Rust, rust-analyzer's **Extract module to file** is
 covered by an end-to-end test. Other languages expose different actions;
@@ -569,13 +662,13 @@ preparation limits; disk snapshots also count toward the resource-edit budget.
 - Unicode positions are converted between the editor's UTF-8 offsets and
   LSP's UTF-16 positions. File URI escaping handles spaces and Unicode.
 - Initialization has a 30-second limit; feature requests have a 15-second
-  limit. `:lsp-stop` interrupts waits. An unresponsive server is terminated
+  limit. `:lsp stop` interrupts waits. An unresponsive server is terminated
   after a brief shutdown attempt; the UI does not wait for it.
 
 ## Current limits
 
 This client does **not** yet display diagnostics,
-completion menus, signature help, semantic highlighting,
+signature help, semantic highlighting,
 or virtual documents such as generated/decompiled definitions. It does not
 implement dynamic capability registration or project file watchers.
 Open documents must have saved file paths, valid UTF-8, and be at most 2 MiB.

@@ -15,6 +15,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
+mod completion;
+
 use sdl3::event::Event;
 use sdl3::pixels::Color;
 use sdl3::rect::{Point, Rect};
@@ -130,6 +132,8 @@ impl StoredViewState {
 // ==========================================================================
 
 pub struct Renderer<'a> {
+    completion: Option<crate::lsp_ui::Display>,
+    completion_bounds: Option<Rect>,
     canvas: Canvas<Window>,
     texture_creator: &'a TextureCreator<WindowContext>,
     terminal_text_cache: TextCache<'a>,
@@ -231,6 +235,8 @@ impl<'a> Renderer<'a> {
         );
 
         Ok(Self {
+            completion: None,
+            completion_bounds: None,
             canvas,
             texture_creator,
             terminal_text_cache: TextCache::default(),
@@ -1631,6 +1637,7 @@ impl<'a> Renderer<'a> {
             search_ui,
         )?;
 
+        self.render_completion(table)?;
         self.canvas.present();
 
         Ok(())
@@ -1708,6 +1715,7 @@ impl<'a> Renderer<'a> {
             search_ui,
         )?;
 
+        self.render_completion(active_table)?;
         self.canvas.present();
 
         Ok(())

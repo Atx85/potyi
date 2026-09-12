@@ -44,7 +44,7 @@
           <p class="eyebrow">Optional language support</p>
           <h1>Set up a<br>language server.</h1>
           <p class="intro">Get documentation at the cursor and jump to definitions, using the language tools you choose.</p>
-          <p class="version-note"><strong>Initial LSP version.</strong> This guide covers the development version with LSP support. Older release downloads may not include these commands. Completion and diagnostics are not available yet.</p>
+          <p class="version-note"><strong>Initial LSP version.</strong> This guide covers the development version with LSP support. Older release downloads may not include these commands. Member autocomplete is included; a diagnostic display is not available yet.</p>
         </header>
 
         <section id="quick-start" aria-labelledby="quick-start-heading">
@@ -63,11 +63,11 @@
             </li>
             <li>
               <h3>Enable LSP and configure the server</h3>
-              <p>Open <code>config/lsp.toml</code>, change the top-level setting to <code>enabled = true</code>, and add an appropriate <a href="#configuration">server entry below</a>. Save the configuration. If a server was already running, use <code>:lsp-stop</code>.</p>
+              <p>Open <code>config/lsp.toml</code>, change the top-level setting to <code>enabled = true</code>, and add an appropriate <a href="#configuration">server entry below</a>. Save the configuration. If a server was already running, use <code>:lsp stop</code>.</p>
             </li>
             <li>
               <h3>Try it in a saved code file</h3>
-              <p>Place the document cursor on a variable or function name, open the command bar, and run <code>:hover</code>. The server starts in the background. Try <code>:definition</code> to follow a definition, then <code>:lsp-back</code> to return.</p>
+              <p>Place the document cursor on a variable or function name, open the command bar, and run <code>:lsp hover</code>. The server starts in the background. Try <code>:lsp definition</code> to follow a definition, then <code>:lsp back</code> to return.</p>
             </li>
           </ol>
         </section>
@@ -75,7 +75,7 @@
 <section id="configuration" aria-labelledby="configuration-heading">
 <h2 id="configuration-heading">Choose your language</h2>
 <p>Keep <code>enabled = true</code> at the top of <code>config/lsp.toml</code>, before any <code>[[servers]]</code> entries. Add the entries for the languages you use. Names must be unique, and the first entry matching a file extension wins. Extensions have no leading dot. Root markers are exact file or directory names, not wildcard patterns.</p>
-<p>This guide covers all 18 language families in the bundled syntax configuration, with additional dialect notes. Highlighting and language-server compatibility are separate: clangd has been tested with Pötyi; the other recipes follow upstream setup instructions and still need end-to-end verification. Only hover and definition navigation are available in this editor version, even when a server offers more features.</p><nav class="language-index" aria-label="Language recipes"><a href="#rust">Rust</a><a href="#c-cpp">C and C++</a><a href="#csharp">C#</a><a href="#python">Python</a><a href="#javascript-typescript">JavaScript and TypeScript</a><a href="#go">Go</a><a href="#java">Java</a><a href="#php">PHP</a><a href="#shell">Shell</a><a href="#lua">Lua</a><a href="#luau">Luau</a><a href="#html-css-json">HTML, CSS, JSON and JSONC</a><a href="#yaml">YAML</a><a href="#toml">TOML</a><a href="#sql">SQL</a><a href="#vue">Vue: integration status</a></nav><h3 id="paths">Paths, Windows, and checking your setup</h3><p>Use an absolute executable path when the server is not on Pötyi’s PATH. Installation commands run in your terminal; put only the server executable in <code>command</code> and its individual arguments in <code>args</code>. Pötyi does not expand <code>~</code>, environment variables, or shell commands in these fields. Replace example absolute paths before use.</p><p>On Windows, native servers use their <code>.exe</code> executable. TOML literal strings make paths easy to write, for example <code>command = &#x27;C:\Tools\LLVM\bin\clangd.exe&#x27;</code>. For npm-installed servers, do not point to a <code>.cmd</code> or <code>.bat</code> launcher. Set <code>command = &quot;node&quot;</code> (or the absolute <code>node.exe</code> path), then put the server’s JavaScript entry file first in <code>args</code>, followed by its usual arguments.</p><p>To find that script, run <code>npm root -g</code>, open the server package’s <code>package.json</code> below that directory, and find the <code>bin</code> entry matching the command name. Resolve that entry relative to the package directory. For example, a Node launch has the shape <code>args = [&#x27;C:\absolute\package\server.js&#x27;, &#x27;--stdio&#x27;]</code>; replace the script path with the actual bin entry. Keep <code>start</code> instead of <code>--stdio</code> for Bash Language Server. A desktop shortcut may inherit a different PATH from your terminal.</p><p>After adding a recipe, save the configuration and run <code>:lsp-stop</code>. Open a saved file with a matching extension, place the document cursor on a symbol or documented property, and run <code>:hover</code>. Try <code>:definition</code> on a symbol whose source exists locally, then <code>:lsp-back</code>. Use <code>:lsp-status</code> to check configuration and active sessions. Installing a package alone does not verify that it can analyze your project.</p><section class="language-recipe" id="rust" aria-labelledby="rust-heading"><h3 id="rust-heading">Rust · rust-analyzer</h3><p>Install a Rust toolchain with rustup, then add the server and standard-library sources. Check the installed server:</p><pre tabindex="0"><code class="language-sh">rustup component add rust-analyzer rust-src
+<p>This guide covers all 18 language families in the bundled syntax configuration, with additional dialect notes. Highlighting and language-server compatibility are separate: rust-analyzer and clangd have been tested with Pötyi; the other recipes follow upstream setup instructions and still need end-to-end verification. Hover, definition navigation, rename, code actions and member autocomplete depend on server support.</p><nav class="language-index" aria-label="Language recipes"><a href="#rust">Rust</a><a href="#c-cpp">C and C++</a><a href="#csharp">C#</a><a href="#python">Python</a><a href="#javascript-typescript">JavaScript and TypeScript</a><a href="#go">Go</a><a href="#java">Java</a><a href="#php">PHP</a><a href="#shell">Shell</a><a href="#lua">Lua</a><a href="#luau">Luau</a><a href="#html-css-json">HTML, CSS, JSON and JSONC</a><a href="#yaml">YAML</a><a href="#toml">TOML</a><a href="#sql">SQL</a><a href="#vue">Vue: integration status</a></nav><h3 id="paths">Paths, Windows, and checking your setup</h3><p>Use an absolute executable path when the server is not on Pötyi’s PATH. Installation commands run in your terminal; put only the server executable in <code>command</code> and its individual arguments in <code>args</code>. Pötyi does not expand <code>~</code>, environment variables, or shell commands in these fields. Replace example absolute paths before use.</p><p>On Windows, native servers use their <code>.exe</code> executable. TOML literal strings make paths easy to write, for example <code>command = &#x27;C:\Tools\LLVM\bin\clangd.exe&#x27;</code>. For npm-installed servers, do not point to a <code>.cmd</code> or <code>.bat</code> launcher. Set <code>command = &quot;node&quot;</code> (or the absolute <code>node.exe</code> path), then put the server’s JavaScript entry file first in <code>args</code>, followed by its usual arguments.</p><p>To find that script, run <code>npm root -g</code>, open the server package’s <code>package.json</code> below that directory, and find the <code>bin</code> entry matching the command name. Resolve that entry relative to the package directory. For example, a Node launch has the shape <code>args = [&#x27;C:\absolute\package\server.js&#x27;, &#x27;--stdio&#x27;]</code>; replace the script path with the actual bin entry. Keep <code>start</code> instead of <code>--stdio</code> for Bash Language Server. A desktop shortcut may inherit a different PATH from your terminal.</p><p>After adding a recipe, save the configuration and run <code>:lsp restart</code>. Open a saved file with a matching extension, place the document cursor on a symbol or documented property, and run <code>:lsp hover</code>. Try <code>:lsp definition</code> on a symbol whose source exists locally, then <code>:lsp back</code>. Use <code>:lsp status</code> to check configuration and active sessions. Installing a package alone does not verify that it can analyze your project.</p><section class="language-recipe" id="rust" aria-labelledby="rust-heading"><h3 id="rust-heading">Rust · rust-analyzer</h3><p>Install a Rust toolchain with rustup, then add the server and standard-library sources. Check the installed server:</p><pre tabindex="0"><code class="language-sh">rustup component add rust-analyzer rust-src
 rust-analyzer --version</code></pre><pre tabindex="0"><code class="language-toml">[[servers]]
 name = &quot;rust&quot;
 command = &quot;rust-analyzer&quot;
@@ -236,23 +236,37 @@ command = &quot;sqls&quot;
 args = [&quot;-config&quot;, &quot;/absolute/path/sqls/config.yml&quot;]
 extensions = [&quot;sql&quot;]
 language_id = &quot;sql&quot;
-root_markers = [&quot;.git&quot;]</code></pre><p>Replace the configuration path with your own sqls YAML file. Follow the upstream database configuration instructions to connect it to your database; schema-aware hover needs that connection. Keep credentials in your local server configuration. Pötyi does not expose sqls query execution, connection switching, or completion. This recipe is primarily useful for hover; do not expect source-file definition navigation for database objects.</p><p><a href="https://github.com/sqls-server/sqls">sqls installation and database configuration</a>.</p></section>
+root_markers = [&quot;.git&quot;]</code></pre><p>Replace the configuration path with your own sqls YAML file. Follow the upstream database configuration instructions to connect it to your database; schema-aware hover needs that connection. Keep credentials in your local server configuration. Pötyi does not expose sqls query execution or connection switching. Member completion depends on advertised triggers. This recipe is primarily useful for hover; do not expect source-file definition navigation for database objects.</p><p><a href="https://github.com/sqls-server/sqls">sqls installation and database configuration</a>.</p></section>
 <section class="language-recipe" id="vue"><h3>Vue: integration status</h3><p>Pötyi highlights <code>.vue</code> files, but the current Vue language server uses custom <code>tsserver/request</code> and <code>tsserver/response</code> messages to communicate with its TypeScript plugin. Pötyi does not implement that bridge yet, so there is no verified Vue recipe for this client. Do not add <code>.vue</code> to the plain JavaScript entry and expect Vue type information. Ordinary <code>.js</code>, <code>.jsx</code>, <code>.ts</code>, and <code>.tsx</code> files can use the recipes above. See the <a href="https://github.com/vuejs/language-tools/blob/master/packages/language-server/README.md">Vue language server integration instructions</a>.</p></section></section>
+
+        <section id="autocomplete"><h2>Member autocomplete</h2>
+          <p>With LSP enabled, type <code>.</code> for member suggestions. Server-advertised <code>:</code> and <code>&gt;</code> triggers also work for <code>::</code>, <code>-&gt;</code> and Lua/Luau <code>:</code>. Use Up/Down and Enter or Tab, or click a row. Escape closes the popup. Further typing or cursor movement dismisses this initial trigger-only menu.</p>
+          <p>The same implementation is included on Windows, macOS and Linux, in conventional mode and Vim insert mode. Completion is one undo step; it does not save. Slow or stale replies cannot overwrite newer edits. Suggestions are bounded to 256 items / 512 KiB, with eight visible rows. No autocomplete timers or idle scans are added; language servers have their own resource costs.</p>
+          <p>Plain text edits and additional imports are supported. Snippets, ongoing word filtering and server commands are not supported. Use <code>:lsp status</code> for the last autocomplete error.</p>
+        </section>
+        <section id="unity"><h2>Unity on every platform</h2>
+          <p>Install <code>csharp-ls</code> using the C# recipe, enable LSP, and regenerate Unity's <code>.sln</code> and <code>.csproj</code> files in Unity Preferences → External Tools. New extracted defaults include the C# entry; older configurations need it added manually. Open a script under <code>Assets</code> and type <code>transform.</code> inside a MonoBehaviour method.</p>
+          <p>Pötyi detects the Unity root and selects its named or single root-level solution without scanning Library. Explicit solution arguments take precedence. Windows, macOS and Linux use the same integration. Unity project validation is still pending on all platforms; the shared completion flow has Rust, C++ and mock C# tests.</p>
+          <p>See the <a href="../lsp.md#unity-on-windows-macos-and-linux">Unity setup and troubleshooting instructions</a> for executable paths, multiple solutions and project generation.</p>
+        </section>
 
         <section id="commands" aria-labelledby="commands-heading">
           <h2 id="commands-heading">Using the commands</h2>
+          <p>Type <code>:lsp</code> and press Enter or Tab to browse all language-server commands. Select with arrows and Enter or a mouse click. Old command names remain supported aliases.</p>
           <div class="table-wrap" tabindex="0" role="region" aria-label="LSP command reference">
             <table>
               <thead><tr><th scope="col">Command</th><th scope="col">What it does</th></tr></thead>
               <tbody>
-                <tr><th scope="row"><code>:actions</code></th><td>Choose a quick fix, including missing imports/includes offered by the server, then review and apply.</td></tr>
-                <tr><th scope="row"><code>:refactor</code></th><td>Choose a server refactoring, including extract/move to file when supported.</td></tr>
-                <tr><th scope="row"><code>:rename new_name</code></th><td>Previews a project-wide symbol rename; select Apply changes to commit.</td></tr>
-                <tr><th scope="row"><code>:hover</code></th><td>Shows documentation or type information at the document cursor.</td></tr>
-                <tr><th scope="row"><code>:definition</code></th><td>Jumps to the first definition returned by the server.</td></tr>
-                <tr><th scope="row"><code>:lsp-back</code></th><td>Returns to the previous definition-jump location.</td></tr>
-                <tr><th scope="row"><code>:lsp-status</code></th><td>Shows configuration and the number of background sessions.</td></tr>
-                <tr><th scope="row"><code>:lsp-stop</code></th><td>Cancels pending work and stops all language-server sessions.</td></tr>
+                <tr><th scope="row"><code>:lsp actions</code></th><td>Choose a quick fix, including missing imports/includes offered by the server, then review and apply.</td></tr>
+                <tr><th scope="row"><code>:lsp refactor</code></th><td>Choose a server refactoring, including extract/move to file when supported.</td></tr>
+                <tr><th scope="row"><code>:lsp rename new_name</code></th><td>Previews a project-wide symbol rename; select Apply changes to commit.</td></tr>
+                <tr><th scope="row"><code>:lsp hover</code></th><td>Shows documentation or type information at the document cursor.</td></tr>
+                <tr><th scope="row"><code>:lsp definition</code></th><td>Jumps to the first definition returned by the server.</td></tr>
+                <tr><th scope="row"><code>:lsp back</code></th><td>Returns to the previous definition-jump location.</td></tr>
+                <tr><th scope="row"><code>:lsp status</code></th><td>Shows configuration and the number of background sessions.</td></tr>
+                <tr><th scope="row"><code>:lsp start</code></th><td>Enables LSP for this window and connects for the saved file.</td></tr>
+                <tr><th scope="row"><code>:lsp restart</code></th><td>Reloads configuration and reconnects after a problem or settings change.</td></tr>
+                <tr><th scope="row"><code>:lsp stop</code></th><td>Stops sessions and pauses LSP until Start.</td></tr>
               </tbody>
             </table>
           </div>
@@ -261,25 +275,27 @@ root_markers = [&quot;.git&quot;]</code></pre><p>Replace the configuration path 
 
         <section id="behavior" aria-labelledby="behavior-heading">
           <h2 id="behavior-heading">How it works</h2>
-          <h3>Starts when you ask</h3>
-          <p>A server starts on your first <code>:hover</code>, <code>:definition</code>, or <code>:rename</code> request. Current unsaved text in matching documents from both panes is synchronized before the request. Later requests use incremental changes when supported, or full-document updates when required. <strong>Typing alone does not trigger synchronization.</strong></p>
+          <h3>Start, status and restart</h3>
+          <p><code>:lsp start</code> enables LSP for this window without rewriting configuration. It shows connection/loading progress and the result. <code>:lsp restart</code> reloads settings and reconnects. <code>:lsp status</code> shows progress and the last connection or autocomplete result; Enter refreshes it. <code>:lsp stop</code> pauses LSP until Start.</p>
+          <p>Autocomplete shows “Loading suggestions…” while waiting. Rust-analyzer completion waits for the project-ready notification on the background worker. Other servers may continue indexing after connection. Escape closes the startup panel while startup continues.</p>
+          <p>A server starts on your first member-access trigger or explicit LSP command. Current unsaved text in matching documents from both panes is synchronized before the request. Later requests use incremental changes when supported, or full-document updates when required. Ordinary typing does not synchronize; member triggers and completion acceptance do.</p>
           <h3>Preview a rename</h3>
-          <p>Place the cursor on a symbol and run <code>:rename new_name</code>. Click a file or use Up/Down and Enter to inspect replacements, then Enter to return. Select <strong>Apply changes</strong> to commit; Escape cancels. Normal Undo reverses the rename across files. Keep affected open buffers open while you need this undo history. If an affected file was closed during the rename and you later open it, close it before undoing.</p>
-          <p>Rename is limited to 64 files, 10,000 edits, 2 MiB per file and 16 MiB total before/after text. Each preview shows up to 40 replacements with long text shortened. Preparation runs in the background; Apply and Undo validate and write the bounded changes on the editor thread. Stale or unsupported edits are rejected. Run <code>:refactor</code> on a declaration or selection to choose an extract/move-to-file action offered by the server. File creation, moves, deletion and annotated workspace edits can be reviewed and undone. Existing destinations and unsupported operations are rejected. See the <a href="../lsp.md#renaming-a-function-or-variable">text guide</a> for undo and recovery details.</p>
+          <p>Place the cursor on a symbol and run <code>:lsp rename new_name</code>. Click a file or use Up/Down and Enter to inspect replacements, then Enter to return. Select <strong>Apply changes</strong> to commit; Escape cancels. Normal Undo reverses the rename across files. Keep affected open buffers open while you need this undo history. If an affected file was closed during the rename and you later open it, close it before undoing.</p>
+          <p>Rename is limited to 64 files, 10,000 edits, 2 MiB per file and 16 MiB total before/after text. Each preview shows up to 40 replacements with long text shortened. Preparation runs in the background; Apply and Undo validate and write the bounded changes on the editor thread. Stale or unsupported edits are rejected. Run <code>:lsp refactor</code> on a declaration or selection to choose an extract/move-to-file action offered by the server. File creation, moves, deletion and annotated workspace edits can be reviewed and undone. Existing destinations and unsupported operations are rejected. See the <a href="../lsp.md#renaming-a-function-or-variable">text guide</a> for undo and recovery details.</p>
           <h3>Background work, bounded resources</h3>
           <p>Server startup, communication, and shutdown run on background threads. An explicit request copies at most 2 MiB per document on the editor thread. Language servers may still index dependencies or run build tools according to their own settings, so they add memory and CPU usage while running.</p>
-          <p>Pötyi allows at most two sessions, one per configured server and project. A configured <code>.git</code> marker takes precedence; otherwise the nearest root marker is used, falling back to the file’s directory. A session stops when no matching documents remain open.</p>
+          <p>Pötyi allows at most two sessions, one per configured server and project. A detected Unity root takes precedence for C#; otherwise a configured <code>.git</code> marker takes precedence; otherwise the nearest root marker is used, falling back to the file’s directory. A session stops when no matching documents remain open.</p>
           <h3>Your edits stay protected</h3>
           <p>Definition jumps reuse open buffers and preserve unsaved text, read-only state, and undo history. A new file uses a clean pane. If both panes have unsaved changes, the jump is refused. Returned locations are checked before replacing a pane.</p>
           <p>Results are discarded if either document changes, the requesting cursor moves, the file changes, or the command bar is dismissed or edited. Actions apply only reviewed workspace edits. Open buffers remain unsaved; Apply writes unopened files identified in the preview. Server-requested commands remain disabled.</p>
-          <p>After editing the server settings, run <code>:lsp-stop</code>; the next request starts a fresh session. To disable LSP, also set <code>enabled = false</code>.</p>
+          <p>After editing server settings, run <code>:lsp restart</code>. Start/Stop override <code>enabled</code> for the current window; use the configuration setting to choose the default for future windows.</p>
         </section>
 
         <section id="troubleshooting" aria-labelledby="troubleshooting-heading">
           <h2 id="troubleshooting-heading">Troubleshooting</h2>
           <details open>
             <summary>“LSP is disabled” or no matching server</summary>
-            <p>Check that you edited <code>config/lsp.toml</code> under the editor’s working directory and saved it. Put <code>enabled = true</code> before all server entries. Confirm that the document’s extension appears in a server’s <code>extensions</code> list. Run <code>:lsp-status</code> to check the selected configuration.</p>
+            <p>Check that you edited <code>config/lsp.toml</code> under the editor’s working directory and saved it. Put <code>enabled = true</code> before all server entries. Confirm that the document’s extension appears in a server’s <code>extensions</code> list. Run <code>:lsp status</code> to check the selected configuration.</p>
           </details>
           <details>
             <summary>The server cannot start</summary>
@@ -291,7 +307,7 @@ root_markers = [&quot;.git&quot;]</code></pre><p>Replace the configuration path 
           </details>
           <details>
             <summary>The server times out or keeps waiting</summary>
-            <p>Initialization has a 30-second limit and feature requests have a 15-second limit. Run <code>:lsp-stop</code> to interrupt pending work, then retry. Pötyi attempts a brief shutdown before terminating an unresponsive server.</p>
+            <p>Initialization has a 30-second limit and feature requests have a 15-second limit. Run <code>:lsp restart</code> to cancel pending work and reconnect. Pötyi attempts a brief shutdown before terminating an unresponsive server.</p>
           </details>
           <details>
             <summary>The command disappears or a jump is refused</summary>
@@ -305,7 +321,7 @@ root_markers = [&quot;.git&quot;]</code></pre><p>Replace the configuration path 
 
         <section id="limits" aria-labelledby="limits-heading">
           <h2 id="limits-heading">Current limits</h2>
-          <p>This version provides hover, definition navigation, return navigation, symbol rename, quick fixes and file refactorings. It does not yet display diagnostics, completion menus, signature help, references, or semantic highlighting. Dynamic capability registration, project file watchers, and virtual documents are also not implemented.</p>
+          <p>This version provides hover, definition navigation, return navigation, symbol rename, quick fixes, file refactorings and member autocomplete. It does not yet display diagnostics, signature help, references, or semantic highlighting. Dynamic capability registration, project file watchers, and virtual documents are also not implemented.</p>
           <p>For implementation details and test coverage, see the <a href="../lsp.md">text guide</a>. The automated checks cover protocol framing, Unicode, incremental updates, unsaved buffers, navigation safety, timeouts, cancellation, and server crashes.</p>
         </section>
         <p class="guide-end"><a href="#main">Back to top ↑</a></p>

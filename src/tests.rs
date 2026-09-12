@@ -488,7 +488,14 @@ fn goto_executes_command_and_renders_destination() {
     // Selecting a command from a later page follows the same dispatch as Enter.
     bar.open(":");
     bar.scroll_suggestions(100);
-    assert_eq!(bar.suggestion(bar.selected()).unwrap().label, "lsp-stop");
+    assert_eq!(bar.suggestion(bar.selected()).unwrap().label, "lsp");
+    execute_command_bar(
+        &mut bar, &mut search, &mut editor, &mut other,
+        &mut renderer, &mut terminal, &mut formatting_vim, false, &mut VimController::new(), &mut lsp_ui,
+    );
+    assert_eq!(bar.input(), ":lsp ");
+    bar.scroll_suggestions(100);
+    assert_eq!(bar.suggestion(bar.selected()).unwrap().label, "lsp stop");
     execute_command_bar(
         &mut bar, &mut search, &mut editor, &mut other,
         &mut renderer, &mut terminal, &mut formatting_vim, false, &mut VimController::new(), &mut lsp_ui,

@@ -548,6 +548,9 @@ fn readiness_wait_is_bounded_cancellable_and_does_not_break_a_healthy_session() 
     assert!(server.wait_until_ready(Duration::from_millis(80)).unwrap_err().contains("still loading"));
     assert!(started.elapsed() < Duration::from_secs(1));
     assert!(!server.has_failed());
+    let completion_cancel = AtomicBool::new(true);
+    assert!(server.wait_until_ready_cancellable(Duration::from_secs(10), Some(&completion_cancel)).unwrap_err().contains("cancelled"));
+    assert!(!server.has_failed());
     cancel.store(true,Ordering::Relaxed);
     assert_eq!(server.wait_until_ready(Duration::from_secs(10)).unwrap_err(),"LSP stopped");
     assert!(started.elapsed() < Duration::from_secs(1));
@@ -621,4 +624,67 @@ fn real_rust_analyzer_extract_module_to_file() {
     assert!(!root.join("src/example.rs").exists());
     assert_eq!(editor.document.text().unwrap(),text);
     drop(client); drop(editor); drop(other); std::fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn completion_cancels_without_breaking_the_session_and_resolves_items() {
+    let (sender, receiver) = mpsc::channel();
+    let root = std::env::temp_dir();
+    let client = Client::start(mock_config("slow-completion"), root.clone(), move |event| { let _ = sender.send(event); }).unwrap();
+    let request = |id,action| Request { id, action, documents:vec![Document { path:root.join("completion.cs"),text:"transform.".into() }],cursor:10 };
+    // Warm the session, then cancel a request after it has reached the server.
+    client.request(request(1,Action::Hover)).unwrap();
+    receiver.recv_timeout(Duration::from_secs(5)).unwrap().result.unwrap();
+    let cancel = Arc::new(AtomicBool::new(false));
+    client.request(request(2,Action::Complete {trigger:".".into(),cancel:cancel.clone()})).unwrap();
+    thread::sleep(Duration::from_millis(80));
+    cancel.store(true,Ordering::Relaxed);
+    assert!(receiver.recv_timeout(Duration::from_secs(2)).unwrap().result.unwrap_err().contains("cancelled"));
+    client.request(request(3,Action::Complete {trigger:".".into(),cancel:Arc::new(AtomicBool::new(false))})).unwrap();
+    let Reply::Completions(items) = receiver.recv_timeout(Duration::from_secs(5)).unwrap().result.unwrap() else {panic!()};
+    assert_eq!(items[0].label,"position");
+    client.request(request(4,Action::ResolveCompletion {item:items[0].value.clone(),cancel:Arc::new(AtomicBool::new(false))})).unwrap();
+    let Reply::CompletionEdit(edit) = receiver.recv_timeout(Duration::from_secs(5)).unwrap().result.unwrap() else {panic!()};
+    assert_eq!(edit.text,"transform.position");
+    assert_eq!(edit.cursor,edit.text.len());
+}
+
+#[test]
+#[ignore = "requires installed rust-analyzer and clangd"]
+fn real_servers_complete_member_access_and_prepare_insertion() {
+    for (name, extension, text, member) in [
+        ("rust-analyzer", "rs", "struct Player { health: i32 }\nfn main() { let player = Player { health: 10 }; player. }\n", "health"),
+        ("clangd", "cpp", "struct Player { int health; };\nint main() { Player player; player. }\n", "health"),
+        ("rust-analyzer", "rs", "struct Player;\nimpl Player { fn heal(&self) {} }\nfn main() { let player = Player; player. }\n", "heal"),
+        ("clangd", "cpp", "struct Player { void heal() {} };\nint main() { Player player; player. }\n", "heal"),
+    ] {
+        let root = std::env::temp_dir().join(format!("potyi-completion-real-{}-{extension}",std::process::id()));
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("Cargo.toml"), "[package]\nname='completion_test'\nversion='0.1.0'\nedition='2021'\n[workspace]\n").unwrap();
+        let path = root.join(format!("src/main.{extension}"));
+        std::fs::write(&path,text).unwrap();
+        let config = ServerConfig {name:name.into(),command:name.into(),args:if name=="clangd" {vec!["--background-index=false".into()]} else {vec![]},extensions:vec![extension.into()],language_id:if extension=="rs" {"rust"}else{"cpp"}.into(),root_markers:vec![],initialization_options:json!({"cachePriming":{"enable":false},"checkOnSave":false})};
+        let (sender,receiver) = mpsc::channel();
+        let client = Client::start(config,root.clone(),move |event| {let _=sender.send(event);}).unwrap();
+        let request = |id,action| Request {id,action,documents:vec![Document {path:path.clone(),text:text.into()}],cursor:text.find("player.").unwrap()+7};
+        let mut selected = None;
+        let mut last_labels = Vec::new();
+        // The first trigger must succeed even when project loading is still underway.
+        for id in 0..1 {
+            client.request(request(id,Action::Complete {trigger:".".into(),cancel:Arc::new(AtomicBool::new(false))})).unwrap();
+            let Reply::Completions(items) = receiver.recv_timeout(Duration::from_secs(35)).unwrap().result.unwrap() else {panic!()};
+            last_labels = items.iter().map(|i| i.label.clone()).collect();
+            if let Some(item) = items.into_iter().find(|i|i.label.trim_start().starts_with(member)) { selected=Some(item);break; }
+            thread::sleep(Duration::from_millis(200));
+        }
+        let item = selected.unwrap_or_else(||panic!("{name} did not return {member}: {last_labels:?}"));
+        client.request(request(100,Action::ResolveCompletion {item:item.value,cancel:Arc::new(AtomicBool::new(false))})).unwrap();
+        let Reply::CompletionEdit(edit) = receiver.recv_timeout(Duration::from_secs(20)).unwrap().result.unwrap() else {panic!()};
+        let inserted = format!("player.{member}");
+        assert!(edit.text.contains(&inserted),"{name}: {}",edit.text);
+        assert!(edit.cursor >= edit.text.find(&inserted).unwrap()+inserted.len());
+        drop(client);
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }

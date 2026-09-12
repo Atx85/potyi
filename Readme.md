@@ -123,22 +123,38 @@ Examples:
 
 ## Language Server Support (LSP)
 
-Use `:rename new_name` on a function or variable to preview its project-wide references. Click a file or press Enter to review its replacements, then select **Apply changes**. Open buffers stay unsaved; the preview marks unopened files that will be written. Normal Undo reverses the rename across files. Keep affected buffers open while you need their rename undo history. Use `:actions` on an unresolved symbol for missing imports, `using` directives or includes offered by your language server. Use `:refactor` on a type/module or selection for refactorings such as extract/move to file. Click an action or press Enter, review its files, then select **Apply changes**. Available actions depend on your server; command-only extensions are shown as unavailable.
+Type `:lsp` and press Enter or Tab to browse all language-server commands.
+Select with arrows and Enter or a mouse click. Old command names remain aliases.
 
-With `:hover` open, click another word to refresh its information without closing the command bar. Scroll over the code or result panel to scroll that area. Enter repeats `:hover` or `:definition` at the current cursor; Escape closes the panel.
+Use `:lsp rename new_name` on a function or variable to preview its project-wide references. Click a file or press Enter to review its replacements, then select **Apply changes**. Open buffers stay unsaved; the preview marks unopened files that will be written. Normal Undo reverses the rename across files. Keep affected buffers open while you need their rename undo history. Use `:lsp actions` on an unresolved symbol for missing imports, `using` directives or includes offered by your language server. Use `:lsp refactor` on a type/module or selection for refactorings such as extract/move to file. Click an action or press Enter, review its files, then select **Apply changes**. Available actions depend on your server; command-only extensions are shown as unavailable.
 
-Optional LSP support provides `:hover`, `:definition`, `:lsp-back`, `:rename new_name`, `:actions`, and `:refactor` through
-the command bar, including in Vim mode. It is disabled by default. Run
-`:extract-config`, enable `config/lsp.toml`, and configure a separately
-installed stdio language server. `:lsp-status` shows configuration and
-`:lsp-stop` stops background sessions.
+With `:lsp hover` open, click another word to refresh its information without closing the command bar. Scroll over the code or result panel to scroll that area. Enter repeats `:lsp hover` or `:lsp definition` at the current cursor; Escape closes the panel.
 
-Servers start only when an LSP command is requested. Current unsaved text is synchronized
+Optional LSP support provides `:lsp hover`, `:lsp definition`, `:lsp back`, `:lsp rename new_name`, `:lsp actions`, and `:lsp refactor` through
+the command bar, including in Vim mode. It is disabled by default.
+`:lsp start` enables LSP for this window and connects using the configured,
+separately installed server. `:lsp restart` reloads settings and reconnects;
+`:lsp status` shows progress and the last connection result. `:lsp stop` stops
+servers and pauses autocomplete until Start. For automatic LSP in future
+windows, use `:extract-config` and set `enabled = true` in `config/lsp.toml`.
+
+When LSP is enabled, servers start when a member-access operator is typed or an LSP command is requested. Current unsaved text is synchronized
 on each request, using incremental updates when supported. Server communication
 runs in the background; definition jumps preserve unsaved buffers and undo
-history. This version supports saved UTF-8 documents up to 2 MiB. Diagnostics provide quick-fix context; completion and diagnostic displays are not implemented. See the [LSP web guide](https://atx85.github.io/potyi/lsp/)
+history. This version supports saved UTF-8 documents up to 2 MiB. Diagnostics provide quick-fix context; diagnostic displays are not implemented. See the [LSP web guide](https://atx85.github.io/potyi/lsp/)
 or its [Markdown version](docs/lsp.md)
 for setup, behavior, and limitations.
+
+Type `.` (or `::` / `->` when advertised by the server) for member suggestions.
+Use Up/Down and Enter or Tab, or click a suggestion; Escape dismisses the popup.
+The same implementation is included in Windows, macOS and Linux builds, in
+conventional mode and Vim insert mode. Further typing dismisses this initial
+trigger-only menu. Completion is one undo step and does not save the file.
+
+Unity C# projects use the bundled `csharp-ls` configuration after the server is
+installed. Pötyi detects the Unity root and selects its generated `.sln` without
+searching `Library`. See [Unity setup](docs/lsp.md#unity-on-windows-macos-and-linux).
+Unity project validation is still pending; Rust and C++ completion have live-server tests.
 
 ## Code Formatting
 

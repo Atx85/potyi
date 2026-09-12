@@ -1,10 +1,12 @@
 // Pötyi - Lightweight text editor
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Optional, command-driven LSP. Each worker owns one server/project session.
-//! The UI supplies bounded snapshots only on explicit requests, never per frame.
+//! Optional LSP. Each worker owns one server/project session.
+//! The UI supplies bounded snapshots on commands/member triggers, never per frame.
 mod transport;
 mod actions;
+pub(crate) mod completion;
+mod unity;
 pub(crate) use actions::CodeActions;
 #[cfg(test)]
 pub(crate) use actions::CodeActionItem;
@@ -107,6 +109,9 @@ impl Config {
 }
 
 pub(crate) fn project_root(path: &Path, config: &ServerConfig) -> PathBuf {
+    if config.language_id == "csharp" {
+        if let Some(root) = unity::root(path) { return root; }
+    }
     let parent = path.parent().unwrap_or(path);
     // Prefer the repository root when present so Cargo workspace members share
     // a server. Otherwise use the nearest configured project marker.
@@ -143,10 +148,13 @@ pub(crate) fn uri_path(uri: &str) -> Result<PathBuf, String> {
         .map_err(|_| "Invalid definition file URI".into())
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub(crate) enum Action {
+    Start,
     Hover,
     Definition,
+    Complete { trigger: String, cancel: Arc<AtomicBool> },
+    ResolveCompletion { item: Value, cancel: Arc<AtomicBool> },
     Rename(String),
     CodeActions { anchor: usize, refactor_only: bool },
     ResolveCodeAction { action: Value, started: std::time::SystemTime },
@@ -181,10 +189,13 @@ pub(crate) struct HoverContent {
 
 #[derive(Debug)]
 pub(crate) enum Reply {
+    Started(String),
     Hover(HoverContent),
     Definition(Vec<Location>),
     Rename(crate::workspace_edit::PreparedRename),
     CodeActions(CodeActions),
+    Completions(Vec<completion::Item>),
+    CompletionEdit(completion::Edit),
 }
 
 #[derive(Debug)]
@@ -281,7 +292,7 @@ impl Client {
     pub fn request(&self, request: Request) -> Result<(), String> {
         self.jobs
             .try_send(Job::Request(request))
-            .map_err(|_| "LSP is busy; wait for the current request or use :lsp-stop".into())
+            .map_err(|_| "LSP is busy; wait for the current request or use :lsp stop".into())
     }
 
     pub fn files_changed(&self, paths: Vec<(PathBuf, u8)>) -> bool {
@@ -313,13 +324,16 @@ struct Session {
     resolve_actions: bool,
     pull_diagnostics: bool,
     reports_readiness: bool,
+    completion_triggers: Vec<String>,
+    resolve_completion: bool,
     root: PathBuf,
     documents: HashMap<PathBuf, (String, i64)>,
 }
 
 impl Session {
     fn start(config: &ServerConfig, root: &Path, cancel: Arc<AtomicBool>) -> Result<Self, String> {
-        let mut transport = Transport::start(config, root, cancel)?;
+        let config = unity::server_config(config, root)?;
+        let mut transport = Transport::start(&config, root, cancel)?;
         let root_uri = file_uri(root)?;
         let result = transport.request("initialize", json!({
             "processId":std::process::id(), "clientInfo":{"name":"Pötyi","version":env!("CARGO_PKG_VERSION")},
@@ -328,7 +342,7 @@ impl Session {
                 "general":{"positionEncodings":["utf-16"]},
                 "experimental":{"serverStatusNotification":true},
                 "workspace":{"workspaceFolders":true,"configuration":true,"applyEdit":false,"workspaceEdit":{"documentChanges":true,"resourceOperations":["create","rename","delete"],"failureHandling":"transactional","changeAnnotationSupport":{"groupsOnLabel":true}}},
-                "textDocument":{"codeAction":{"dynamicRegistration":false,"codeActionLiteralSupport":{"codeActionKind":{"valueSet":["quickfix","refactor","refactor.extract","refactor.rewrite","source.organizeImports"]}},"isPreferredSupport":true,"honorsChangeAnnotations":true,"disabledSupport":true,"dataSupport":true,"resolveSupport":{"properties":["edit"]}},"publishDiagnostics":{"versionSupport":true,"dataSupport":true},"diagnostic":{"dynamicRegistration":false},"rename":{"prepareSupport":true},"hover":{"contentFormat":["plaintext"]},"definition":{"linkSupport":true},
+                "textDocument":{"completion":{"contextSupport":true,"completionItem":{"snippetSupport":false,"insertReplaceSupport":true,"resolveSupport":{"properties":["additionalTextEdits"]}}},"codeAction":{"dynamicRegistration":false,"codeActionLiteralSupport":{"codeActionKind":{"valueSet":["quickfix","refactor","refactor.extract","refactor.rewrite","source.organizeImports"]}},"isPreferredSupport":true,"honorsChangeAnnotations":true,"disabledSupport":true,"dataSupport":true,"resolveSupport":{"properties":["edit"]}},"publishDiagnostics":{"versionSupport":true,"dataSupport":true},"diagnostic":{"dynamicRegistration":false},"rename":{"prepareSupport":true},"hover":{"contentFormat":["plaintext"]},"definition":{"linkSupport":true},
                     "synchronization":{"dynamicRegistration":false,"didSave":false,"willSave":false}}
             },
             "initializationOptions":config.initialization_options
@@ -368,6 +382,8 @@ impl Session {
             code_actions: supported(&capabilities["codeActionProvider"]),
             resolve_actions: capabilities["codeActionProvider"]["resolveProvider"] == true,
             pull_diagnostics: capabilities["diagnosticProvider"].is_object(),
+            completion_triggers: capabilities["completionProvider"]["triggerCharacters"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).take(32).collect()).unwrap_or_default(),
+            resolve_completion: capabilities["completionProvider"]["resolveProvider"] == true,
             reports_readiness: result["serverInfo"]["name"].as_str() == Some("rust-analyzer"),
             root: root.to_path_buf(),
             documents: HashMap::new(),
@@ -393,11 +409,14 @@ impl Session {
     }
 
     fn execute(&mut self, config: &ServerConfig, request: &Request) -> Result<Reply, String> {
-        if (request.action == Action::Hover && !self.hover)
-            || (request.action == Action::Definition && !self.definition)
+        if (matches!(request.action, Action::Hover) && !self.hover)
+            || (matches!(request.action, Action::Definition) && !self.definition)
             || (matches!(request.action, Action::Rename(_)) && !self.rename)
         {
             return Err("This language server does not support that command".into());
+        }
+        if let Action::Complete { cancel, .. } | Action::ResolveCompletion { cancel, .. } = &request.action {
+            if cancel.load(Ordering::Relaxed) { return Err("Completion cancelled".into()); }
         }
         let focused = request.documents.first().ok_or("No document supplied")?;
         for doc in &request.documents {
@@ -430,6 +449,14 @@ impl Session {
                     .insert(doc.path.clone(), (doc.text.clone(), 1));
             }
         }
+        if matches!(request.action, Action::Start) {
+            if self.reports_readiness { self.transport.wait_until_ready(TIMEOUT)?; }
+            return Ok(Reply::Started(format!("Connected to {}.\n{}\nProject: {}\nType a dot for member suggestions, or use :lsp hover / :lsp definition.",
+                config.name, if self.reports_readiness { "Project loaded." } else { "Server initialized; project indexing may continue in the background." }, self.root.display())));
+        }
+        if matches!(request.action, Action::Complete { .. } | Action::ResolveCompletion { .. }) {
+            return self.execute_completion(request);
+        }
         if matches!(request.action, Action::CodeActions { .. } | Action::ResolveCodeAction { .. }) {
             return self.execute_code_action(request);
         }
@@ -447,7 +474,7 @@ impl Session {
             return crate::workspace_edit::prepare(&edit, &self.root, &request.documents,
                 &self.documents, started).map(Reply::Rename);
         }
-        let method = if request.action == Action::Hover {
+        let method = if matches!(request.action, Action::Hover) {
             "textDocument/hover"
         } else {
             "textDocument/definition"
@@ -455,7 +482,7 @@ impl Session {
         let result = self.transport.request(method, json!({
             "textDocument":{"uri":file_uri(&focused.path)?},"position":position(&focused.text, request.cursor)?
         }), TIMEOUT)?;
-        if request.action == Action::Hover {
+        if matches!(request.action, Action::Hover) {
             Ok(Reply::Hover(hover_content(&result)))
         } else {
             Ok(Reply::Definition(definitions(&result)?))

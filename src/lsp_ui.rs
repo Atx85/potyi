@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Explicit LSP navigation and reviewed workspace text edits; no server commands.
+mod completion;
+pub(crate) use completion::Display;
+
 use crate::{CommandOutcome, CursorState, Editor, command_bar::CommandBar, file_is_open_in, lsp};
 use sdl3::EventSubsystem;
 use std::collections::HashMap;
@@ -30,6 +33,12 @@ struct Bookmark {
 }
 
 pub(crate) struct LspUi {
+    enabled_override: Option<bool>,
+    starting: bool,
+    connection_result: Option<String>,
+    completion: Option<completion::Menu>,
+    completion_cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    completion_error: Option<String>,
     events: EventSubsystem,
     sessions: HashMap<(String, PathBuf), Running>,
     pending: Option<Pending>,
@@ -45,6 +54,12 @@ pub(crate) struct LspUi {
 impl LspUi {
     pub fn new(events: EventSubsystem) -> Self {
         Self {
+            enabled_override: None,
+            starting: false,
+            connection_result: None,
+            completion: None,
+            completion_cancel: None,
+            completion_error: None,
             events,
             sessions: HashMap::new(),
             pending: None,
@@ -59,6 +74,10 @@ impl LspUi {
     }
 
     pub fn stop(&mut self) {
+        self.enabled_override = Some(false);
+        self.starting = false;
+        self.connection_result = None;
+        self.dismiss_completion();
         self.pending = None;
         self.pending_anchor = None;
         self.actions = None;
@@ -66,6 +85,23 @@ impl LspUi {
         self.sessions.clear();
         self.preview = None;
     }
+
+    pub fn start(&mut self, restart: bool, editor: &Editor, other: &Editor, bar: &mut CommandBar) -> Result<(), String> {
+        if restart { self.stop(); }
+        self.enabled_override = Some(true);
+        self.connection_result = None;
+        self.completion_error = None;
+        match self.request(lsp::Action::Start, editor, other, bar) {
+            Ok(()) => {
+                self.starting = true;
+                bar.show_info("Connecting to the language server and loading the project…\nEscape closes this panel; connection continues. Use :lsp status to check progress.");
+                Ok(())
+            }
+            Err(error) => { self.connection_result = Some(error.clone()); Err(error) }
+        }
+    }
+
+    fn is_enabled(&self, configured: bool) -> bool { self.enabled_override.unwrap_or(configured) }
 
     /// Clicks are explicit hover requests. While a server is busy, retain only
     /// the latest target metadata; snapshot its text when the previous request ends.
@@ -105,17 +141,19 @@ impl LspUi {
                     .map(|s| s.name.as_str())
                     .unwrap_or("none for this file");
                 format!(
-                    "LSP {}\nConfigured server: {name}\n{} background session(s)\nUse :hover or :definition to start.\nUse :lsp-stop after configuration changes.\nSynchronization happens on explicit requests.",
-                    if config.enabled {
+                    "LSP {}\nConfigured server: {name}\n{} background session(s)\nType a member access operator or use :lsp hover / :lsp definition to start.\nUse :lsp restart after configuration changes or a connection problem.\nSynchronization happens on member triggers and explicit requests.",
+                    if self.is_enabled(config.enabled) {
                         "enabled"
                     } else {
-                        "disabled; set enabled = true in config/lsp.toml"
+                        "stopped or disabled; use :lsp start"
                     },
                     self.sessions
                         .values()
                         .filter(|s| s.client.is_alive())
                         .count()
-                )
+                ) + if self.starting { "\nConnecting / loading project…" } else { "" }
+                  + &self.connection_result.as_ref().map(|s| format!("\nLast connection result: {s}")).unwrap_or_default()
+                  + &self.completion_error.as_ref().map(|e| format!("\nLast autocomplete result: {e}")).unwrap_or_default()
             }
         }
     }
@@ -127,17 +165,18 @@ impl LspUi {
         other: &Editor,
         bar: &mut CommandBar,
     ) -> Result<(), String> {
+        let automatic = matches!(action, lsp::Action::Complete { .. } | lsp::Action::ResolveCompletion { .. });
+        if !automatic { self.dismiss_completion(); }
         if self.pending.is_some() {
-            return Err("LSP request in progress; use :lsp-stop to cancel".into());
+            return Err("LSP request in progress; use :lsp restart to reconnect".into());
         }
         self.hover_refresh = None;
         self.preview = None;
         self.actions = None;
         self.pending_anchor = Some(editor.document.cursor.anchor);
         let config = lsp::Config::load()?;
-        if !config.enabled {
-            self.stop();
-            return Err("LSP is disabled. Set enabled = true in config/lsp.toml".into());
+        if !self.is_enabled(config.enabled) {
+            return Err("LSP is stopped or disabled. Use :lsp start to enable it for this window.".into());
         }
         let path = editor
             .path
@@ -167,7 +206,7 @@ impl LspUi {
         let key = (server.name.clone(), root.clone());
         if !self.sessions.contains_key(&key) {
             if self.sessions.len() >= 2 {
-                return Err("Two project sessions are already active; use :lsp-stop first".into());
+                return Err("Two project sessions are already active; use :lsp restart first".into());
             }
             let sender = self.events.event_sender();
             let client = lsp::Client::start(server.clone(), root, move |event| {
@@ -185,12 +224,17 @@ impl LspUi {
         let running = self.sessions.get_mut(&key).unwrap();
         let id = self.next_id;
         self.next_id += 1;
+        let completion_cancel = match &action {
+            lsp::Action::Complete { cancel, .. } | lsp::Action::ResolveCompletion { cancel, .. } => Some(cancel.clone()),
+            _ => None,
+        };
         running.client.request(lsp::Request {
             id,
             action,
             documents,
             cursor: editor.document.cursor.position,
         })?;
+        self.completion_cancel = completion_cancel;
         running.paths = paths;
         self.last_paths = vec![editor.path.clone(), other.path.clone()];
         self.last_paths.sort();
@@ -202,9 +246,9 @@ impl LspUi {
             path: editor.path.clone(),
             epoch: bar.epoch(),
         });
-        bar.show_info(
-            "Waiting for the language server…\nEscape dismisses the result; :lsp-stop cancels.",
-        );
+        if !automatic {
+            bar.show_info("Waiting for the language server…\nEscape dismisses the result; :lsp stop cancels.");
+        }
         Ok(())
     }
 
@@ -219,7 +263,9 @@ impl LspUi {
         if paths == self.last_paths {
             return;
         }
+        self.dismiss_completion();
         self.pending = None;
+        self.starting = false;
         self.hover_refresh = None;
         let canonical: Vec<_> = paths
             .iter()
@@ -273,6 +319,21 @@ impl LspUi {
             return outcome;
         }
         let pending = self.pending.take().unwrap();
+        if self.starting {
+            self.starting = false;
+            let message = match event.result {
+                Ok(lsp::Reply::Started(message)) => message,
+                Err(error) => format!("Could not start LSP: {error}\nCheck the server configuration, then use :lsp restart."),
+                _ => "Unexpected language-server startup response".into(),
+            };
+            self.connection_result = Some(message.clone());
+            self.pending_anchor = None;
+            if bar.is_active() && bar.epoch() == pending.epoch { bar.show_info(&message); }
+            return outcome;
+        }
+        if self.completion_cancel.take().is_some() {
+            return self.accept_completion(event.result, pending, editor, other, bar);
+        }
         if let Some(refresh) = self.hover_refresh.take() {
             if refresh.matches(editor, other, bar)
                 && matches!(bar.parse(), Ok(crate::command_bar::ParsedCommand::Hover))
@@ -288,6 +349,7 @@ impl LspUi {
             return outcome;
         }
         match event.result {
+            Ok(lsp::Reply::Started(_) | lsp::Reply::Completions(_) | lsp::Reply::CompletionEdit(_)) => {},
             Err(error) => bar.show_info(&format!("LSP: {error}")),
             Ok(lsp::Reply::CodeActions(actions)) => {
                 if actions.items.is_empty() {
@@ -333,7 +395,9 @@ impl LspUi {
 
     pub fn files_changed(&mut self, paths: Vec<(PathBuf, u8)>) {
         if paths.is_empty() { return; }
+        self.dismiss_completion();
         self.pending = None;
+        self.starting = false;
         self.hover_refresh = None;
         self.sessions.retain(|(_,root), session| {
             let changed: Vec<_> = paths.iter().filter(|(p, _)| p.starts_with(root)).cloned().collect();
@@ -358,7 +422,7 @@ impl LspUi {
         if let Some((guard, anchor, actions)) = self.actions.as_ref() {
             if !guard.matches(editor, other, bar) || *anchor != editor.document.cursor.anchor {
                 self.actions = None;
-                bar.show_info("The selection or document changed. Run :actions again.");
+                bar.show_info("The selection or document changed. Run :lsp actions again.");
                 return Some(Ok(false));
             }
             if bar.is_info() { show_actions(bar, actions); return Some(Ok(false)); }
@@ -434,7 +498,11 @@ impl Pending {
     fn matches(&self, editor: &Editor, other: &Editor, bar: &CommandBar) -> bool {
         bar.is_active()
             && bar.epoch() == self.epoch
-            && editor.path == self.path
+            && self.matches_document(editor, other)
+    }
+
+    fn matches_document(&self, editor: &Editor, other: &Editor) -> bool {
+        editor.path == self.path
             && editor.document.revision() == self.revision
             && other.document.revision() == self.other_revision
             && editor.document.cursor.position == self.cursor

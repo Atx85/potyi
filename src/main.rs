@@ -2143,8 +2143,14 @@ fn execute_command_bar(
                 Err(error) => command_bar.show_info(&error),
             }
         }
+        Ok(ParsedCommand::LspStart | ParsedCommand::LspRestart) => {
+            let restart = matches!(command_bar.parse(), Ok(ParsedCommand::LspRestart));
+            if let Err(error) = lsp_ui.start(restart, editor, other_editor, command_bar) {
+                command_bar.show_info(&error);
+            }
+        }
         Ok(ParsedCommand::LspStatus) => command_bar.show_info(&lsp_ui.status(editor)),
-        Ok(ParsedCommand::LspStop) => { lsp_ui.stop(); command_bar.show_info("Language servers stopped"); }
+        Ok(ParsedCommand::LspStop) => { lsp_ui.stop(); command_bar.show_info("LSP stopped. Autocomplete is paused. Use :lsp start to connect again."); }
 
         Ok(ParsedCommand::Formatters) => {
             match formatting::Formatters::load(std::path::Path::new("config/formatters.toml")) {
@@ -2457,7 +2463,7 @@ fn handle_terminal_action(
     ) {
         Ok(focus_other) => focus_other,
         Err(error) => {
-            terminal.set_status(format!("Could not open {}: {error}", path.display()));
+            terminal.set_status(format!("Could not open {}: {error}", terminal::display_path(&path)));
             return Ok(false);
         }
     };
@@ -2730,7 +2736,10 @@ if let Some(path) = editor.path.as_deref() {
             }
 
             if let Some(event) = event.as_user_event_type::<lsp::Event>() {
+                lsp_ui.validate_completion(&editor, &other_editor,
+                    !terminal.is_active() && !command_bar.is_active() && (!vim_enabled || vim.mode() == vim::VimMode::Insert));
                 let outcome = lsp_ui.accept(event, &mut editor, &mut other_editor, &mut command_bar);
+                if outcome.document_changed && vim_enabled { vim.finish_formatting(&mut editor); }
                 if outcome.focus_other {
                     focus_pane(1 - active_pane, &mut active_pane, &mut editor, &mut other_editor,
                         &mut vim, &mut other_vim, &mut renderer);
@@ -2928,6 +2937,9 @@ Event::MouseButtonDown {
                 }
 
                 dirty = true;
+            } else if let Some(index) = renderer.completion_hit_at(x as i32, y as i32) {
+                lsp_ui.choose_completion(index, &editor, &other_editor, &mut command_bar);
+                dirty = true;
             } else if command_bar.is_active()
                 && renderer.command_bar_hit_at(&command_bar, x as i32, y as i32) != CommandBarHit::Outside
             {
@@ -3075,6 +3087,7 @@ Event::MouseButtonDown {
                     CommandBarHit::Outside => {}
                 }
             } else {
+                lsp_ui.dismiss_completion();
                 if let Some(clicked_pane) =
                     renderer.pane_at_point(
                         x as i32,
@@ -3372,6 +3385,11 @@ Event::MouseMotion {
                             _ => {}
                         }
 
+                        dirty = true;
+                        continue;
+                    }
+
+                    if lsp_ui.completion_key(key, repeat, &editor, &other_editor, &mut command_bar) {
                         dirty = true;
                         continue;
                     }
@@ -4087,6 +4105,7 @@ Event::MouseMotion {
                         if vim_enabled {
                             vim.record_text(&text);
                         }
+                        lsp_ui.typed_member_trigger(&text, &editor, &other_editor, &mut command_bar);
 
                         renderer
                             .invalidate_scroll_cache();
@@ -4174,6 +4193,8 @@ Event::MouseMotion {
             }
         }
 
+        lsp_ui.validate_completion(&editor, &other_editor,
+            !terminal.is_active() && !command_bar.is_active() && (!vim_enabled || vim.mode() == vim::VimMode::Insert));
         lsp_ui.discard_dismissed_preview(&command_bar);
         lsp_ui.reconcile(&editor, &other_editor);
 
@@ -4183,6 +4204,7 @@ Event::MouseMotion {
                 Instant::now();
 
             renderer.update_window_size()?;
+            renderer.set_completion(lsp_ui.completion_display());
 
             if terminal.is_active() {
                 renderer.render_terminal(

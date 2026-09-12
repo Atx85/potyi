@@ -164,7 +164,7 @@ impl Transport {
     fn send(&self, value: Value) -> Result<(), String> {
         self.outgoing.try_send(value).map_err(|_| {
             self.failed.set(true);
-            "Language server is busy or disconnected; try :lsp-stop".into()
+            "Language server is busy or disconnected; try :lsp restart".into()
         })
     }
 
@@ -173,9 +173,14 @@ impl Transport {
     /// Rust-analyzer initializes before project discovery finishes. Wait on its
     /// pushed status on the worker, without timer work on the editor thread.
     pub fn wait_until_ready(&self, timeout: Duration) -> Result<(), String> {
+        self.wait_until_ready_cancellable(timeout, None)
+    }
+
+    pub fn wait_until_ready_cancellable(&self, timeout: Duration, cancelled: Option<&AtomicBool>) -> Result<(), String> {
         self.drain().inspect_err(|_| self.failed.set(true))?;
         let deadline = Instant::now() + timeout;
         while self.quiescent.get() != Some(true) {
+            if cancelled.is_some_and(|c| c.load(Ordering::Relaxed)) { return Err("Completion cancelled".into()); }
             if self.cancel.load(Ordering::Relaxed) { return Err("LSP stopped".into()); }
             let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
                 return Err("Language server is still loading the project; try the command again shortly".into());
@@ -199,12 +204,23 @@ impl Transport {
         params: Value,
         timeout: Duration,
     ) -> Result<Value, String> {
+        self.request_cancellable(method, params, timeout, None)
+    }
+
+    pub fn request_cancellable(&mut self, method: &str, params: Value, timeout: Duration,
+        cancelled: Option<&AtomicBool>) -> Result<Value, String> {
+        if cancelled.is_some_and(|c| c.load(Ordering::Relaxed)) { return Err("Completion cancelled".into()); }
         self.failed.set(true);
         let id = self.next_id;
         self.next_id += 1;
         self.send(json!({"jsonrpc":"2.0", "id":id, "method":method, "params":params}))?;
         let deadline = Instant::now() + timeout;
         loop {
+            if cancelled.is_some_and(|c| c.load(Ordering::Relaxed)) {
+                let _ = self.notify("$/cancelRequest", json!({"id":id}));
+                self.failed.set(false);
+                return Err("Completion cancelled".into());
+            }
             if self.cancel.load(Ordering::Relaxed) {
                 return Err("LSP stopped".into());
             }
@@ -242,6 +258,8 @@ impl Transport {
     }
 
     fn handle_server_message(&self, message: &Value) -> Result<(), String> {
+        // Late responses to cancelled requests need no response of their own.
+        if message.get("method").is_none() { return Ok(()); }
         if message["method"] == "textDocument/publishDiagnostics" {
             if let (Some(uri), Some(items)) = (message["params"]["uri"].as_str(), message["params"]["diagnostics"].as_array()) {
                 let mut diagnostics = self.diagnostics.borrow_mut();
