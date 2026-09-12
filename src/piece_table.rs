@@ -28,6 +28,9 @@ use std::sync::atomic::{
 };
 use std::time::Instant;
 
+mod line_view;
+use line_view::LineViewCache;
+
 
 const PIECE_TABLE_CHUNK_SIZE: usize =
     64 * 1024;
@@ -324,6 +327,7 @@ struct LineInfo {
 
 pub struct PieceTable {
     revision: u64,
+    line_views: std::cell::RefCell<LineViewCache>,
     original: File,
     original_length: usize,
 
@@ -408,6 +412,7 @@ impl PieceTable {
 
         let table = Self {
             revision: next_document_revision(),
+            line_views: Default::default(),
             original,
             original_length,
 
@@ -465,6 +470,7 @@ all_lines_cached: original_length == 0,
 
         Ok(Self {
             revision: next_document_revision(),
+            line_views: Default::default(),
             original,
             original_length: 0,
 
@@ -1202,7 +1208,7 @@ all_lines_cached: original_length == 0,
             char_count += 1;
         }
 
-        position += bytes.len();
+        position += offset;
     }
 }
     
@@ -1502,6 +1508,11 @@ all_lines_cached: original_length == 0,
         &mut self,
         start: usize,
     ) -> io::Result<Option<usize>> {
+        let index = self.line_cache.partition_point(|info| info.end < start);
+        if let Some(info) = self.line_cache.get(index).filter(|info| info.start <= start) {
+            return Ok((info.end < self.len()).then_some(info.end + 1));
+        }
+
         let mut position =
             start;
 
@@ -1540,6 +1551,11 @@ all_lines_cached: original_length == 0,
     ) -> io::Result<usize> {
         if start == 0 {
             return Ok(0);
+        }
+
+        let index = self.line_cache.partition_point(|info| info.start < start);
+        if let Some(info) = index.checked_sub(1).and_then(|i| self.line_cache.get(i)) {
+            if start <= info.end.saturating_add(1) { return Ok(info.start); }
         }
 
         let mut position =
@@ -1740,27 +1756,7 @@ all_lines_cached: original_length == 0,
                 line_index
             ];
 
-        let bytes =
-            self.read_range(
-                info.start,
-                position - info.start,
-            )?;
-
-        let text =
-            std::str::from_utf8(
-                &bytes
-            )
-            .map_err(|error| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    error,
-                )
-            })?;
-
-        Ok((
-            line_index,
-            text.chars().count(),
-        ))
+        Ok((line_index, self.cached_column_at_position(info, position)?))
     }
 
     pub fn cursor_line_column(
@@ -1960,6 +1956,9 @@ all_lines_cached: original_length == 0,
     if column == 0 {
         return Ok(start);
     }
+    if let Some(position) = self.cached_position_at_column(start, column)? {
+        return Ok(position);
+    }
 
     if start >= self.len() {
         return Ok(start);
@@ -2017,9 +2016,7 @@ all_lines_cached: original_length == 0,
                         absolute,
                     )?;
 
-                position +=
-                    offset + width;
-
+                offset += width;
                 current_column += 1;
 
                 break;
@@ -2076,25 +2073,13 @@ all_lines_cached: original_length == 0,
         Ok(0)
     }
 
-    fn previous_line_start(
-        &mut self,
-    ) -> io::Result<usize> {
-        let current =
-            self.current_line_start()?;
-
-        if current == 0 {
-            return Ok(0);
-        }
-
-        self.previous_line_start_from(
-            current
-        )
-    }
-
     fn line_length_from_start(
     &self,
     start: usize,
 ) -> io::Result<usize> {
+    if let Ok(index) = self.line_cache.binary_search_by_key(&start, |info| info.start) {
+        return Ok(self.line_cache[index].length);
+    }
     let mut position = start;
 
     const SCAN_SIZE: usize = 64 * 1024;
@@ -2174,7 +2159,7 @@ all_lines_cached: original_length == 0,
             character_count += 1;
         }
 
-        position += bytes.len();
+        position += offset;
     }
 
     Ok(character_count)
@@ -2295,13 +2280,10 @@ all_lines_cached: original_length == 0,
                     self.cursor.column
                 );
 
-        let start =
-            self.previous_line_start()?;
-
-        let length =
-            self.line_length_from_start(
-                start
-            )?;
+        self.ensure_line_cached(self.cursor.line - 1)?;
+        let info = self.line_cache[self.cursor.line - 1];
+        let start = info.start;
+        let length = info.length;
 
         let column =
             desired.min(length);
@@ -2479,13 +2461,10 @@ all_lines_cached: original_length == 0,
             return Ok(());
         }
 
-        let start =
-            self.previous_line_start()?;
-
-        let length =
-            self.line_length_from_start(
-                start
-            )?;
+        self.ensure_line_cached(self.cursor.line - 1)?;
+        let info = self.line_cache[self.cursor.line - 1];
+        let start = info.start;
+        let length = info.length;
 
         let column =
             self.cursor.column

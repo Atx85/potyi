@@ -83,6 +83,7 @@ pub(crate) enum ParsedCommand {
     Hover,
     Definition,
     Rename { name: String },
+    Actions { refactor_only: bool },
     LspBack,
     LspStatus,
     LspStop,
@@ -224,6 +225,8 @@ const COMMANDS: &[CommandSpec] = &[
         description: "Close Pötyi",
         usage: ":quit",
     },
+    CommandSpec { name: "actions", description: "Choose a quick fix or refactoring at the cursor or selection", usage: ":actions" },
+    CommandSpec { name: "refactor", description: "Choose a refactoring, such as moving a type or module to a file", usage: ":refactor" },
     CommandSpec { name: "rename", description: "Preview a symbol rename across the project", usage: ":rename new_name" },
     CommandSpec { name: "hover", description: "Show language-server help at the cursor", usage: ":hover" },
     CommandSpec { name: "definition", description: "Go to the definition at the cursor", usage: ":definition" },
@@ -744,7 +747,7 @@ impl CommandBar {
 
     pub fn prepare_execute(&mut self) -> bool {
         if self.is_info() {
-            return matches!(self.parse(), Ok(ParsedCommand::Hover | ParsedCommand::Definition | ParsedCommand::Rename { .. }));
+            return matches!(self.parse(), Ok(ParsedCommand::Hover | ParsedCommand::Definition | ParsedCommand::Rename { .. } | ParsedCommand::Actions { .. }));
         }
         let action = self.suggestion(self.selected()).map(|suggestion| suggestion.action);
         match action {
@@ -1582,6 +1585,11 @@ fn parse_command(
             Ok(ParsedCommand::Split)
         }
 
+        "actions" | "refactor" => {
+            reject_search_options(search_option_used, backward, all)?;
+            if !arguments.is_empty() { return Err("Usage: :actions or :refactor".into()); }
+            Ok(ParsedCommand::Actions { refactor_only: command == "refactor" })
+        }
         "rename" => {
             reject_search_options(search_option_used, backward, all)?;
             if arguments.len() != 1 || arguments[0].is_empty() || arguments[0].len() > 256

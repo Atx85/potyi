@@ -280,3 +280,36 @@ fn rename_reply_preview_click_enter_apply_and_dismissal() {
     bar.close(); ui.discard_dismissed_preview(&bar); assert!(ui.preview.is_none());
     assert_eq!(active.document.text().unwrap(),"old();\n");
 }
+
+#[test]
+#[ignore = "requires SDL; run with SDL_VIDEODRIVER=dummy and --test-threads=1"]
+fn action_picker_click_enter_cancel_and_selection_invalidation() {
+    let sdl = sdl3::init().unwrap();
+    let mut ui = LspUi::new(sdl.event().unwrap());
+    let mut active = editor("Unknown"); let mut other = editor("");
+    let mut bar = CommandBar::new();
+    let prepare = |ui: &mut LspUi, bar: &mut CommandBar, active: &mut Editor, other: &mut Editor| {
+        bar.open(":actions");
+        ui.pending = Some(Pending { id:1, revision:active.document.revision(), other_revision:other.document.revision(),
+            cursor:active.document.cursor.position, path:active.path.clone(), epoch:bar.epoch() });
+        ui.accept(lsp::Event {id:1, result:Ok(lsp::Reply::CodeActions(lsp::CodeActions {
+            started:std::time::SystemTime::now(), items:vec![lsp::CodeActionItem {
+                title:"Unavailable fix".into(), disabled:Some("Needs a server extension".into()), value:serde_json::json!({})
+            }]
+        }))}, active, other, bar);
+    };
+    prepare(&mut ui,&mut bar,&mut active,&mut other);
+    assert!(ui.actions.is_some()); assert!(!bar.is_info());
+    bar.select_suggestion(0); ui.review(&mut active,&mut other,&mut bar).unwrap().unwrap();
+    assert!(bar.is_info()); assert!(bar.prepare_execute());
+    ui.review(&mut active,&mut other,&mut bar).unwrap().unwrap(); assert!(!bar.is_info());
+    bar.select_suggestion(1); ui.review(&mut active,&mut other,&mut bar).unwrap().unwrap();
+    assert!(!bar.is_active()); assert!(ui.actions.is_none());
+    prepare(&mut ui,&mut bar,&mut active,&mut other);
+    active.document.cursor.anchor = 1;
+    ui.review(&mut active,&mut other,&mut bar).unwrap().unwrap();
+    assert!(ui.actions.is_none()); assert!(bar.is_info());
+    assert_eq!(active.document.text().unwrap(),"Unknown");
+    prepare(&mut ui,&mut bar,&mut active,&mut other);
+    bar.close(); ui.discard_dismissed_preview(&bar); assert!(ui.actions.is_none());
+}

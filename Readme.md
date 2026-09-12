@@ -7,7 +7,7 @@ A free, open-source text and code editor for **macOS, Windows, and Linux**, buil
 - Conventional shortcuts and optional Vim-style Normal, Insert, and Visual modes.
 - Split panes, incremental search, regular expressions, and multi-cursor occurrence editing.
 - A command terminal with streaming output and clickable file locations.
-- Optional LSP hover, definitions, and reviewed symbol rename across files.
+- Optional LSP hover, definitions, missing-import fixes, symbol rename, and reviewed file refactorings.
 - File-backed editing and undo, with no full in-memory copy required to open a large file.
 
 **Pötyi and Potyi are the same editor**; Potyi is the spelling without accents. This README describes the current source tree; packaged releases may lag behind development. See the [benchmark method](tools/benchmarks/README.md) for measured workloads and limits.
@@ -123,11 +123,11 @@ Examples:
 
 ## Language Server Support (LSP)
 
-Use `:rename new_name` on a function or variable to preview its project-wide references. Click a file or press Enter to review its replacements, then select **Apply changes**. Open buffers stay unsaved; the preview marks unopened files that will be written. Normal Undo reverses the rename across files. Keep affected buffers open while you need their rename undo history. Extract-to-file is not implemented yet.
+Use `:rename new_name` on a function or variable to preview its project-wide references. Click a file or press Enter to review its replacements, then select **Apply changes**. Open buffers stay unsaved; the preview marks unopened files that will be written. Normal Undo reverses the rename across files. Keep affected buffers open while you need their rename undo history. Use `:actions` on an unresolved symbol for missing imports, `using` directives or includes offered by your language server. Use `:refactor` on a type/module or selection for refactorings such as extract/move to file. Click an action or press Enter, review its files, then select **Apply changes**. Available actions depend on your server; command-only extensions are shown as unavailable.
 
 With `:hover` open, click another word to refresh its information without closing the command bar. Scroll over the code or result panel to scroll that area. Enter repeats `:hover` or `:definition` at the current cursor; Escape closes the panel.
 
-Optional LSP support provides `:hover`, `:definition`, `:lsp-back`, and `:rename new_name` through
+Optional LSP support provides `:hover`, `:definition`, `:lsp-back`, `:rename new_name`, `:actions`, and `:refactor` through
 the command bar, including in Vim mode. It is disabled by default. Run
 `:extract-config`, enable `config/lsp.toml`, and configure a separately
 installed stdio language server. `:lsp-status` shows configuration and
@@ -136,8 +136,7 @@ installed stdio language server. `:lsp-status` shows configuration and
 Servers start only when an LSP command is requested. Current unsaved text is synchronized
 on each request, using incremental updates when supported. Server communication
 runs in the background; definition jumps preserve unsaved buffers and undo
-history. This initial version supports saved UTF-8 documents up to 2 MiB and
-does not yet provide completion or diagnostics. See the [LSP web guide](https://atx85.github.io/potyi/lsp/)
+history. This version supports saved UTF-8 documents up to 2 MiB. Diagnostics provide quick-fix context; completion and diagnostic displays are not implemented. See the [LSP web guide](https://atx85.github.io/potyi/lsp/)
 or its [Markdown version](docs/lsp.md)
 for setup, behavior, and limitations.
 
@@ -254,6 +253,8 @@ The [browser syntax designer](docs/designer/index.html) provides a visual editor
 sample preview, TOML import, and downloads for these definitions.
 
 ## Command Terminal
+
+Git status/log/diff and ordinary `diff` output are highlighted automatically in `:term`: green additions, red removals, blue hunks and amber headers or warnings. Colour metadata is bounded and adds no idle polling. Copying keeps the original plain text. In `git log` output, click an underlined commit hash to open its coloured diff. **Back** (in place of Clear) or **Alt+Left** returns to the saved log, preserving its scroll position and unfinished command input. Back also stops a diff that is still streaming. Standard logs, `--oneline`, `--graph`, and `git -C path log` are supported; shell pipelines and aliases do not create commit links.
 
 Run `:term` to open Pötyi's lightweight command terminal. `Ctrl+\`` switches between the terminal and editor; `Escape` from the command input, the `Editor` button, and the `exit` command also return to the editor.
 
@@ -489,6 +490,10 @@ slower, but later builds reuse Cargo's build cache.
 Pötyi uses a **Piece Table** for document storage. This allows large files to be edited without creating a complete in-memory copy of the file.
 
 The project is designed with low memory usage and low CPU overhead as priorities.
+
+Long-line rendering reads only the visible horizontal window and reuses bounded
+position caches. See [long-line behavior and measurements](docs/long-lines.md)
+for the implementation limits and regression benchmark.
 
 
 ## License

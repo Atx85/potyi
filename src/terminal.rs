@@ -46,6 +46,8 @@ mod completion;
 mod selection;
 mod locations;
 mod frame;
+mod colors;
+mod git;
 pub(crate) use frame::FrameSchedule;
 pub(crate) use selection::OutputCommand;
 
@@ -78,6 +80,7 @@ pub(crate) fn register_test_events(events: &EventSubsystem) {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum TerminalAction {
     None,
+    Commit(git::Commit),
     Edit(String),
     View(String),
     ListedFile(PathBuf),
@@ -91,10 +94,12 @@ pub(crate) enum EntryKind {
     Binary,
     Directory,
     Unreadable,
+    Commit,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct OutputEntry {
+    pub commit: Option<git::Commit>,
     pub range: std::ops::Range<usize>,
     pub path: PathBuf,
     pub kind: EntryKind,
@@ -110,6 +115,7 @@ pub(crate) struct SourceLocation {
 
 impl OutputEntry {
     pub fn action(&self) -> Option<TerminalAction> {
+        if let Some(commit) = &self.commit { return Some(TerminalAction::Commit(commit.clone())); }
         if let Some(location) = self.location {
             return Some(TerminalAction::Location(self.path.clone(), location));
         }
@@ -150,6 +156,9 @@ pub(crate) struct Terminal {
     selection: selection::Selection,
     entries: Vec<OutputEntry>,
     location_scanner: locations::Scanner,
+    colors: colors::Colors,
+    git_view: Option<Box<git::View>>,
+    git_back_pending: bool,
     input: String,
     cursor: usize,
     cwd: PathBuf,
@@ -193,6 +202,9 @@ impl Terminal {
             selection: selection::Selection::default(),
             entries: Vec::new(),
             location_scanner: locations::Scanner::default(),
+            colors: colors::Colors::default(),
+            git_view: None,
+            git_back_pending: false,
             input: String::new(),
             cursor: 0,
             cwd,
@@ -534,6 +546,7 @@ ls links: green = edit file, blue = enter folder; amber = binary\n"
         self.output_layout_reset = self.output_layout_reset.wrapping_add(1);
         self.output_trimmed = 0;
         self.entries.clear();
+        self.colors = colors::Colors::default();
         self.location_scanner.clear_pending();
         self.scroll_back = 0;
         self.status = None;
@@ -676,6 +689,11 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
         events: &EventSubsystem,
     ) -> io::Result<TerminalAction> {
         if self.is_running() {
+            return Ok(TerminalAction::None);
+        }
+
+        if let Some(view) = &self.git_view {
+            self.open_commit(view.commit.clone())?;
             return Ok(TerminalAction::None);
         }
 
@@ -938,10 +956,13 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
         command: &str,
         events: &EventSubsystem,
     ) -> io::Result<()> {
-        let mut child =
-            spawn_shell(command, &self.cwd)?;
+        let child = spawn_shell(command, &self.cwd)?;
         self.location_scanner = locations::Scanner::new(command, &self.cwd);
+        self.colors.begin(command);
+        self.start_child(child, events)
+    }
 
+    fn start_child(&mut self, mut child: Child, events: &EventSubsystem) -> io::Result<()> {
         let stdout = child.stdout.take()
             .ok_or_else(|| {
                 io::Error::other(
@@ -996,11 +1017,13 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
         self.flush_pending_output()?;
         self.ensure_output_newline()?;
         self.location_scanner = locations::Scanner::default();
+        self.colors.end();
         self.append_text(
             &format_exit_status(status)
         )?;
 
         self.status = None;
+        if self.git_back_pending { self.restore_git_view(); }
         Ok(true)
     }
 
@@ -1132,6 +1155,8 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
         Ok(())
     }
 
+    pub(crate) fn output_color(&self, byte: usize) -> Option<(u8, u8, u8)> { self.colors.at(byte) }
+
     fn append_text(
         &mut self,
         text: &str,
@@ -1146,6 +1171,7 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
             text,
         )?;
         self.location_scanner.append(text, start, &mut self.entries);
+        self.colors.append(text, start);
 
         self.trim_output()
     }
@@ -1182,6 +1208,7 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
         self.output.delete(0, remove)?;
         self.trim_selection(remove);
         self.location_scanner.trim(remove);
+        self.colors.trim(remove);
         self.output_generation = self.output_generation.wrapping_add(1);
         self.entries.retain_mut(|entry| {
             if entry.range.start < remove {
@@ -1606,6 +1633,7 @@ fn append_ls_entry(
     output.entries.push(OutputEntry {
         range: start..output.text.len(),
         location: None,
+        commit: None,
         path: path.to_path_buf(),
         kind,
     });
@@ -1923,6 +1951,21 @@ fn next_char_boundary(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn git_colors_preserve_clean_output_bytes_and_reset_on_clear() {
+        let mut terminal = Terminal::new(env::current_dir().unwrap()).unwrap();
+        terminal.clear().unwrap(); terminal.colors.begin("git diff");
+        let first = terminal.clean_output(b"\x1b[31m-old\x1b[");
+        terminal.append_text(&first).unwrap();
+        let second = terminal.clean_output("0m\n\x1b[32m+🦀new\x1b[0m\n".as_bytes());
+        terminal.append_text(&second).unwrap();
+        assert_eq!(terminal.output.read_range(0, terminal.output.len()).unwrap(), "-old\n+🦀new\n".as_bytes());
+        assert_eq!(terminal.output_color(0), Some((245,145,145)));
+        assert_eq!(terminal.output_color(5), Some((150,220,165)));
+        terminal.clear().unwrap(); terminal.append_text("+plain\n").unwrap();
+        assert_eq!(terminal.output_color(0), None);
+    }
 
     #[test]
     fn input_editing_is_utf8_safe() {

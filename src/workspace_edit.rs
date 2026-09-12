@@ -3,6 +3,7 @@
 
 //! Bounded, explicit workspace text edits. Images live on disk, not in undo RAM.
 use crate::{CursorState, Editor, HistoryEntry, HistoryKind, lsp};
+mod resources;
 use serde_json::Value;
 use std::{
     collections::HashMap,
@@ -61,12 +62,14 @@ pub(crate) struct FileChange {
     open: bool,
     edits: Vec<(Range<usize>, usize)>,
     pub preview: String,
+    operation: Option<String>,
 }
 #[derive(Debug)]
 pub(crate) struct PreparedRename {
     pub files: Vec<FileChange>,
     _scratch: Scratch,
     root: PathBuf,
+    resources: Option<resources::Plan>,
 }
 impl PreparedRename {
     pub fn choices(&self) -> Vec<String> {
@@ -74,6 +77,7 @@ impl PreparedRename {
             .files
             .iter()
             .map(|f| {
+                if let Some(operation) = &f.operation { return operation.clone(); }
                 format!(
                     "{} · {} change(s) · {}",
                     f.path.strip_prefix(&self.root).unwrap_or(&f.path).display(),
@@ -87,7 +91,7 @@ impl PreparedRename {
             })
             .collect();
         rows.push(format!("Apply changes to {} file(s)", self.files.len()));
-        rows.push("Cancel rename".into());
+        rows.push("Cancel changes".into());
         rows
     }
 }
@@ -140,6 +144,33 @@ fn byte_position(text: &str, position: &Value) -> Result<usize, String> {
     }
 }
 
+fn annotation_notes(edit: &Value) -> Result<String, String> {
+    let Some(raw) = edit.get("changeAnnotations") else { return Ok(String::new()); };
+    let annotations = raw.as_object().ok_or("Invalid change annotations")?;
+    if annotations.len() > 64 { return Err("Too many change annotations".into()); }
+    let mut notes = String::new();
+    for annotation in annotations.values() {
+        let label = annotation["label"].as_str().ok_or("Missing annotation label")?;
+        notes.push_str(&format!("\nServer note: {}", label.chars().take(240).collect::<String>()));
+        if let Some(description) = annotation["description"].as_str() {
+            notes.push_str(&format!(" — {}", description.chars().take(500).collect::<String>()));
+        }
+        if annotation["needsConfirmation"] == true { notes.push_str(" (review before applying)"); }
+    }
+    Ok(notes)
+}
+
+fn validate_edit_metadata(item: &Value, workspace: &Value) -> Result<(), String> {
+    if let Some(id) = item.get("annotationId") {
+        let id = id.as_str().ok_or("Invalid annotation ID")?;
+        if workspace["changeAnnotations"].get(id).is_none() { return Err("Unknown change annotation".into()); }
+    }
+    if item.get("insertTextFormat").is_some_and(|v| v.as_u64() != Some(1)) {
+        return Err("Snippet edits are not supported".into());
+    }
+    Ok(())
+}
+
 pub(crate) fn prepare(
     edit: &Value,
     root: &Path,
@@ -147,21 +178,22 @@ pub(crate) fn prepare(
     versions: &HashMap<PathBuf, (String, i64)>,
     started: SystemTime,
 ) -> Result<PreparedRename, String> {
+    if edit["documentChanges"].as_array().is_some_and(|changes| changes.iter().any(|c| c.get("kind").is_some())) {
+        return resources::prepare(edit, root, documents, versions, started);
+    }
     if edit.is_null() {
         return Err("No rename changes returned for this symbol".into());
     }
     if !edit.is_object() {
         return Err("Invalid workspace edit".into());
     }
+    let notes = annotation_notes(edit)?;
     let mut raw: Vec<(String, Option<i64>, &Vec<Value>)> = Vec::new();
     if let Some(changes) = edit.get("documentChanges") {
         if edit.get("changes").is_some() {
             return Err("Ambiguous workspace edit".into());
         }
         for change in changes.as_array().ok_or("Invalid documentChanges")? {
-            if change.get("kind").is_some() {
-                return Err("This refactor creates, moves or deletes files; only text renames are supported yet".into());
-            }
             let doc = &change["textDocument"];
             let version = match doc.get("version") {
                 None | Some(Value::Null) => None,
@@ -235,16 +267,14 @@ pub(crate) fn prepare(
         if count > MAX_EDITS {
             return Err("Rename exceeds 10,000 text edits".into());
         }
-        for edit in edits {
-            if edit.get("annotationId").is_some() || edit.get("insertTextFormat").is_some() {
-                return Err("Annotated or snippet edits are not supported yet".into());
-            }
-            let start = byte_position(&before, &edit["range"]["start"])?;
-            let end = byte_position(&before, &edit["range"]["end"])?;
+        for item in edits {
+            validate_edit_metadata(item, edit)?;
+            let start = byte_position(&before, &item["range"]["start"])?;
+            let end = byte_position(&before, &item["range"]["end"])?;
             if start > end {
                 return Err("Reversed edit range".into());
             }
-            let replacement = edit["newText"].as_str().ok_or("Missing replacement text")?;
+            let replacement = item["newText"].as_str().ok_or("Missing replacement text")?;
             replacements.push((start..end, replacement));
         }
         replacements.sort_by_key(|(r, _)| (r.start, r.end));
@@ -265,6 +295,7 @@ pub(crate) fn prepare(
                 "Apply writes this file to disk."
             }
         );
+        preview.push_str(&notes);
         for (index, (range, replacement)) in replacements.iter().enumerate() {
             if after.len() + range.start - offset + replacement.len() > lsp::MAX_DOCUMENT_BYTES {
                 return Err("Renamed file exceeds 2 MiB".into());
@@ -303,6 +334,7 @@ pub(crate) fn prepare(
             .and_then(|_| fs::write(&after_path, after))
             .map_err(|e| e.to_string())?;
         files.push(FileChange {
+            operation: None,
             path,
             before: before_path,
             after: after_path,
@@ -322,12 +354,14 @@ pub(crate) fn prepare(
         files,
         _scratch: scratch,
         root,
+        resources: None,
     })
 }
 
 pub(crate) struct Marker {
     record: Arc<PreparedRename>,
     local: Option<crate::PieceTableSnapshot>,
+    resource: Option<resources::BufferHistory>,
 }
 fn marker(entry: &HistoryEntry) -> Option<&Marker> {
     match &entry.kind {
@@ -474,6 +508,7 @@ pub(crate) fn apply(
     editor: &mut Editor,
     other: &mut Editor,
 ) -> Result<(), String> {
+    if record.resources.is_some() { return resources::apply(record, editor, other); }
     let mut writes = Vec::new();
     for file in &record.files {
         let expected = read(&file.before)?;
@@ -527,6 +562,7 @@ pub(crate) fn apply(
             kind: HistoryKind::Workspace(Marker {
                 record: record.clone(),
                 local: Some(snapshot),
+                resource: None,
             }),
             before,
             after,
@@ -541,6 +577,7 @@ pub(crate) fn apply(
             kind: HistoryKind::Workspace(Marker {
                 record,
                 local: None,
+                resource: None,
             }),
             before: cursor.clone(),
             after: cursor,
@@ -550,7 +587,7 @@ pub(crate) fn apply(
     Ok(())
 }
 
-pub(crate) fn recent_disk_changes(editor: &Editor, undone: bool) -> Vec<PathBuf> {
+pub(crate) fn recent_disk_changes(editor: &Editor, undone: bool) -> Vec<(PathBuf, u8)> {
     let stack = if undone {
         &editor.redo_stack
     } else {
@@ -560,11 +597,12 @@ pub(crate) fn recent_disk_changes(editor: &Editor, undone: bool) -> Vec<PathBuf>
         .last()
         .and_then(marker)
         .map(|m| {
+            if let Some(plan) = &m.record.resources { return plan.paths(undone); }
             m.record
                 .files
                 .iter()
                 .filter(|f| !f.open)
-                .map(|f| f.path.clone())
+                .map(|f| (f.path.clone(), 2))
                 .collect()
         })
         .unwrap_or_default()
@@ -580,6 +618,7 @@ pub(crate) fn history(editor: &mut Editor, other: &mut Editor, redo: bool) -> Re
     let Some(record) = stack.last().and_then(marker).map(|m| m.record.clone()) else {
         return Ok(false);
     };
+    if record.resources.is_some() { return resources::history(record, editor, other, redo).map(|_| true); }
     let participates = |pane: &Editor| {
         let stack = if redo {
             &pane.redo_stack

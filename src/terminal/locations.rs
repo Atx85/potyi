@@ -16,6 +16,7 @@ pub(super) struct Scanner {
 }
 
 struct Context {
+    git: Option<std::sync::Arc<super::git::Repository>>,
     cwd: PathBuf,
     single_file: Option<PathBuf>,
     columns: bool,
@@ -68,12 +69,23 @@ impl Scanner {
             if fragment.ends_with('\n') {
                 if !self.skipped {
                     let line = self.pending.trim_end_matches(['\n', '\r']);
-                    if let Some((path, location)) = context.parse(line) {
+                    if let Some(repo) = &context.git {
+                        if entries.len() < super::git::MAX_LINKS {
+                            if let Some(range) = super::git::hash_range(line) {
+                                entries.push(OutputEntry {
+                                    commit: Some(super::git::Commit {hash:line[range.clone()].into(),repo:repo.clone()}),
+                                    range:self.start + range.start..self.start + range.end,
+                                    path:context.cwd.clone(), kind:EntryKind::Commit, location:None,
+                                });
+                            }
+                        }
+                    } else if let Some((path, location)) = context.parse(line) {
                         entries.push(OutputEntry {
                             range: self.start..self.start + line.len(),
                             path,
                             kind: EntryKind::Text,
                             location: Some(location),
+                            commit: None,
                         });
                     }
                 }
@@ -87,6 +99,7 @@ impl Scanner {
 impl Context {
     fn new(command: &str, cwd: &Path) -> Self {
         let mut context = Self {
+            git: super::git::Repository::from_log(command, cwd),
             cwd: cwd.into(),
             single_file: None,
             columns: true,

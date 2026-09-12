@@ -5,7 +5,8 @@
 use super::{ServerConfig, file_uri};
 use crate::formatting::process::Running;
 use serde_json::{Value, json};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -78,6 +79,7 @@ pub(super) struct Transport {
     initialized: bool,
     failed: Cell<bool>,
     quiescent: Cell<Option<bool>>,
+    diagnostics: RefCell<HashMap<String, (Option<i64>, Vec<Value>)>>,
 }
 
 impl Transport {
@@ -155,6 +157,7 @@ impl Transport {
             initialized: false,
             failed: Cell::new(false),
             quiescent: Cell::new(None),
+            diagnostics: RefCell::new(HashMap::new()),
         })
     }
 
@@ -239,6 +242,17 @@ impl Transport {
     }
 
     fn handle_server_message(&self, message: &Value) -> Result<(), String> {
+        if message["method"] == "textDocument/publishDiagnostics" {
+            if let (Some(uri), Some(items)) = (message["params"]["uri"].as_str(), message["params"]["diagnostics"].as_array()) {
+                let mut diagnostics = self.diagnostics.borrow_mut();
+                if !diagnostics.contains_key(uri) && diagnostics.len() >= 4 { diagnostics.clear(); }
+                let mut size = 0;
+                let items = items.iter().take(256).take_while(|item| {
+                    size += item.to_string().len(); size <= 256 * 1024
+                }).cloned().collect();
+                diagnostics.insert(uri.to_owned(), (message["params"]["version"].as_i64(), items));
+            }
+        }
         if message["method"] == "experimental/serverStatus" {
             if let Some(quiescent) = message["params"]["quiescent"].as_bool() {
                 self.quiescent.set(Some(quiescent));
@@ -279,6 +293,25 @@ impl Transport {
             }
         };
         self.send(json!({"jsonrpc":"2.0","id":id,"result":result}))
+    }
+
+    pub fn clear_diagnostics(&self, uri: &str) { self.diagnostics.borrow_mut().remove(uri); }
+
+    pub fn action_diagnostics(&self, uri: &str, version: i64) -> Result<Vec<Value>, String> {
+        self.drain()?;
+        let deadline = Instant::now() + Duration::from_millis(750);
+        loop {
+            if let Some((v, items)) = self.diagnostics.borrow().get(uri) {
+                if v.is_none_or(|v| v == version) { return Ok(items.clone()); }
+            }
+            if self.cancel.load(Ordering::Relaxed) { return Err("LSP stopped".into()); }
+            let Some(remaining) = deadline.checked_duration_since(Instant::now()) else { return Ok(Vec::new()); };
+            match self.incoming.recv_timeout(remaining.min(Duration::from_millis(50))) {
+                Ok(message) => self.handle_server_message(&message?)?,
+                Err(mpsc::RecvTimeoutError::Timeout) => {},
+                Err(_) => return Err("Language server disconnected".into()),
+            }
+        }
     }
 
     pub fn mark_initialized(&mut self) {

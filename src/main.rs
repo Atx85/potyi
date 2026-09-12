@@ -1893,6 +1893,7 @@ fn execute_command_bar(
                 search_ui.close();
                 outcome.document_changed = true;
                 outcome.cursor_changed = true;
+                outcome.path_changed = true;
             }
             Ok(false) => {},
             Err(error) => command_bar.show_info(&error),
@@ -2121,6 +2122,12 @@ fn execute_command_bar(
 
         Ok(ParsedCommand::Hover) | Ok(ParsedCommand::Definition) => {
             let action = if matches!(command_bar.parse(), Ok(ParsedCommand::Hover)) { lsp::Action::Hover } else { lsp::Action::Definition };
+            if let Err(error) = lsp_ui.request(action, editor, other_editor, command_bar) {
+                command_bar.show_info(&error);
+            }
+        }
+        Ok(ParsedCommand::Actions { refactor_only }) => {
+            let action = lsp::Action::CodeActions { anchor: editor.document.cursor.anchor, refactor_only };
             if let Err(error) = lsp_ui.request(action, editor, other_editor, command_bar) {
                 command_bar.show_info(&error);
             }
@@ -2410,6 +2417,10 @@ fn handle_terminal_action(
     let read_only = matches!(action, TerminalAction::View(_));
     let (path, line, column, byte_column, read_only) = match action {
         TerminalAction::None => return Ok(false),
+        TerminalAction::Commit(commit) => {
+            if let Err(error) = terminal.open_commit(commit) { terminal.set_status(error.to_string()); }
+            return Ok(false);
+        }
         TerminalAction::EnterDirectory(path) => {
             if let Err(error) = terminal.enter_directory(&path) {
                 terminal.set_status(error.to_string());
@@ -2894,7 +2905,8 @@ Event::MouseButtonDown {
                     }
 
                     TerminalHit::Clear => {
-                        if let Err(error) = terminal.clear() {
+                        let result = if terminal.can_go_back() { terminal.go_back() } else { terminal.clear() };
+                        if let Err(error) = result {
                             terminal.set_status(
                                 error.to_string()
                             );
@@ -3190,6 +3202,11 @@ Event::MouseMotion {
                     }
 
                     if terminal.is_active() {
+                        if terminal.can_go_back() && alt_pressed(keymod) && key == Keycode::Left && !repeat {
+                            if let Err(error) = terminal.go_back() { terminal.set_status(error.to_string()); }
+                            dirty = true; continue;
+                        }
+
                         let clipboard_command = key_bindings.terminal_clipboard_command(key, keymod, repeat);
                         if clipboard_command == Some(Command::Paste) {
                             match read_text(&clipboard) {
@@ -3672,6 +3689,7 @@ Event::MouseMotion {
                             result => {
                                 if result.is_ok() {
                                     lsp_ui.files_changed(workspace_edit::recent_disk_changes(&editor, !redo));
+                                    renderer.set_file_path(editor.path.as_deref());
                                 }
                                 if vim_enabled {
                                     vim.deactivate(&mut editor); other_vim.deactivate(&mut other_editor);
@@ -4046,11 +4064,10 @@ Event::MouseMotion {
 
                         let empty_line = editor
                             .document
-                            .line_text(line)
+                            .line_length(line)
                             .map_err(|error| {
                                 error.to_string()
-                            })?
-                            .is_empty();
+                            })? == 0;
 
                         if empty_line {
                             command_bar.open(":");

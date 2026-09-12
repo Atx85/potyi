@@ -268,6 +268,7 @@ mod tests {
                 .map(|(name, directory)| OutputEntry {
                     range: 0..0,
                     location: None,
+                    commit: None,
                     path: cwd.join(name),
                     kind: if *directory {
                         EntryKind::Directory
@@ -360,6 +361,7 @@ mod tests {
             cache.extend(&[OutputEntry {
                 range: 0..0,
                 location: None,
+                commit: None,
                 path: cwd.join(format!("{i}.txt")),
                 kind: EntryKind::Text,
             }]);
@@ -371,6 +373,7 @@ mod tests {
             cache.extend(&[OutputEntry {
                 range: 0..0,
                 location: None,
+                commit: None,
                 path: cwd.join("x".repeat(1000)),
                 kind: EntryKind::Text,
             }]);

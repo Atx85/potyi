@@ -55,12 +55,19 @@ while True:
         assert params["capabilities"]["general"]["positionEncodings"] == ["utf-16"]
         send({"id": message["id"], "result": {"capabilities": {
             "hoverProvider": True, "definitionProvider": True,
+            "codeActionProvider": {"resolveProvider": True},
             "textDocumentSync": {"openClose": True, "change": 1 if mode == "full" else 2}
         }}})
     elif method == "textDocument/didOpen":
         doc = params["textDocument"]
         documents[doc["uri"]] = doc["text"]
         versions[doc["uri"]] = doc["version"]
+        if mode == "actions":
+            send({"method": "textDocument/publishDiagnostics", "params": {
+                "uri": doc["uri"], "version": doc["version"], "diagnostics": [{
+                    "range": {"start": {"line": 0, "character": 2}, "end": {"line": 0, "character": 9}},
+                    "message": "Missing import", "data": {"fix": "import"}
+                }]}})
     elif method == "textDocument/didChange":
         uri = params["textDocument"]["uri"]
         assert params["textDocument"]["version"] > versions[uri]
@@ -76,6 +83,20 @@ while True:
                 documents[uri] = change["text"]
     elif method == "textDocument/didClose":
         documents.pop(params["textDocument"]["uri"], None)
+    elif method == "textDocument/codeAction":
+        assert params["range"] == {"start": {"line": 0, "character": 2}, "end": {"line": 0, "character": 9}}
+        assert params["context"]["diagnostics"][0]["data"]["fix"] == "import"
+        send({"id": message["id"], "result": [
+            {"title": "Disabled fix", "disabled": {"reason": "Not applicable"}},
+            {"title": "Add missing import", "kind": "quickfix", "isPreferred": True,
+             "data": {"uri": params["textDocument"]["uri"]}}
+        ]})
+    elif method == "codeAction/resolve":
+        params["edit"] = {"changes": {params["data"]["uri"]: [{
+            "range": {"start": {"line": 0, "character": 0}, "end": {"line": 0, "character": 0}},
+            "newText": "use std::fmt;\n"
+        }]}}
+        send({"id": message["id"], "result": params})
     elif method == "textDocument/hover":
         hover_attempts += 1
         if mode == "feature-error" and hover_attempts == 1:

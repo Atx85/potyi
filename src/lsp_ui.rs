@@ -13,6 +13,7 @@ struct Running {
     paths: Vec<PathBuf>,
 }
 
+#[derive(Clone)]
 struct Pending {
     id: u64,
     revision: u64,
@@ -32,6 +33,8 @@ pub(crate) struct LspUi {
     events: EventSubsystem,
     sessions: HashMap<(String, PathBuf), Running>,
     pending: Option<Pending>,
+    pending_anchor: Option<usize>,
+    actions: Option<(Pending, usize, lsp::CodeActions)>,
     preview: Option<(u64, std::sync::Arc<crate::workspace_edit::PreparedRename>)>,
     hover_refresh: Option<Pending>,
     next_id: u64,
@@ -45,6 +48,8 @@ impl LspUi {
             events,
             sessions: HashMap::new(),
             pending: None,
+            pending_anchor: None,
+            actions: None,
             preview: None,
             hover_refresh: None,
             next_id: 1,
@@ -55,6 +60,8 @@ impl LspUi {
 
     pub fn stop(&mut self) {
         self.pending = None;
+        self.pending_anchor = None;
+        self.actions = None;
         self.hover_refresh = None;
         self.sessions.clear();
         self.preview = None;
@@ -125,6 +132,8 @@ impl LspUi {
         }
         self.hover_refresh = None;
         self.preview = None;
+        self.actions = None;
+        self.pending_anchor = Some(editor.document.cursor.anchor);
         let config = lsp::Config::load()?;
         if !config.enabled {
             self.stop();
@@ -274,11 +283,20 @@ impl LspUi {
             }
             return outcome;
         }
-        if !pending.matches(editor, other, bar) {
+        if self.pending_anchor.take().is_some_and(|anchor| anchor != editor.document.cursor.anchor)
+            || !pending.matches(editor, other, bar) {
             return outcome;
         }
         match event.result {
             Err(error) => bar.show_info(&format!("LSP: {error}")),
+            Ok(lsp::Reply::CodeActions(actions)) => {
+                if actions.items.is_empty() {
+                    bar.show_info("No code actions here. Place the cursor on the problem or select the type/module to refactor.");
+                } else {
+                    show_actions(bar, &actions);
+                    self.actions = Some((pending, editor.document.cursor.anchor, actions));
+                }
+            }
             Ok(lsp::Reply::Rename(preview)) => {
                 bar.show_review(preview.choices());
                 self.preview = Some((bar.epoch(), std::sync::Arc::new(preview)));
@@ -313,18 +331,21 @@ impl LspUi {
         outcome
     }
 
-    pub fn files_changed(&mut self, paths: Vec<PathBuf>) {
+    pub fn files_changed(&mut self, paths: Vec<(PathBuf, u8)>) {
         if paths.is_empty() { return; }
         self.pending = None;
         self.hover_refresh = None;
         self.sessions.retain(|(_,root), session| {
-            let changed: Vec<_> = paths.iter().filter(|p| p.starts_with(root)).cloned().collect();
+            let changed: Vec<_> = paths.iter().filter(|(p, _)| p.starts_with(root)).cloned().collect();
             // Reconnect on demand if the bounded queue cannot accept invalidation.
             changed.is_empty() || session.client.files_changed(changed)
         });
     }
 
     pub fn discard_dismissed_preview(&mut self, bar: &CommandBar) {
+        if self.actions.as_ref().is_some_and(|(p,_,_)| !bar.is_active() || p.epoch != bar.epoch()) {
+            self.actions = None;
+        }
         if self.preview.as_ref().is_some_and(|(epoch,_)| !bar.is_active() || *epoch != bar.epoch()) {
             self.preview = None;
         }
@@ -334,6 +355,23 @@ impl LspUi {
     pub fn review(&mut self, editor: &mut Editor, other: &mut Editor, bar: &mut CommandBar)
         -> Option<Result<bool,String>> {
         self.discard_dismissed_preview(bar);
+        if let Some((guard, anchor, actions)) = self.actions.as_ref() {
+            if !guard.matches(editor, other, bar) || *anchor != editor.document.cursor.anchor {
+                self.actions = None;
+                bar.show_info("The selection or document changed. Run :actions again.");
+                return Some(Ok(false));
+            }
+            if bar.is_info() { show_actions(bar, actions); return Some(Ok(false)); }
+            let selected = bar.review_selection()?;
+            if selected >= actions.items.len() { self.actions = None; bar.close(); return Some(Ok(false)); }
+            let item = &actions.items[selected];
+            if let Some(reason) = &item.disabled {
+                bar.show_info(reason); bar.set_status("Enter returns to actions; Escape closes");
+                return Some(Ok(false));
+            }
+            let action = lsp::Action::ResolveCodeAction { action: item.value.clone(), started: actions.started };
+            return Some(self.request(action, editor, other, bar).map(|_| false));
+        }
         let (_, preview) = self.preview.as_ref()?;
         if bar.is_info() {
             bar.show_review(preview.choices());
@@ -342,7 +380,7 @@ impl LspUi {
         let selected = bar.review_selection()?;
         if selected < preview.files.len() {
             bar.show_info(&preview.files[selected].preview);
-            bar.set_status("Up/Down scroll; Enter returns to files; Escape cancels rename");
+            bar.set_status("Up/Down scroll; Enter returns to files; Escape cancels changes");
             return Some(Ok(false));
         }
         let apply = selected == preview.files.len();
@@ -381,6 +419,15 @@ impl LspUi {
         self.back.pop();
         Ok(outcome)
     }
+}
+
+fn show_actions(bar: &mut CommandBar, actions: &lsp::CodeActions) {
+    let mut choices: Vec<_> = actions.items.iter().map(|a| {
+        if a.disabled.is_some() { format!("{} (unavailable)", a.title) } else { a.title.clone() }
+    }).collect();
+    choices.push("Cancel".into());
+    bar.show_review(choices);
+    bar.set_status("Click or Enter to preview an action; Escape cancels");
 }
 
 impl Pending {

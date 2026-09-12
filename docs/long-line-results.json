@@ -1,0 +1,63 @@
+{
+  "fixture": "Three lines, each 1,048,576 ASCII x characters followed by LF",
+  "profile": "release",
+  "renderer": "800x600 SDL dummy, 18-point font, text rendering only",
+  "before_source": "290a677 (plus the measurement probe)",
+  "before_sample_count": 1,
+  "before_ms": {
+    "initial index": 10.949375,
+    "first text frame": 526.5585,
+    "10 moves and text frames": 5243.017917
+  },
+  "after_sample_count": 7,
+  "after_warmups": 1,
+  "after_samples_ms": [
+    {
+      "initial index": 12.208666,
+      "first text frame": 0.820375,
+      "10 moves and text frames": 2.079167
+    },
+    {
+      "initial index": 11.88075,
+      "first text frame": 0.792292,
+      "10 moves and text frames": 1.979208
+    },
+    {
+      "initial index": 12.260167,
+      "first text frame": 0.788084,
+      "10 moves and text frames": 2.05075
+    },
+    {
+      "initial index": 12.042833,
+      "first text frame": 0.84375,
+      "10 moves and text frames": 2.3355
+    },
+    {
+      "initial index": 11.502083,
+      "first text frame": 0.851375,
+      "10 moves and text frames": 1.923584
+    },
+    {
+      "initial index": 11.927958,
+      "first text frame": 0.9137500000000001,
+      "10 moves and text frames": 2.257333
+    },
+    {
+      "initial index": 11.842667,
+      "first text frame": 0.845041,
+      "10 moves and text frames": 1.924208
+    }
+  ],
+  "after_median_ms": {
+    "initial index": 11.927958,
+    "first text frame": 0.84375,
+    "10 moves and text frames": 2.05075
+  },
+  "limitations": [
+    "One baseline sample versus seven measured samples after one warmup; not a statistical guarantee.",
+    "Warm filesystem cache. Fixture writing and font setup are outside timers.",
+    "Text rendering includes rasterization but not physical display presentation or full application startup.",
+    "Initial line indexing is measured separately; first visits and edits can still require line discovery.",
+    "No CPU percentage, idle memory, or measurements on the reported Windows laptop."
+  ]
+}

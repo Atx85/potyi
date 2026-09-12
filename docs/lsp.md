@@ -2,8 +2,8 @@
 
 Read the [web version of this guide](lsp/) on the documentation website.
 
-Pötyi has an optional, initial LSP client for **hover information and
-go-to-definition, and symbol rename**. It works with separately installed language servers that
+Pötyi has an optional LSP client for **hover information, go-to-definition,
+symbol rename, quick fixes, and file refactorings**. It works with separately installed language servers that
 speak LSP over stdin/stdout. LSP is disabled by default; it creates no server
 processes or worker threads until an enabled command is requested.
 
@@ -490,7 +490,7 @@ alive, so another attempt can use the analysis already completed.
 The preview lists each affected file and whether it updates an unsaved buffer
 or writes an unopened file to disk. Click a file or use Up/Down and Enter to
 inspect its replacements. Enter returns to the file list. Select **Apply
-changes** to commit, or **Cancel rename** / Escape to discard the preview.
+changes** to commit, or **Cancel changes** / Escape to discard the preview.
 Each file preview shows up to 40 replacements, with long text shortened.
 
 Normal Undo (Cmd/Ctrl+Z, or `u` in Vim normal mode) reverses the whole rename;
@@ -513,8 +513,45 @@ before/after text. Preparation runs on the LSP worker; Apply and Undo perform
 bounded validation and disk writes on the UI thread. Undo stores file images
 on disk instead of retaining whole documents in memory. Pötyi notifies active
 servers about its disk changes, without adding an idle scanner or file watcher.
-File creation/moves/deletion, annotated edits, and extract-to-file code actions
-are a later milestone.
+File creation, moves, deletion, and annotated edits are supported in reviewed workspace edits.
+
+## Missing imports, includes and using directives
+
+Place the cursor on an unresolved name and run `:actions`. Pötyi sends the
+current selection and matching server diagnostics, then lists the server's
+quick fixes and refactorings. Click an action or use Up/Down and Enter.
+Review the proposed files, then choose **Apply changes**. Escape cancels.
+Preferred fixes appear first; unavailable actions explain why they cannot run.
+
+The language server chooses the correct import, include or `using` directive.
+It needs the appropriate project configuration and dependencies to find the
+symbol. Pötyi does not install packages or invent missing imports. Actions that
+require custom server commands are shown as unavailable; standard workspace
+edits, including edits returned by `codeAction/resolve`, are supported.
+Diagnostics are fetched for explicit requests, with a bounded cache for pushed
+reports. This does not add a diagnostic display or synchronize every keystroke.
+
+## Extract or move a type/module to a file
+
+Place the cursor on the declaration (or select the code) and run `:refactor`.
+Choose the server's extract/move action, inspect the preview, then select
+**Apply changes**. For Rust, rust-analyzer's **Extract module to file** is
+covered by an end-to-end test. Other languages expose different actions;
+there is no language-independent class mover or destination picker.
+
+The preview identifies file creation, moves, deletion and text changes, with
+server annotation notes. Open buffers keep unsaved edits; moving one updates
+its path without silently saving its draft. Deleting an open file keeps its
+text in an unsaved, untitled buffer. New and unopened files are written on
+Apply. Normal Undo/Redo reverses the whole operation, including paths and
+created files, subject to the same history and external-change checks as rename.
+
+File operations require existing parent directories and writable regular files
+inside the project. Existing destinations are never overwritten; directory
+operations, symlinks, snippet edits and `.git` targets are rejected. Resource
+previews show a bounded before/after excerpt, rather than a full diff of large
+files. These operations share the 64-file, 10,000-edit, 2 MiB-per-file and 16 MiB
+preparation limits; disk snapshots also count toward the resource-edit budget.
 
 ## Protecting existing editing behavior
 
@@ -526,9 +563,9 @@ are a later milestone.
   read-only state, selection history and undo history. A new file uses a clean
   pane. If both panes contain unsaved changes, the jump is refused.
 - A destination is validated before a new file replaces a pane.
-- Rename applies reviewed text edits only. It does not run server-requested
-  commands, change formatting, or alter Vim keybindings. Open buffers remain
-  unsaved; the preview identifies unopened files that Apply will write.
+- Actions apply reviewed workspace edits only and do not run server-requested
+  commands or alter Vim keybindings. Open buffers remain unsaved; the preview
+  identifies files that Apply will write or move.
 - Unicode positions are converted between the editor's UTF-8 offsets and
   LSP's UTF-16 positions. File URI escaping handles spaces and Unicode.
 - Initialization has a 30-second limit; feature requests have a 15-second
@@ -537,8 +574,8 @@ are a later milestone.
 
 ## Current limits
 
-This is the first LSP milestone. It does **not** yet display diagnostics,
-completion menus, signature help, code actions, semantic highlighting,
+This client does **not** yet display diagnostics,
+completion menus, signature help, semantic highlighting,
 or virtual documents such as generated/decompiled definitions. It does not
 implement dynamic capability registration or project file watchers.
 Open documents must have saved file paths, valid UTF-8, and be at most 2 MiB.
@@ -558,3 +595,5 @@ checks, navigation/data-preservation tests, and (on Unix, with `python3`)
 end-to-end tests against a deterministic fixture server. The fixture verifies
 unsaved text, full/incremental synchronization, document closing, definition
 links, cancellation, server crashes and timeouts.
+
+The real rust-analyzer extraction test is opt-in: `cargo test --release real_rust_analyzer_extract_module_to_file -- --ignored --test-threads=1`. It requires an installed `rust-analyzer` and `rust-src`.

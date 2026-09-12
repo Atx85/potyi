@@ -4,6 +4,10 @@
 //! Optional, command-driven LSP. Each worker owns one server/project session.
 //! The UI supplies bounded snapshots only on explicit requests, never per frame.
 mod transport;
+mod actions;
+pub(crate) use actions::CodeActions;
+#[cfg(test)]
+pub(crate) use actions::CodeActionItem;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -144,6 +148,8 @@ pub(crate) enum Action {
     Hover,
     Definition,
     Rename(String),
+    CodeActions { anchor: usize, refactor_only: bool },
+    ResolveCodeAction { action: Value, started: std::time::SystemTime },
 }
 
 #[derive(Clone, Debug)]
@@ -178,6 +184,7 @@ pub(crate) enum Reply {
     Hover(HoverContent),
     Definition(Vec<Location>),
     Rename(crate::workspace_edit::PreparedRename),
+    CodeActions(CodeActions),
 }
 
 #[derive(Debug)]
@@ -189,7 +196,7 @@ pub(crate) struct Event {
 enum Job {
     Request(Request),
     Keep(Vec<PathBuf>),
-    Changed(Vec<PathBuf>),
+    Changed(Vec<(PathBuf, u8)>),
 }
 
 pub(crate) struct Client {
@@ -235,8 +242,8 @@ impl Client {
                         }
                         Ok(Job::Changed(paths)) => {
                             if let Some(session) = server.as_mut() {
-                                let changes: Result<Vec<_>,_> = paths.iter().map(|path|
-                                    file_uri(path).map(|uri| json!({"uri":uri,"type":2}))).collect();
+                                let changes: Result<Vec<_>,_> = paths.iter().map(|(path, kind)|
+                                    file_uri(path).map(|uri| json!({"uri":uri,"type":kind}))).collect();
                                 if changes.and_then(|changes| session.transport.notify(
                                     "workspace/didChangeWatchedFiles", json!({"changes":changes}))).is_err() {
                                     server = None;
@@ -277,7 +284,7 @@ impl Client {
             .map_err(|_| "LSP is busy; wait for the current request or use :lsp-stop".into())
     }
 
-    pub fn files_changed(&self, paths: Vec<PathBuf>) -> bool {
+    pub fn files_changed(&self, paths: Vec<(PathBuf, u8)>) -> bool {
         self.jobs.try_send(Job::Changed(paths)).is_ok()
     }
 
@@ -302,6 +309,9 @@ struct Session {
     definition: bool,
     rename: bool,
     prepare_rename: bool,
+    code_actions: bool,
+    resolve_actions: bool,
+    pull_diagnostics: bool,
     reports_readiness: bool,
     root: PathBuf,
     documents: HashMap<PathBuf, (String, i64)>,
@@ -317,8 +327,8 @@ impl Session {
             "capabilities":{
                 "general":{"positionEncodings":["utf-16"]},
                 "experimental":{"serverStatusNotification":true},
-                "workspace":{"workspaceFolders":true,"configuration":true,"applyEdit":false,"workspaceEdit":{"documentChanges":true}},
-                "textDocument":{"rename":{"prepareSupport":true},"hover":{"contentFormat":["plaintext"]},"definition":{"linkSupport":true},
+                "workspace":{"workspaceFolders":true,"configuration":true,"applyEdit":false,"workspaceEdit":{"documentChanges":true,"resourceOperations":["create","rename","delete"],"failureHandling":"transactional","changeAnnotationSupport":{"groupsOnLabel":true}}},
+                "textDocument":{"codeAction":{"dynamicRegistration":false,"codeActionLiteralSupport":{"codeActionKind":{"valueSet":["quickfix","refactor","refactor.extract","refactor.rewrite","source.organizeImports"]}},"isPreferredSupport":true,"honorsChangeAnnotations":true,"disabledSupport":true,"dataSupport":true,"resolveSupport":{"properties":["edit"]}},"publishDiagnostics":{"versionSupport":true,"dataSupport":true},"diagnostic":{"dynamicRegistration":false},"rename":{"prepareSupport":true},"hover":{"contentFormat":["plaintext"]},"definition":{"linkSupport":true},
                     "synchronization":{"dynamicRegistration":false,"didSave":false,"willSave":false}}
             },
             "initializationOptions":config.initialization_options
@@ -355,6 +365,9 @@ impl Session {
             definition,
             rename: supported(&capabilities["renameProvider"]),
             prepare_rename: capabilities["renameProvider"]["prepareProvider"] == true,
+            code_actions: supported(&capabilities["codeActionProvider"]),
+            resolve_actions: capabilities["codeActionProvider"]["resolveProvider"] == true,
+            pull_diagnostics: capabilities["diagnosticProvider"].is_object(),
             reports_readiness: result["serverInfo"]["name"].as_str() == Some("rust-analyzer"),
             root: root.to_path_buf(),
             documents: HashMap::new(),
@@ -373,6 +386,7 @@ impl Session {
                 "textDocument/didClose",
                 json!({"textDocument":{"uri":file_uri(&path)?}}),
             )?;
+            self.transport.clear_diagnostics(&file_uri(&path)?);
             self.documents.remove(&path);
         }
         Ok(())
@@ -391,6 +405,7 @@ impl Session {
             if let Some((previous, version)) = self.documents.get_mut(&doc.path) {
                 if previous != &doc.text {
                     *version += 1;
+                    self.transport.clear_diagnostics(&uri);
                     let change = if self.sync == 2 {
                         incremental_change(previous, &doc.text)?
                     } else {
@@ -414,6 +429,9 @@ impl Session {
                 self.documents
                     .insert(doc.path.clone(), (doc.text.clone(), 1));
             }
+        }
+        if matches!(request.action, Action::CodeActions { .. } | Action::ResolveCodeAction { .. }) {
+            return self.execute_code_action(request);
         }
         if let Action::Rename(name) = &request.action {
             let started = std::time::SystemTime::now();

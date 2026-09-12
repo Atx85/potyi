@@ -843,23 +843,15 @@ impl<'a> Renderer<'a> {
             if requested_line > last_line {
                 table.line_length(line)?
             } else {
-                let text =
-                    table.line_text(line)?;
-
-                let document_x =
-                    x.saturating_sub(
-                        layout.text_left,
-                    )
-                    .saturating_add(
-                        layout.scroll_x,
-                    );
-
-                Self::logical_column_for_document_x(
-                    &text,
-                    document_x,
-                    layout.char_width,
-                    layout.tab_width,
-                )
+                let document_x = x.saturating_sub(layout.text_left).saturating_add(layout.scroll_x).max(0);
+                let cell = layout.char_width.max(1) as usize;
+                let target = document_x as usize / cell;
+                let window = table.line_window(line, target, target.saturating_add(1), layout.tab_width)?;
+                let advance = window.text.chars().next()
+                    .map(|c| Self::visual_advance(c, window.first_visual, layout.tab_width)).unwrap_or(0);
+                let start = window.first_visual.saturating_mul(cell);
+                let width = advance.saturating_mul(cell);
+                window.first_column + usize::from(advance > 0 && document_x as usize >= start.saturating_add(width / 2 + width % 2))
             };
 
         Ok(Some((line, column)))
@@ -1436,18 +1428,11 @@ impl<'a> Renderer<'a> {
             self.text_left(table)
                 .unwrap_or(20);
 
-        let text_line =
-            match table.line_text(self.cursor_line) {
-                Ok(text) => text,
-                Err(_) => return,
-            };
-
-        let cursor_x =
-            self.visual_x_for_column(
-                &text_line,
-                self.cursor_column,
-                text_left,
-            );
+        let visual = match table.line_visual_column(self.cursor_line, self.cursor_column, self.tab_width) {
+            Ok(visual) => visual,
+            Err(_) => return,
+        };
+        let cursor_x = self.x_for_visual_column(visual, text_left);
 
         let right =
             self.active_content_width() - 20;
@@ -1524,18 +1509,11 @@ impl<'a> Renderer<'a> {
             self.text_left(table)
                 .unwrap_or(20);
 
-        let text_line =
-            match table.line_text(line) {
-                Ok(text) => text,
-                Err(_) => return,
-            };
-
-        let x =
-            self.visual_x_for_column(
-                &text_line,
-                column,
-                text_left,
-            );
+        let visual = match table.line_visual_column(line, column, self.tab_width) {
+            Ok(visual) => visual,
+            Err(_) => return,
+        };
+        let x = self.x_for_visual_column(visual, text_left);
 
         let right =
             self.active_content_width() - 20;
@@ -1843,6 +1821,7 @@ impl<'a> Renderer<'a> {
             .unwrap_or_default();
         status_lines.extend(self.terminal_status_lines(terminal.output_focus_hint()
             .unwrap_or("Command input · Shift+Up: select output · Esc: editor")));
+        if terminal.can_go_back() { status_lines.extend(self.terminal_status_lines("Commit diff · Back / Alt+Left: return to log")); }
         let status_height = if status_lines.is_empty() { 0 } else {
             status_lines.len() as i32 * self.font.height().max(1) + 8
         };
@@ -1910,6 +1889,8 @@ impl<'a> Renderer<'a> {
                 self.canvas.fill_rect(Rect::new(x, y, 2, line_height as u32))
                     .map_err(|error| error.to_string())?;
             }
+            let semantic_color = terminal.output_color(start).map(|(r,g,b)| Color::RGB(r,g,b));
+            let base_color = semantic_color.unwrap_or(Color::RGB(215, 220, 215));
             let mut rendered_to = 0;
             for entry in terminal.entries_in(start..start + text.len()) {
                 let from = entry.range.start.saturating_sub(start);
@@ -1918,22 +1899,23 @@ impl<'a> Renderer<'a> {
                     &text[rendered_to..from],
                     12 + self.terminal_text_width(&text[..rendered_to]),
                     Self::visual_column_after_text(&text[..rendered_to], 0, self.tab_width),
-                    y, Color::RGB(215, 220, 215),
+                    y, base_color,
                 )?;
                 let left = self.terminal_text_width(&text[..from]);
                 let right = self.terminal_text_width(&text[..to]);
-                let color = match entry.kind {
+                let color = semantic_color.unwrap_or(match entry.kind {
                     EntryKind::Text => Color::RGB(150, 220, 165),
                     EntryKind::Directory => Color::RGB(120, 185, 255),
                     EntryKind::Binary => Color::RGB(225, 185, 115),
                     EntryKind::Unreadable => Color::RGB(155, 160, 155),
-                };
+                    EntryKind::Commit => Color::RGB(225, 195, 120),
+                });
                 self.render_text_chunk(
                     &text[from..to], 12 + left,
                     Self::visual_column_after_text(&text[..from], 0, self.tab_width), y, color,
                 )?;
                 rendered_to = to;
-                if matches!(entry.kind, EntryKind::Text | EntryKind::Directory) {
+                if matches!(entry.kind, EntryKind::Text | EntryKind::Directory | EntryKind::Commit) {
                     self.canvas.set_draw_color(color);
                     self.canvas.fill_rect(Rect::new(
                         12 + left, y + line_height - 2,
@@ -1945,7 +1927,7 @@ impl<'a> Renderer<'a> {
                 &text[rendered_to..],
                 12 + self.terminal_text_width(&text[..rendered_to]),
                 Self::visual_column_after_text(&text[..rendered_to], 0, self.tab_width),
-                y, Color::RGB(215, 220, 215),
+                y, base_color,
             )?;
         }
 
@@ -2288,7 +2270,7 @@ impl<'a> Renderer<'a> {
             clear_left,
             y,
             TERMINAL_CLEAR_WIDTH,
-            "Clear",
+            if terminal.can_go_back() { "Back" } else { "Clear" },
             false,
         )?;
 
@@ -2486,152 +2468,66 @@ impl<'a> Renderer<'a> {
         &mut self,
         table: &mut PieceTable,
     ) -> Result<(), String> {
-        let line_height =
-            self.font.height();
-
-        let visible_lines =
-            self.visible_line_count();
-
-        let first_line =
-            self.scroll_line;
-
-        let last_line =
-            (
-                first_line
-                    + visible_lines
-            )
-            .min(
-                table.cached_line_count(),
-            );
-
-        let text_left =
-            self.text_left(table)?;
-
-        const NORMAL_COLOR: Color =
-            Color::RGB(
-                220,
-                220,
-                220,
-            );
-
-        for line in first_line..last_line {
-            let text_line =
-                table
-                    .line_text(line)
-                    .map_err(|e| e.to_string())?;
-
-            if text_line.is_empty() {
-                continue;
-            }
-
-            let y =
-                TITLE_BAR_HEIGHT
-                    + 8
-                    + (
-                        line - first_line
-                    ) as i32
-                        * line_height;
-
-            let syntax_matches =
-                match &self.syntax {
-                    Some(syntax) =>
-                        syntax.matches_line(
-                            &text_line,
-                        ),
-
-                    None =>
-                        Vec::new(),
-                };
-
-            if syntax_matches.is_empty() {
-                self.render_text_chunk(
-                    &text_line,
-                    text_left - self.scroll_x,
-                    0,
-                    y,
-                    NORMAL_COLOR,
-                )?;
-
-                continue;
-            }
-
-            let mut byte_position = 0usize;
-            let mut visual_column = 0usize;
-
-            for syntax_match in syntax_matches {
-                if syntax_match.start > byte_position {
-                    let normal =
-                        &text_line[
-                            byte_position
-                                ..syntax_match.start
-                        ];
-
-                    let start_x =
-                        self.x_for_visual_column(
-                            visual_column,
-                            text_left,
-                        );
-
-                    visual_column =
-                        self.render_text_chunk(
-                            normal,
-                            start_x,
-                            visual_column,
-                            y,
-                            NORMAL_COLOR,
-                        )?;
+        let text_left = self.text_left(table)?;
+        let first = self.scroll_line;
+        let last = first.saturating_add(self.visible_line_count()).min(table.cached_line_count());
+        let (left, right) = self.visible_visual_columns(text_left);
+        const NORMAL: Color = Color::RGB(220, 220, 220);
+        for line in first..last {
+            let window = table.line_window(line, left, right, self.tab_width).map_err(|e| e.to_string())?;
+            if window.text.is_empty() { continue; }
+            let y = TITLE_BAR_HEIGHT + 8 + (line - first) as i32 * self.font.height();
+            let matches = if let Some(syntax) = &self.syntax {
+                if window.first_byte < crate::syntax_core::MAX_HIGHLIGHT_BYTES {
+                    let prefix = table.line_prefix(line, crate::syntax_core::MAX_HIGHLIGHT_BYTES)
+                        .map_err(|e| e.to_string())?;
+                    syntax.matches_line(&prefix)
+                } else { Vec::new() }
+            } else { Vec::new() };
+            let mut byte = 0;
+            let mut visual = window.first_visual;
+            for hit in matches {
+                let start = hit.start.saturating_sub(window.first_byte).min(window.text.len());
+                let end = hit.end.saturating_sub(window.first_byte).min(window.text.len());
+                if end <= byte { continue; }
+                if start > byte {
+                    visual = self.render_text_chunk(&window.text[byte..start],
+                        self.x_for_visual_column(visual, text_left), visual, y, NORMAL)?;
                 }
-
-                if syntax_match.end > syntax_match.start {
-                    let highlighted =
-                        &text_line[
-                            syntax_match.start
-                                ..syntax_match.end
-                        ];
-
-                    let start_x =
-                        self.x_for_visual_column(
-                            visual_column,
-                            text_left,
-                        );
-
-                    visual_column =
-                        self.render_text_chunk(
-                            highlighted,
-                            start_x,
-                            visual_column,
-                            y,
-                            syntax_match.color,
-                        )?;
-                }
-
-                byte_position =
-                    syntax_match.end;
+                visual = self.render_text_chunk(&window.text[start.max(byte)..end],
+                    self.x_for_visual_column(visual, text_left), visual, y, hit.color)?;
+                byte = end;
             }
-
-            if byte_position < text_line.len() {
-                let remaining =
-                    &text_line[
-                        byte_position..
-                    ];
-
-                let start_x =
-                    self.x_for_visual_column(
-                        visual_column,
-                        text_left,
-                    );
-
-                self.render_text_chunk(
-                    remaining,
-                    start_x,
-                    visual_column,
-                    y,
-                    NORMAL_COLOR,
-                )?;
+            if byte < window.text.len() {
+                self.render_text_chunk(&window.text[byte..], self.x_for_visual_column(visual, text_left),
+                    visual, y, NORMAL)?;
             }
         }
-
         Ok(())
+    }
+
+    fn visible_visual_columns(&self, text_left: i32) -> (usize, usize) {
+        let cell = self.char_width.max(1) as usize;
+        let left = (self.scroll_x.max(0) as usize / cell).saturating_sub(1);
+        let right = (self.scroll_x.max(0) as usize)
+            .saturating_add(self.active_content_width().saturating_sub(text_left).max(0) as usize)
+            / cell + 2;
+        (left, right)
+    }
+
+    fn clipped_column_x(&self, table: &mut PieceTable, line: usize, column: usize, text_left: i32)
+        -> Result<i32, String>
+    {
+        let (left, right) = self.visible_visual_columns(text_left);
+        let window = table.line_window(line, left, right, self.tab_width).map_err(|e| e.to_string())?;
+        let count = window.text.chars().count();
+        let visual = if column < window.first_column { left }
+            else if column > window.first_column.saturating_add(count) { right }
+            else {
+                window.text.chars().take(column - window.first_column).fold(window.first_visual,
+                    |v, c| v.saturating_add(Self::visual_advance(c, v, self.tab_width)))
+            };
+        Ok(self.x_for_visual_column(visual, text_left))
     }
 
     fn render_text_chunk(
@@ -2673,7 +2569,7 @@ impl<'a> Renderer<'a> {
                     y,
                     color,
                     MAX_TEXT_TEXTURE_WIDTH,
-                    None,
+                    Some((0.0, self.active_content_width() as f32)),
                 )?;
 
                 let segment_width =
@@ -2751,7 +2647,7 @@ impl<'a> Renderer<'a> {
                 y,
                 color,
                 MAX_TEXT_TEXTURE_WIDTH,
-                None,
+                Some((0.0, self.active_content_width() as f32)),
             )?;
 
             visual_column =
@@ -2938,13 +2834,7 @@ impl<'a> Renderer<'a> {
 
         for line in start_line.max(first)..end_line.saturating_add(1).min(last) {
 
-            let text =
-                table
-                    .line_text(line)
-                    .map_err(|e| e.to_string())?;
-
-            let length =
-                text.chars().count();
+            let length = table.line_length(line).map_err(|e| e.to_string())?;
 
             let from =
                 if line == start_line {
@@ -2961,11 +2851,7 @@ impl<'a> Renderer<'a> {
                 };
 
             let x =
-                self.visual_x_for_column(
-                    &text,
-                    from,
-                    text_left,
-                );
+                self.clipped_column_x(table, line, from, text_left)?;
 
             let y =
                 TITLE_BAR_HEIGHT
@@ -2980,11 +2866,7 @@ impl<'a> Renderer<'a> {
             }
 
             let end_x =
-                self.visual_x_for_column(
-                    &text,
-                    to,
-                    text_left,
-                );
+                self.clipped_column_x(table, line, to, text_left)?;
 
             let width =
                 (end_x - x)
@@ -3063,13 +2945,7 @@ impl<'a> Renderer<'a> {
                 continue;
             }
 
-            let text =
-                table
-                    .line_text(line)
-                    .map_err(|e| e.to_string())?;
-
-            let line_length =
-                text.chars().count();
+            let line_length = table.line_length(line).map_err(|e| e.to_string())?;
 
             let from =
                 if line == start_line {
@@ -3090,11 +2966,7 @@ impl<'a> Renderer<'a> {
                     && line == start_line
                 {
                     let x =
-                        self.visual_x_for_column(
-                            &text,
-                            from,
-                            text_left,
-                        );
+                        self.clipped_column_x(table, line, from, text_left)?;
 
                     let y =
                         TITLE_BAR_HEIGHT
@@ -3118,18 +2990,10 @@ impl<'a> Renderer<'a> {
             }
 
             let x =
-                self.visual_x_for_column(
-                    &text,
-                    from,
-                    text_left,
-                );
+                self.clipped_column_x(table, line, from, text_left)?;
 
             let end_x =
-                self.visual_x_for_column(
-                    &text,
-                    to,
-                    text_left,
-                );
+                self.clipped_column_x(table, line, to, text_left)?;
 
             let width =
                 (end_x - x)
@@ -3188,20 +3052,8 @@ impl<'a> Renderer<'a> {
             return Ok(());
         }
 
-        let text =
-            table
-                .line_text(line)
-                .map_err(|e| e.to_string())?;
-
-        let text_left =
-            self.text_left(table)?;
-
-        let x =
-            self.visual_x_for_column(
-                &text,
-                column,
-                text_left,
-            );
+        let text_left = self.text_left(table)?;
+        let x = self.clipped_column_x(table, line, column, text_left)?;
 
         let y =
             TITLE_BAR_HEIGHT
@@ -5028,6 +4880,102 @@ mod terminal_selection_render_tests {
     use super::*;
 
     #[test]
+    #[ignore = "Pixel regression; SDL_VIDEODRIVER=dummy, --ignored --test-threads=1"]
+    fn editor_viewport_preserves_scrolled_unicode_tabs_and_clicks() {
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let window = video.window("viewport pixels", 800, 600).hidden().build().unwrap();
+        let ttf = sdl3::ttf::init().unwrap();
+        let font = || ttf.load_font_from_iostream(
+            sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(), 18.0,
+        ).unwrap();
+        let canvas = window.into_canvas();
+        let texture_creator = canvas.texture_creator();
+        let mut renderer = Renderer::new(canvas, &texture_creator, font(), font(), 18.0,
+            (font(), font()), crate::window::WindowHitTestState::new(800, 1.0)).unwrap();
+        let text = "abé\tcd λ\txyz ".repeat(100);
+        let mut table = PieceTable::empty().unwrap();
+        table.insert(0, &text).unwrap();
+        table.ensure_line_cached(0).unwrap();
+        let left = renderer.text_left(&table).unwrap();
+        let clip = Rect::new(left, TITLE_BAR_HEIGHT, (800 - left) as u32, 60);
+        let pixels = |renderer: &Renderer<'_>| {
+            let surface = renderer.canvas.read_pixels(clip).unwrap()
+                .convert_format(sdl3::pixels::PixelFormat::RGBA32).unwrap();
+            surface.with_lock(|bytes| bytes.to_vec())
+        };
+        for scroll in [0, 7, 93, 500, 1700] {
+            renderer.scroll_x = scroll;
+            renderer.canvas.set_clip_rect(None);
+            renderer.canvas.set_draw_color(Color::RGB(30, 30, 30));
+            renderer.canvas.clear();
+            renderer.canvas.set_clip_rect(Some(clip));
+            renderer.render_text_chunk(&text, left - scroll, 0, TITLE_BAR_HEIGHT + 8,
+                Color::RGB(220, 220, 220)).unwrap();
+            let expected = pixels(&renderer);
+            renderer.canvas.set_clip_rect(None);
+            renderer.canvas.set_draw_color(Color::RGB(30, 30, 30));
+            renderer.canvas.clear();
+            renderer.canvas.set_clip_rect(Some(clip));
+            renderer.render_text(&mut table).unwrap();
+            assert_eq!(pixels(&renderer), expected, "scroll {scroll}");
+            let layout = CursorHitTestLayout {
+                text_left: left, text_top: TITLE_BAR_HEIGHT + 8, right: 800, bottom: 600,
+                line_height: renderer.font.height(), visible_lines: 10, scroll_line: 0,
+                scroll_x: scroll, char_width: renderer.char_width, tab_width: renderer.tab_width,
+            };
+            for x in (left..800).step_by(7) {
+                let expected = Renderer::logical_column_for_document_x(&text, x - left + scroll,
+                    renderer.char_width, renderer.tab_width);
+                let actual = Renderer::cursor_target_for_layout(&mut table, layout, x, TITLE_BAR_HEIGHT + 9).unwrap();
+                assert_eq!(actual, Some((0, expected)));
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "Long-line benchmark; SDL_VIDEODRIVER=dummy, --ignored --test-threads=1"]
+    fn long_line_navigation_probe() {
+        use std::time::Instant;
+        let path = std::env::temp_dir().join(format!("potyi-long-lines-{}.txt", std::process::id()));
+        let mut content = "x".repeat(1024 * 1024);
+        content.push('\n');
+        std::fs::write(&path, content.repeat(3)).unwrap();
+        let mut table = PieceTable::open(path.to_str().unwrap()).unwrap();
+        let start = Instant::now();
+        table.ensure_line_cached(3).unwrap();
+        eprintln!("LONG_LINE initial index: {:?}", start.elapsed());
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let window = video.window("long line probe", 800, 600).hidden().build().unwrap();
+        let ttf = sdl3::ttf::init().unwrap();
+        let font = || ttf.load_font_from_iostream(
+            sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(), 18.0,
+        ).unwrap();
+        let canvas = window.into_canvas();
+        let texture_creator = canvas.texture_creator();
+        let mut renderer = Renderer::new(canvas, &texture_creator, font(), font(), 18.0,
+            (font(), font()), crate::window::WindowHitTestState::new(800, 1.0)).unwrap();
+        let start = Instant::now();
+        renderer.render_text(&mut table).unwrap();
+        eprintln!("LONG_LINE first text frame: {:?}", start.elapsed());
+        let start = Instant::now();
+        for _ in 0..5 {
+            table.cursor_down().unwrap();
+            renderer.ensure_cursor_visible(&mut table);
+            renderer.render_text(&mut table).unwrap();
+            table.cursor_up().unwrap();
+            renderer.ensure_cursor_visible(&mut table);
+            renderer.render_text(&mut table).unwrap();
+        }
+        assert_eq!(table.cursor.line, 0);
+        eprintln!("LONG_LINE 10 moves and text frames: {:?}", start.elapsed());
+        drop(table);
+        std::fs::remove_file(path).unwrap();
+    }
+
+
+    #[test]
     #[ignore = "Run with SDL_VIDEODRIVER=dummy and --ignored --test-threads=1"]
     fn compact_hover_panel_renders_with_small_paragraph_gaps() {
         let sdl = sdl3::init().unwrap();
@@ -5289,4 +5237,55 @@ mod terminal_selection_render_tests {
         terminal.move_output_cursor(0, false).unwrap();
         renderer.render_terminal(&mut terminal).unwrap();
     }
+    #[test]
+    #[ignore = "requires SDL and a Git checkout; run with SDL_VIDEODRIVER=dummy and --test-threads=1"]
+    fn git_commit_mouse_target_and_back_restore_terminal_layout() {
+        let sdl = sdl3::init().unwrap(); let events=sdl.event().unwrap();
+        crate::terminal::register_test_events(&events); let mut pump=sdl.event_pump().unwrap();
+        let video=sdl.video().unwrap(); let window=video.window("Git navigation",800,600).hidden().build().unwrap();
+        let ttf=sdl3::ttf::init().unwrap();
+        let font=|| ttf.load_font_from_iostream(sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(),18.0).unwrap();
+        let canvas=window.into_canvas(); let texture_creator=canvas.texture_creator();
+        let mut renderer=Renderer::new(canvas,&texture_creator,font(),font(),18.0,(font(),font()),crate::window::WindowHitTestState::new(800,1.0)).unwrap();
+        let mut terminal=Terminal::new(std::env::current_dir().unwrap()).unwrap(); terminal.set_events(events.clone()); terminal.clear().unwrap();
+        let drain=|terminal: &mut Terminal,pump: &mut sdl3::EventPump| {
+            let start=std::time::Instant::now();
+            while terminal.is_running() {
+                terminal.poll_background().unwrap(); assert!(start.elapsed()<std::time::Duration::from_secs(15));
+                if let Some(event)=pump.wait_event_timeout(std::time::Duration::from_millis(20))
+                    && let Some(event)=event.as_user_event_type::<crate::terminal::TerminalEvent>() {terminal.handle_event(event).unwrap();}
+            }
+        };
+        terminal.insert_text("git log -2 --oneline"); terminal.submit(&events).unwrap(); drain(&mut terminal,&mut pump);
+        renderer.render_terminal(&mut terminal).unwrap();
+        let original=terminal.output_text().unwrap();
+        let entry=terminal.entries_in(0..original.len()).iter().find(|e| e.kind==EntryKind::Commit).unwrap().clone();
+        let row=renderer.terminal_layout.row_at(entry.range.start);
+        let rows=renderer.terminal_layout.visible_rows(renderer.visible_line_count(),terminal.scroll_back());
+        let y=TITLE_BAR_HEIGHT+8+(row-rows.start) as i32*renderer.font.height()+2;
+        let x=16;
+        let action=renderer.terminal_action_at(&mut terminal,x,y).unwrap();
+        assert_eq!(action,entry.action());
+        terminal.begin_output_drag(entry.range.start,x,y,action).unwrap();
+        let TerminalAction::Commit(commit)=terminal.finish_output_drag().unwrap() else {panic!()};
+        let scroll=terminal.scroll_back();
+        terminal.open_commit(commit).unwrap(); renderer.render_terminal(&mut terminal).unwrap();
+        drain(&mut terminal,&mut pump); renderer.render_terminal(&mut terminal).unwrap();
+        assert!(terminal.can_go_back());
+        assert_eq!(renderer.terminal_layout.visible_rows(renderer.visible_line_count(),terminal.scroll_back()).start,0,"diff should start at its header");
+        if let Ok(path)=std::env::var("POTYI_GIT_NAV_SCREENSHOT") {
+            if let Some(hunk)=terminal.output_text().unwrap().find("@@") {
+                terminal.move_output_cursor(hunk,false).unwrap();
+                renderer.navigate_terminal_output(&mut terminal,OutputCommand::None).unwrap();
+                renderer.render_terminal(&mut terminal).unwrap();
+            }
+            renderer.canvas.read_pixels(Rect::new(0,0,800,600)).unwrap().save_bmp(path).unwrap();
+        }
+        let back_x=800-TERMINAL_BAR_MARGIN-TERMINAL_EDITOR_WIDTH-TERMINAL_CLEAR_WIDTH+4;
+        assert_eq!(renderer.terminal_hit_at(back_x,600-TERMINAL_BAR_MARGIN-TERMINAL_BAR_HEIGHT+4),TerminalHit::Clear);
+        terminal.go_back().unwrap(); renderer.render_terminal(&mut terminal).unwrap();
+        assert_eq!(terminal.output_text().unwrap(),original); assert_eq!(terminal.scroll_back(),scroll);
+        assert!(!terminal.can_go_back()); assert_eq!(terminal.action_at_output_offset(entry.range.start).unwrap(),entry.action());
+    }
+
 }

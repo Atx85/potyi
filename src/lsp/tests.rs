@@ -552,3 +552,73 @@ fn readiness_wait_is_bounded_cancellable_and_does_not_break_a_healthy_session() 
     assert_eq!(server.wait_until_ready(Duration::from_secs(10)).unwrap_err(),"LSP stopped");
     assert!(started.elapsed() < Duration::from_secs(1));
 }
+
+#[cfg(unix)]
+#[test]
+fn code_actions_pass_diagnostics_selection_and_resolve_import_preview() {
+    let root = std::env::temp_dir().join(format!("potyi-action-test-{}", std::process::id()));
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("main.rs");
+    std::fs::write(&path, "🦀Unknown").unwrap();
+    let (sender, receiver) = mpsc::channel();
+    let client = Client::start(mock_config("actions"), root.clone(), move |e| { sender.send(e).unwrap(); }).unwrap();
+    let request = |id, action| Request { id, action, documents: vec![Document {
+        path: path.clone(), text: "🦀Unknown".into(),
+    }], cursor: 11 };
+    client.request(request(1, Action::CodeActions { anchor: 4, refactor_only: false })).unwrap();
+    let Reply::CodeActions(actions) = receiver.recv_timeout(Duration::from_secs(10)).unwrap().result.unwrap() else { panic!() };
+    assert_eq!(actions.items[0].title, "Add missing import");
+    assert_eq!(actions.items[1].disabled.as_deref(), Some("Not applicable"));
+    client.request(request(2, Action::ResolveCodeAction { action: actions.items[0].value.clone(), started: actions.started })).unwrap();
+    let Reply::Rename(preview) = receiver.recv_timeout(Duration::from_secs(10)).unwrap().result.unwrap() else { panic!() };
+    assert!(preview.files[0].preview.contains("use std::fmt;"));
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "🦀Unknown", "resolution must not apply edits");
+    drop(client);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+
+#[test]
+#[ignore = "requires installed rust-analyzer and rust-src"]
+fn real_rust_analyzer_extract_module_to_file() {
+    let root=std::env::temp_dir().join(format!("potyi-extract-module-{}",std::process::id()));
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("Cargo.toml"),"[package]\nname=\"extract-test\"\nversion=\"0.1.0\"\nedition=\"2021\"\n[workspace]\n").unwrap();
+    let path=root.join("src/lib.rs").canonicalize().unwrap_or_else(|_| root.join("src/lib.rs"));
+    let text="mod example { pub fn answer() -> u32 { 42 } }\nfn use_map() { let _ = HashMap::<u8, u8>::new(); }\n";
+    std::fs::write(&path,text).unwrap();
+    let config=ServerConfig { name:"rust".into(), command:std::env::var("POTYI_TEST_RUST_ANALYZER").unwrap_or_else(|_| "rust-analyzer".into()),
+        args:vec![],extensions:vec!["rs".into()],language_id:"rust".into(),root_markers:vec!["Cargo.toml".into()],
+        initialization_options:json!({"cachePriming":{"enable":false},"checkOnSave":false}) };
+    let (sender,receiver)=mpsc::channel();
+    let client=Client::start(config,root.clone(),move |e| {let _=sender.send(e);}).unwrap();
+    let import_cursor = text.find("HashMap").unwrap() + 2;
+    let import_request = |id, action| Request {id, action, documents:vec![Document {path:path.clone(),text:text.into()}], cursor:import_cursor};
+    client.request(import_request(10, Action::CodeActions {anchor:import_cursor,refactor_only:false})).unwrap();
+    let Reply::CodeActions(imports) = receiver.recv_timeout(Duration::from_secs(45)).unwrap().result.unwrap() else {panic!()};
+    let import = imports.items.iter().find(|a| a.title.contains("HashMap") && a.title.to_lowercase().contains("import"))
+        .unwrap_or_else(|| panic!("Missing import fix: {:?}",imports.items.iter().map(|a| &a.title).collect::<Vec<_>>()));
+    eprintln!("Real rust-analyzer quick fix: {}",import.title);
+    client.request(import_request(11,Action::ResolveCodeAction {action:import.value.clone(),started:imports.started})).unwrap();
+    let Reply::Rename(import_preview) = receiver.recv_timeout(Duration::from_secs(30)).unwrap().result.unwrap() else {panic!()};
+    assert!(import_preview.files[0].preview.contains("use std::collections::HashMap;"));
+    assert_eq!(std::fs::read_to_string(&path).unwrap(),text);
+    let request=|id,action| Request {id,action,documents:vec![Document {path:path.clone(),text:text.into()}],cursor:5};
+    client.request(request(1,Action::CodeActions {anchor:5,refactor_only:true})).unwrap();
+    let Reply::CodeActions(actions)=receiver.recv_timeout(Duration::from_secs(45)).unwrap().result.unwrap() else {panic!()};
+    let item=actions.items.iter().find(|a| a.title.to_lowercase().contains("file") && a.title.to_lowercase().contains("module"))
+        .unwrap_or_else(|| panic!("Missing extraction action: {:?}",actions.items.iter().map(|a| &a.title).collect::<Vec<_>>()));
+    eprintln!("Real rust-analyzer action: {}",item.title);
+    assert!(item.disabled.is_none(),"{:?}",item.disabled);
+    client.request(request(2,Action::ResolveCodeAction {action:item.value.clone(),started:actions.started})).unwrap();
+    let Reply::Rename(preview)=receiver.recv_timeout(Duration::from_secs(30)).unwrap().result.unwrap() else {panic!()};
+    let mut editor=crate::Editor::new(crate::config::EditorConfig::default()).unwrap(); editor.open(path.to_str().unwrap()).unwrap();
+    let mut other=crate::Editor::new(crate::config::EditorConfig::default()).unwrap();
+    crate::workspace_edit::apply(std::sync::Arc::new(preview),&mut editor,&mut other).unwrap();
+    assert!(std::fs::read_to_string(root.join("src/example.rs")).unwrap().contains("fn answer"));
+    assert!(editor.document.text().unwrap().contains("mod example;"));
+    crate::workspace_edit::history(&mut editor,&mut other,false).unwrap();
+    assert!(!root.join("src/example.rs").exists());
+    assert_eq!(editor.document.text().unwrap(),text);
+    drop(client); drop(editor); drop(other); std::fs::remove_dir_all(root).unwrap();
+}
