@@ -986,6 +986,12 @@ impl<'a> Renderer<'a> {
         width: f32,
         height: f32,
     ) -> Result<(), String> {
+        // A BOM or another zero-width Unicode run can be isolated by syntax
+        // highlighting. SDL_ttf rejects rasterizing it, although it is valid
+        // document text. Keep its bytes; there are simply no pixels to draw.
+        if width <= 0.0 || height <= 0.0 {
+            return Ok(());
+        }
         let key = if self.cache_terminal_text { TextCache::key(text, color) } else { 0 };
         if self.cache_terminal_text {
             if let Some(texture) = self.terminal_text_cache.get(key, text, color) {
@@ -4886,6 +4892,32 @@ mod cursor_hit_tests {
 #[cfg(test)]
 mod terminal_selection_render_tests {
     use super::*;
+
+    #[test]
+    #[ignore = "SDL rendering regression; run with SDL_VIDEODRIVER=dummy --ignored --test-threads=1"]
+    fn unity_csharp_bom_and_windows_line_endings_render_without_error() {
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let window = video.window("C# encoding regression", 800, 600).hidden().build().unwrap();
+        let ttf = sdl3::ttf::init().unwrap();
+        let font = || ttf.load_font_from_iostream(
+            sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(), 18.0,
+        ).unwrap();
+        let canvas = window.into_canvas();
+        let texture_creator = canvas.texture_creator();
+        let mut renderer = Renderer::new(canvas, &texture_creator, font(), font(), 18.0,
+            (font(), font()), crate::window::WindowHitTestState::new(800, 1.0)).unwrap();
+        renderer.set_file_path(Some(std::path::Path::new("Assets/Scripts/Player.cs")));
+        for prefix in ["", "\u{feff}"] {
+            let text = format!("{prefix}using UnityEngine;\r\n\r\npublic class Player : MonoBehaviour\r\n{{\r\n    // café\r\n}}\r\n");
+            let mut table = PieceTable::empty().unwrap();
+            table.insert(0, &text).unwrap();
+            renderer.invalidate_scroll_cache();
+            renderer.render(&mut table, &SearchUi::new(), &CommandBar::new())
+                .unwrap_or_else(|error| panic!("C# prefix {prefix:?}: {error}"));
+            assert_eq!(table.text().unwrap(), text, "rendering must preserve the file bytes");
+        }
+    }
 
     #[test]
     #[ignore = "Pixel regression; SDL_VIDEODRIVER=dummy, --ignored --test-threads=1"]

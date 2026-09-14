@@ -18,6 +18,18 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        println!("cargo:rerun-if-changed=windows/potyi.ico");
+        println!("cargo:rerun-if-changed=Cargo.toml");
+        // Explorer and shortcuts read the executable's resources, independently
+        // of the icon SDL sets on the running window.
+        winresource::WindowsResource::new()
+            .set_icon("windows/potyi.ico")
+            .compile()
+            .expect("Could not embed the Windows application icon");
+        return;
+    }
     if env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("macos") {
         return;
     }

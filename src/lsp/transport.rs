@@ -109,8 +109,16 @@ impl Transport {
             use std::os::windows::process::CommandExt;
             command.creation_flags(0x08000000); // CREATE_NO_WINDOW
         }
-        let mut process = Running::spawn(&mut command)
-            .map_err(|e| format!("Could not start {}: {e}", config.command))?;
+        let mut process = Running::spawn(&mut command).map_err(|error| {
+            if error.kind() == io::ErrorKind::NotFound {
+                format!(
+                    "Language server '{}' was not found. Install it and make it available on PATH, or set its full path in config/lsp.toml, then use :lsp restart. You can keep editing without LSP.",
+                    config.command,
+                )
+            } else {
+                format!("Could not start {}: {error}", config.command)
+            }
+        })?;
         let mut input = process.child.stdin.take().unwrap();
         let output = process.child.stdout.take().unwrap();
         let (outgoing, writes) = mpsc::sync_channel::<Value>(8);

@@ -12,6 +12,33 @@ A free, open-source text and code editor for **macOS, Windows, and Linux**, buil
 
 **Pötyi and Potyi are the same editor**; Potyi is the spelling without accents. This README describes the current source tree; packaged releases may lag behind development. See the [benchmark method](tools/benchmarks/README.md) for measured workloads and limits.
 
+## Open a folder from the command line
+
+```sh
+potyi .                         # open the current folder
+potyi ~/another-project         # open a different folder
+potyi "path with spaces"         # quote folder names containing spaces
+potyi src/main.rs                # open a file
+potyi src/main.rs:42:7           # open a file at a line and column
+```
+
+Folder launches open Pötyi's terminal with a clickable listing of that folder.
+Click a text file to edit it or a folder to browse it. `Ctrl+\`` switches between
+the terminal and editor. Running `potyi` without an argument opens an empty editor.
+
+The selected folder becomes the workspace root for this app window. Relative
+`:new` and `:save-as` paths, unnamed document saves, and `config/` overrides use
+that root. Terminal commands initially run there; later `cd` commands change
+only the terminal's directory. No project file is created. Language servers
+continue to discover their project roots from each file's project markers.
+Each launch starts a separate app instance.
+
+To install the `potyi` command from a source checkout, run `cargo install --path .`
+with the build prerequisites below installed. Ensure Cargo's bin directory
+(`~/.cargo/bin` on macOS/Linux, `%USERPROFILE%\.cargo\bin` on Windows) is on your
+`PATH`. For a downloaded build, add the directory containing the executable to
+`PATH`; on macOS the executable is inside `Potyi.app/Contents/MacOS`.
+
 ## Command Bar
 
 Pötyi uses one discoverable command bar for search, replacement, navigation, and file commands. Press `Ctrl+P`, or type `:` on an empty line, to open it. Colons typed in normal content such as `foo: bar` are inserted into the document. Type `::` on an empty line to insert a literal colon there.
@@ -390,6 +417,12 @@ use Ubuntu 22.04 and still require compatible system/display libraries.
 Each build uses `Cargo.lock` and the embedded default settings and fonts.
 
 ## Windows
+
+Windows builds embed `windows/potyi.ico` into `potyi.exe` for Explorer and
+shortcuts. MSVC builds need the Windows SDK resource compiler (`rc.exe`),
+available with Visual Studio's **Desktop development with C++** workload.
+The release workflow checks that every embedded icon image matches the source
+icon before packaging the download.
 
 ### Install CMake
 

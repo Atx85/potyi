@@ -99,6 +99,66 @@ impl Drop for Files {
 }
 
 #[test]
+#[ignore = "SDL integration with temporary cwd; run with SDL_VIDEODRIVER=dummy --ignored --test-threads=1"]
+fn unity_missing_language_server_keeps_the_document_editable() {
+    use std::time::{Duration, Instant};
+    struct WorkingDirectory(PathBuf);
+    impl Drop for WorkingDirectory {
+        fn drop(&mut self) { std::env::set_current_dir(&self.0).unwrap(); }
+    }
+    let files = Files::new();
+    for directory in ["Assets/Scripts", "ProjectSettings", "config"] {
+        std::fs::create_dir_all(files.0.join(directory)).unwrap();
+    }
+    files.write("ProjectSettings/ProjectVersion.txt", "m_EditorVersion: 6000.0.0f1\n");
+    files.write("Game.sln", "");
+    let missing = files.0.join("not-installed/csharp-ls.exe");
+    files.write("config/lsp.toml", &format!(
+        "enabled=false\n[[servers]]\nname='csharp'\ncommand={}\nextensions=['cs']\nlanguage_id='csharp'\n",
+        serde_json::to_string(&missing.to_string_lossy()).unwrap(),
+    ));
+    let source = "\u{feff}using UnityEngine;\r\npublic class Player : MonoBehaviour {}\r\n";
+    let path = files.write("Assets/Scripts/Player.cs", source);
+    let _cwd = WorkingDirectory(std::env::current_dir().unwrap());
+    std::env::set_current_dir(&files.0).unwrap();
+    let sdl = sdl3::init().unwrap();
+    let events = sdl.event().unwrap();
+    let _ = events.register_custom_event::<lsp::Event>();
+    let mut pump = sdl.event_pump().unwrap();
+    let mut ui = LspUi::new(events);
+    let mut active = editor("");
+    active.open(path.to_str().unwrap()).unwrap();
+    let mut other = editor("another unsaved document");
+    let mut bar = CommandBar::new();
+    ui.reconcile(&active, &other);
+    assert!(ui.sessions.is_empty(), "opening a file must not launch a server");
+    active.insert_text("// unsaved edit\r\n").unwrap();
+    let edited = active.document.text().unwrap();
+    bar.open(":lsp start");
+    ui.start(false, &active, &other, &mut bar).unwrap();
+    let started = Instant::now();
+    while ui.pending.is_some() {
+        assert!(started.elapsed() < Duration::from_secs(5));
+        if let Some(event) = pump.wait_event_timeout(Duration::from_millis(20))
+            && let Some(event) = event.as_user_event_type::<lsp::Event>() {
+            ui.accept(event, &mut active, &mut other, &mut bar);
+        }
+    }
+    assert!(bar.is_active() && bar.is_info(), "missing server must show a message");
+    assert!(ui.status(&active).contains("was not found"));
+    assert!(ui.status(&active).contains("keep editing without LSP"));
+    assert_eq!(active.document.text().unwrap(), edited);
+    assert_eq!(other.document.text().unwrap(), "another unsaved document");
+    assert!(active.dirty);
+    active.undo().unwrap();
+    assert_eq!(active.document.text().unwrap(), source);
+    active.insert_text("// still editable\r\n").unwrap();
+    assert!(active.document.text().unwrap().starts_with("// still editable"));
+    assert_eq!(std::fs::read_to_string(path).unwrap(), source);
+    ui.stop();
+}
+
+#[test]
 #[cfg(unix)]
 #[ignore = "SDL integration with a temporary working directory; run with --ignored --test-threads=1"]
 fn hover_clicks_refresh_only_the_latest_target_and_respect_dismissal() {

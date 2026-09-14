@@ -56,6 +56,7 @@ mod piece_table;
 mod renderer;
 mod search;
 mod search_ui;
+mod startup;
 mod window;
 mod syntax;
 mod syntax_core;
@@ -2492,7 +2493,18 @@ fn handle_terminal_action(
 // ==========================================================================
 
 fn main() -> Result<(), String> {
-
+    let argument = std::env::args().nth(1);
+    let launch = startup::LaunchTarget::resolve(
+        argument.as_deref(),
+        &std::env::current_dir().map_err(|error| error.to_string())?,
+    ).map_err(|error| format!("Could not open launch path: {error}"))?;
+    if let Some(root) = launch.workspace_root() {
+        // Set once, before configuration loads and worker threads start.
+        // Terminal navigation has its own cwd and does not change this root.
+        std::env::set_current_dir(root).map_err(|error| {
+            format!("Could not open folder {}: {error}", root.display())
+        })?;
+    }
 
 let editor_config =
     EditorConfig::load("config/editor.toml")
@@ -2526,18 +2538,13 @@ let mut other_editor =
 let mut vim_enabled =
     editor.config.keybinding_mode == KeybindingMode::Vim;
 
-if let Some(arg) = std::env::args().nth(1) {
-    if let Some((path, line, column)) = parse_location(&arg) {
-        editor.open(path)
-            .map_err(|e| e.to_string())?;
-
+if let startup::LaunchTarget::File { path, location } = &launch {
+    editor.open(path).map_err(|e| e.to_string())?;
+    if let Some((line, column)) = location {
         editor.document.move_cursor_to_line_column(
             line.saturating_sub(1),
             column.unwrap_or(0),
         ).map_err(|e| e.to_string())?;
-    } else {
-        editor.open(&arg)
-            .map_err(|e| e.to_string())?;
     }
 }
         
@@ -2681,6 +2688,10 @@ if let Some(path) = editor.path.as_deref() {
         })?;
 
     terminal.set_events(event_subsystem.clone());
+    if let Some(root) = launch.workspace_root() {
+        terminal.open(None);
+        terminal.enter_directory(root).map_err(|error| error.to_string())?;
+    }
     event_subsystem.register_custom_event::<lsp::Event>().map_err(|e| e.to_string())?;
     let mut lsp_ui = lsp_ui::LspUi::new(event_subsystem.clone());
 
@@ -2792,9 +2803,12 @@ if let Some(path) = editor.path.as_deref() {
                         continue;
                     }
 
-editor
-    .open(&filename)
-    .map_err(|e| e.to_string())?;
+if let Err(error) = editor.open(&filename) {
+    command_bar.open(":");
+    command_bar.show_info(&format!("Could not open {filename}: {error}"));
+    dirty = true;
+    continue;
+}
 
 if vim_enabled {
     vim.reset();
