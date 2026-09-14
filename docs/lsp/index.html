@@ -49,21 +49,21 @@
 
         <section id="quick-start" aria-labelledby="quick-start-heading">
           <h2 id="quick-start-heading">Quick start</h2>
-          <p>LSP connects the editor to a separate program that understands your code. It is <strong>disabled by default</strong>. Pötyi does not download or install language servers.</p>
+          <p>LSP connects the editor to a separate program that understands your code. It is <strong>disabled by default</strong>. Use <code>:lsp install &lt;server&gt;</code> for setup on Windows, macOS or Linux.</p>
           <ol class="steps">
             <li>
               <h3>Install a language server</h3>
-              <p>Choose a server from the <a href="#configuration">language recipes</a> below. Each recipe includes installation steps, settings, and project notes. Install the server itself; an extension for another editor is not enough.</p>
-              <p>Check that it runs from a terminal, for example <code>rust-analyzer --version</code> or <code>clangd --version</code>.</p>
+              <p>Type <code>:lsp install </code> to browse all supported servers. For example, <code>:lsp install unity</code> sets up C#, and <code>:lsp install typescript</code> covers JavaScript, JSX, TypeScript and TSX. Setup reports missing prerequisites for your operating system.</p>
+              <p>Installation runs in the background. Escape closes progress; <code>:lsp status</code> shows the latest result and <code>:lsp stop</code> cancels setup. Opening a file never installs software.</p>
             </li>
             <li>
-              <h3>Extract your settings</h3>
-              <p>In Pötyi, press <kbd>Ctrl</kbd> + <kbd>P</kbd>, enter <code>:extract-config</code>, and press <kbd>Enter</kbd>. Existing configuration files are preserved.</p>
-              <p>This creates <code>config/lsp.toml</code> beneath Pötyi’s working directory—the folder it was launched from. Configuration is not stored relative to each document.</p>
+              <h3>Check your setup</h3>
+              <p>Run <code>:lsp doctor</code> for the current file or <code>:lsp doctor csharp</code> for a specific server. It checks launchers, prerequisites and project requirements. Managed defaults preserve existing configuration.</p>
+              <p>For custom settings, <code>:extract-config</code> creates <code>config/lsp.toml</code> beneath Pötyi’s working directory without overwriting existing files.</p>
             </li>
             <li>
               <h3>Enable LSP and configure the server</h3>
-              <p>Open <code>config/lsp.toml</code>, change the top-level setting to <code>enabled = true</code>, and add an appropriate <a href="#configuration">server entry below</a>. Save the configuration. If a server was already running, use <code>:lsp stop</code>.</p>
+              <p>Run <code>:lsp start</code> for this window. For automatic LSP in future windows, set <code>enabled = true</code> at the top of <code>config/lsp.toml</code>. The <a href="#configuration">manual recipes below</a> describe project overrides.</p>
             </li>
             <li>
               <h3>Try it in a saved code file</h3>
@@ -263,6 +263,8 @@ root_markers = [&quot;.git&quot;]</code></pre><p>Replace the configuration path 
                 <tr><th scope="row"><code>:lsp hover</code></th><td>Shows documentation or type information at the document cursor.</td></tr>
                 <tr><th scope="row"><code>:lsp definition</code></th><td>Jumps to the first definition returned by the server.</td></tr>
                 <tr><th scope="row"><code>:lsp back</code></th><td>Returns to the previous definition-jump location.</td></tr>
+                <tr><th scope="row"><code>:lsp install &lt;server&gt;</code></th><td>Installs a supported server using this computer’s platform and preserves project settings.</td></tr>
+                <tr><th scope="row"><code>:lsp doctor [server]</code></th><td>Checks launchers, prerequisites and project requirements.</td></tr>
                 <tr><th scope="row"><code>:lsp status</code></th><td>Shows configuration and the number of background sessions.</td></tr>
                 <tr><th scope="row"><code>:lsp start</code></th><td>Enables LSP for this window and connects for the saved file.</td></tr>
                 <tr><th scope="row"><code>:lsp restart</code></th><td>Reloads configuration and reconnects after a problem or settings change.</td></tr>

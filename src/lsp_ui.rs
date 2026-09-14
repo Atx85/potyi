@@ -33,6 +33,7 @@ struct Bookmark {
 }
 
 pub(crate) struct LspUi {
+    setup: crate::lsp_setup::Manager,
     enabled_override: Option<bool>,
     starting: bool,
     connection_result: Option<String>,
@@ -54,6 +55,7 @@ pub(crate) struct LspUi {
 impl LspUi {
     pub fn new(events: EventSubsystem) -> Self {
         Self {
+            setup: crate::lsp_setup::Manager::default(),
             enabled_override: None,
             starting: false,
             connection_result: None,
@@ -74,6 +76,7 @@ impl LspUi {
     }
 
     pub fn stop(&mut self) {
+        self.setup.cancel();
         self.enabled_override = Some(false);
         self.starting = false;
         self.connection_result = None;
@@ -102,6 +105,21 @@ impl LspUi {
     }
 
     fn is_enabled(&self, configured: bool) -> bool { self.enabled_override.unwrap_or(configured) }
+
+    pub fn setup(&mut self, install: bool, server: Option<&str>, editor: &Editor, bar: &mut CommandBar) -> Result<(), String> {
+        self.setup.start(install, server, editor.path.clone(), &self.events, bar)
+    }
+
+    pub fn accept_setup(&mut self, event: crate::lsp_setup::Event, editor: &Editor, other: &Editor, bar: &mut CommandBar) {
+        if let Some(id) = self.setup.accept(event, bar, editor.path.as_deref()) {
+            if editor.path.as_deref().is_some_and(|path| {
+                lsp::Config::load().ok().is_some_and(|config| config.server_for(path).is_some_and(|server|
+                    crate::lsp_setup::catalog::find(id).is_ok_and(|recipe| crate::lsp_setup::is_managed(server, recipe))))
+            }) {
+                if let Err(error) = self.start(true, editor, other, bar) { bar.show_info(&format!("Server installed. Could not connect: {error}")); }
+            }
+        }
+    }
 
     /// Clicks are explicit hover requests. While a server is busy, retain only
     /// the latest target metadata; snapshot its text when the previous request ends.
@@ -154,6 +172,7 @@ impl LspUi {
                 ) + if self.starting { "\nConnecting / loading project…" } else { "" }
                   + &self.connection_result.as_ref().map(|s| format!("\nLast connection result: {s}")).unwrap_or_default()
                   + &self.completion_error.as_ref().map(|e| format!("\nLast autocomplete result: {e}")).unwrap_or_default()
+                  + &self.setup.last.as_ref().map(|s| format!("\nSetup: {s}")).unwrap_or_default()
             }
         }
     }

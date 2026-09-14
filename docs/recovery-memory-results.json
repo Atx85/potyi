@@ -1,0 +1,15 @@
+{
+  "platform": "macOS ARM64",
+  "workload": "isolated piece table, 256 MiB sparse original file, 1000 insertions at byte zero",
+  "measurement": "/usr/bin/time -l maximum resident set size",
+  "original_bytes": 268435456,
+  "edits": 1000,
+  "without_recovery_peak_rss_bytes": 6213632,
+  "with_recovery_peak_rss_bytes": 6541312,
+  "extra_peak_rss_bytes": 327680,
+  "copy_buffer_bytes": 65536,
+  "journal_buffer_bytes": 8192,
+  "without_recovery_wall_seconds": 0.12,
+  "with_recovery_wall_seconds": 9.94,
+  "notes": "Includes initial disk snapshot and synchronous journal commits. Not a whole-editor memory or typing latency benchmark. No document-sized text allocation or piece-list clone was made for journaling."
+}

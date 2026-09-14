@@ -86,6 +86,8 @@ pub(crate) enum ParsedCommand {
     Actions { refactor_only: bool },
     LspBack,
     LspStatus,
+    LspInstall { server: String },
+    LspDoctor { server: Option<String> },
     LspStart,
     LspRestart,
     LspStop,
@@ -94,6 +96,7 @@ pub(crate) enum ParsedCommand {
         path: Option<String>,
         overwrite: bool,
     },
+    Recover { number: Option<usize> },
     Quit,
 }
 
@@ -118,6 +121,7 @@ enum SuggestionAction {
     SetInput(&'static str),
     ToggleOption(&'static str),
     FormatProvider(usize),
+    LspRecipe { install: bool, index: usize },
     Review(usize),
     None,
 }
@@ -227,10 +231,13 @@ const COMMANDS: &[CommandSpec] = &[
         description: "Close Pötyi",
         usage: ":quit",
     },
+    CommandSpec { name: "recover", description: "List unsaved sessions or open a recovered copy", usage: ":recover [number]" },
     CommandSpec { name: "lsp", description: "Language-server help, navigation, rename and refactoring", usage: ":lsp <command>" },
 ];
 
 const LSP_COMMANDS: &[CommandSpec] = &[
+    CommandSpec { name: "lsp install", description: "Install and configure a language server for this computer", usage: ":lsp install <server>" },
+    CommandSpec { name: "lsp doctor", description: "Check language servers and missing prerequisites", usage: ":lsp doctor [server]" },
     CommandSpec { name: "lsp start", description: "Enable LSP for this window and connect to this file's server", usage: ":lsp start" },
     CommandSpec { name: "lsp restart", description: "Reload configuration and reconnect language servers", usage: ":lsp restart" },
     CommandSpec { name: "lsp hover", description: "Show language-server help at the cursor", usage: ":lsp hover" },
@@ -755,12 +762,12 @@ impl CommandBar {
 
     pub fn prepare_execute(&mut self) -> bool {
         if self.is_info() {
-            return matches!(self.parse(), Ok(ParsedCommand::Hover | ParsedCommand::Definition | ParsedCommand::Rename { .. } | ParsedCommand::Actions { .. } | ParsedCommand::LspStart | ParsedCommand::LspRestart | ParsedCommand::LspStatus));
+            return matches!(self.parse(), Ok(ParsedCommand::Hover | ParsedCommand::Definition | ParsedCommand::Rename { .. } | ParsedCommand::Actions { .. } | ParsedCommand::LspStart | ParsedCommand::LspRestart | ParsedCommand::LspStatus | ParsedCommand::Recover { number: None }));
         }
         let action = self.suggestion(self.selected()).map(|suggestion| suggestion.action);
         match action {
             Some(SuggestionAction::CompleteCommand(_) | SuggestionAction::SetInput(_)
-                | SuggestionAction::FormatProvider(_)) => {
+                | SuggestionAction::FormatProvider(_) | SuggestionAction::LspRecipe { .. }) => {
                 self.apply_selected();
                 self.parse().is_ok()
             }
@@ -801,6 +808,10 @@ impl CommandBar {
                 option
             ) => {
                 self.toggle_option(option);
+            }
+
+            SuggestionAction::LspRecipe { install, index } => {
+                self.input = format!(":lsp {} {}", if install { "install" } else { "doctor" }, crate::lsp_setup::catalog::RECIPES[index].id);
             }
 
             SuggestionAction::FormatProvider(index) => {
@@ -1122,6 +1133,18 @@ fn lsp_suggestion(tail: &str, index: usize) -> Option<CommandSuggestion<'static>
     let tail = tail.trim_start();
     let end = tail.find(char::is_whitespace).unwrap_or(tail.len());
     let subcommand = &tail[..end];
+    if end < tail.len() && matches!(subcommand, "install" | "doctor") {
+        let query = tail[end..].trim().to_ascii_lowercase();
+        if subcommand == "doctor" && query.is_empty() {
+            return (index == 0).then_some(CommandSuggestion { label: ":lsp doctor [server]", description: "Check this file, or type a server name", active: false, action: SuggestionAction::None });
+        }
+        return crate::lsp_setup::catalog::RECIPES.iter().enumerate()
+            .filter(|(_, recipe)| recipe.id.starts_with(&query) || recipe.aliases.iter().any(|a| a.starts_with(&query)))
+            .nth(index).map(|(index, recipe)| CommandSuggestion {
+                label: recipe.id, description: recipe.title, active: false,
+                action: SuggestionAction::LspRecipe { install: subcommand == "install", index },
+            });
+    }
     if end == tail.len() {
         LSP_COMMANDS.iter().filter(|spec| spec.name.strip_prefix("lsp ").unwrap().starts_with(subcommand))
             .nth(index).map(|spec| CommandSuggestion {
@@ -1290,13 +1313,14 @@ fn parse_command(
 ) -> Result<ParsedCommand, String> {
     let mut words = tokenize(input)?;
     if words.first().is_some_and(|word| word.text == "lsp") {
-        let subcommand = words.get(1).ok_or("Choose an LSP command: start, restart, hover, definition, rename, actions, refactor, back, status or stop")?;
+        let subcommand = words.get(1).ok_or("Choose an LSP command: install, doctor, start, restart, hover, definition, rename, actions, refactor, back, status or stop")?;
         let alias = match subcommand.text.as_str() {
             "hover" => "hover", "definition" => "definition", "rename" => "rename",
             "actions" => "actions", "refactor" => "refactor",
             "back" => "lsp-back", "status" => "lsp-status", "stop" => "lsp-stop",
             "start" => "lsp-start", "restart" => "lsp-restart",
-            _ => return Err("Unknown LSP command. Choose start, restart, hover, definition, rename, actions, refactor, back, status or stop".into()),
+            "install" => "lsp-install", "doctor" => "lsp-doctor",
+            _ => return Err("Unknown LSP command. Choose install, doctor, start, restart, hover, definition, rename, actions, refactor, back, status or stop".into()),
         };
         words.remove(1);
         words[0].text = alias.into();
@@ -1640,6 +1664,26 @@ fn parse_command(
                 return Err("Usage: :lsp rename new_name".into());
             }
             Ok(ParsedCommand::Rename { name: arguments.remove(0) })
+        }
+
+        "recover" => {
+            reject_search_options(search_option_used, backward, all)?;
+            if arguments.len() > 1 { return Err("Usage: :recover [number]".into()); }
+            let number = arguments.first().map(|value| value.parse::<usize>().ok().filter(|n| *n > 0).ok_or_else(|| "Choose a positive recovery number from :recover".to_string())).transpose()?;
+            Ok(ParsedCommand::Recover { number })
+        }
+
+        "lsp-install" | "lsp-doctor" => {
+            reject_search_options(search_option_used, backward, all)?;
+            if arguments.len() > 1 || arguments.first().is_some_and(|s| s.is_empty())
+                || (command == "lsp-install" && arguments.is_empty()) {
+                return Err("Usage: :lsp install <server> or :lsp doctor [server]".into());
+            }
+            if command == "lsp-install" {
+                Ok(ParsedCommand::LspInstall { server: arguments.remove(0) })
+            } else {
+                Ok(ParsedCommand::LspDoctor { server: arguments.into_iter().next() })
+            }
         }
 
         "format" => {
@@ -2079,6 +2123,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn recovery_commands_require_a_positive_session_number() {
+        assert_eq!(parse_command(":recover").unwrap(), ParsedCommand::Recover { number: None });
+        assert_eq!(parse_command(":recover 2").unwrap(), ParsedCommand::Recover { number: Some(2) });
+        for input in [":recover 0", ":recover -1", ":recover abc", ":recover 1 2", ":recover --all"] { assert!(parse_command(input).is_err(), "{input}"); }
+        let mut bar=CommandBar::new(); bar.open(":recov"); assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::Recover { number: None });
+        bar.open(":recover 2"); assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::Recover { number: Some(2) });
+    }
+
+    #[test]
     fn new_command_accepts_optional_quoted_path() {
         assert_eq!(parse_command(":new").unwrap(), ParsedCommand::New { path: None });
         assert_eq!(parse_command(":new \"é notes.txt\"").unwrap(),
@@ -2213,8 +2268,12 @@ mod tests {
             bar.select_suggestion(row);
             let ready=bar.prepare_execute();
             assert_eq!(bar.input(),format!(":{} ",spec.name));
-            assert_eq!(ready,spec.name!="lsp rename");
-            if !ready {
+            assert_eq!(ready,!matches!(spec.name,"lsp rename" | "lsp install"));
+            if spec.name == "lsp install" {
+                bar.insert_text("unity");
+                assert!(bar.prepare_execute());
+                assert_eq!(bar.parse().unwrap(),ParsedCommand::LspInstall {server:"csharp".into()});
+            } else if !ready {
                 bar.insert_text("new_name");
                 assert!(bar.prepare_execute());
                 assert_eq!(bar.parse().unwrap(),ParsedCommand::Rename {name:"new_name".into()});
@@ -2228,6 +2287,29 @@ mod tests {
         bar.open(":lsp rename preserved_name");
         assert!(bar.prepare_execute());
         assert_eq!(bar.parse().unwrap(),ParsedCommand::Rename {name:"preserved_name".into()});
+    }
+
+    #[test]
+    fn lsp_setup_commands_validate_arguments_and_complete_all_servers() {
+        assert_eq!(parse_command(":lsp doctor").unwrap(), ParsedCommand::LspDoctor { server: None });
+        assert_eq!(parse_command(":lsp install csharp-ls").unwrap(), ParsedCommand::LspInstall { server: "csharp-ls".into() });
+        for input in [":lsp install", ":lsp install a b", ":lsp doctor a b", ":lsp install --all", ":lsp doctor --rel", ":lsp install \"\""] {
+            assert!(parse_command(input).is_err(), "{input}");
+        }
+        let mut bar = CommandBar::new();
+        for (index, recipe) in crate::lsp_setup::catalog::RECIPES.iter().enumerate() {
+            bar.open(":lsp install ");
+            assert_eq!(bar.total_suggestion_count(), crate::lsp_setup::catalog::RECIPES.len());
+            bar.scroll_suggestions(index as isize);
+            assert!(bar.apply_suggestion(bar.selected()));
+            assert_eq!(bar.parse().unwrap(), ParsedCommand::LspInstall { server: recipe.id.into() });
+        }
+        bar.open(":lsp doctor ");
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::LspDoctor { server: None });
+        bar.open(":lsp install UNI");
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::LspInstall { server: "csharp".into() });
     }
 
     #[test]

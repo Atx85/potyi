@@ -6,7 +6,7 @@
 mod transport;
 mod actions;
 pub(crate) mod completion;
-mod unity;
+pub(crate) mod unity;
 pub(crate) use actions::CodeActions;
 #[cfg(test)]
 pub(crate) use actions::CodeActionItem;
@@ -67,7 +67,9 @@ impl Config {
             }
             Err(e) => return Err(e.to_string()),
         }
-        Self::parse(&text)
+        let mut config = Self::parse(&text)?;
+        crate::lsp_setup::augment(&mut config);
+        Ok(config)
     }
 
     fn parse(text: &str) -> Result<Self, String> {
@@ -332,7 +334,8 @@ struct Session {
 
 impl Session {
     fn start(config: &ServerConfig, root: &Path, cancel: Arc<AtomicBool>) -> Result<Self, String> {
-        let config = unity::server_config(config, root)?;
+        let mut config = unity::server_config(config, root)?;
+        crate::lsp_setup::configure_project(&mut config, root)?;
         let mut transport = Transport::start(&config, root, cancel)?;
         let root_uri = file_uri(root)?;
         let result = transport.request("initialize", json!({

@@ -2741,3 +2741,29 @@ fn terminal_locations_jump_to_reported_lines_and_unicode_byte_columns() {
     move_to_terminal_location(&mut editor.document, 2, Some(4), false).unwrap();
     assert_eq!(editor.document.cursor_line_column().unwrap(), (1, 3));
 }
+
+#[test]
+fn recovery_opens_separate_work_and_save_as_acknowledges_without_clobbering() {
+    let root = temporary_path().with_extension("recovery");
+    std::fs::create_dir_all(&root).unwrap();
+    let source = root.join("original.cs"); std::fs::write(&source,"original").unwrap();
+    let mut crashed = Editor::new(EditorConfig::default()).unwrap(); crashed.open(source.to_str().unwrap()).unwrap();
+    crashed.document.enable_recovery_at(root.join("sessions"),Some(&source));
+    crashed.insert_text("unsaved ").unwrap(); crashed.undo().unwrap(); crashed.redo().unwrap();
+    assert!(crashed.document.take_recovery_warning().is_none()); drop(crashed);
+    std::fs::write(&source,"changed outside").unwrap();
+    let mut editor = Editor::new(EditorConfig::default()).unwrap();
+    editor.insert_text("keep current text").unwrap();
+    assert!(editor.recover_from(&root.join("sessions"),1).is_err());
+    assert_eq!(editor.document.text().unwrap(),"keep current text");
+    drop(editor);
+    let mut editor=Editor::new(EditorConfig::default()).unwrap();
+    assert!(!editor.recover_from(&root.join("sessions"),1).unwrap());
+    assert!(editor.dirty); assert_eq!(editor.document.text().unwrap(),"unsaved original");
+    assert_ne!(editor.path.as_deref(),Some(source.as_path()));
+    let destination=root.join("chosen.cs"); editor.save_as(destination.to_str().unwrap(),false).unwrap();
+    assert_eq!(std::fs::read_to_string(&destination).unwrap(),"unsaved original");
+    assert_eq!(std::fs::read_to_string(&source).unwrap(),"changed outside");
+    assert!(piece_table::recovery::list(&root.join("sessions")).unwrap().is_empty());
+    drop(editor); std::fs::remove_dir_all(root).unwrap();
+}

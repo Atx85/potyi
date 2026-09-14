@@ -1,0 +1,182 @@
+# Bundled server defaults for managed installations.
+enabled = false
+
+[[servers]]
+name = "rust"
+command = "rust-analyzer"
+args = []
+extensions = ["rs"]
+language_id = "rust"
+root_markers = ["Cargo.toml", ".git"]
+
+[servers.initialization_options]
+cachePriming = { enable = false }
+checkOnSave = false
+
+[[servers]]
+name = "clangd-c"
+command = "clangd"
+args = ["--background-index=false"]
+extensions = ["c", "h"]
+language_id = "c"
+root_markers = ["compile_commands.json", "CMakeLists.txt", ".git"]
+
+[[servers]]
+name = "clangd-cpp"
+command = "clangd"
+args = ["--background-index=false"]
+extensions = ["cc", "cpp", "cxx", "c++", "hh", "hpp", "hxx", "h++"]
+language_id = "cpp"
+root_markers = ["compile_commands.json", "CMakeLists.txt", ".git"]
+
+[[servers]]
+name = "csharp"
+command = "csharp-ls"
+args = []
+extensions = ["cs", "csx"]
+language_id = "csharp"
+root_markers = ["global.json", "Directory.Build.props", ".git"]
+
+[[servers]]
+name = "python"
+command = "pylsp"
+args = []
+extensions = ["py", "pyw", "pyi"]
+language_id = "python"
+root_markers = ["pyproject.toml", "setup.py", "setup.cfg", ".git"]
+
+[[servers]]
+name = "javascript"
+command = "typescript-language-server"
+args = ["--stdio"]
+extensions = ["js", "mjs", "cjs"]
+language_id = "javascript"
+root_markers = ["tsconfig.json", "jsconfig.json", "package.json", ".git"]
+
+[[servers]]
+name = "jsx"
+command = "typescript-language-server"
+args = ["--stdio"]
+extensions = ["jsx"]
+language_id = "javascriptreact"
+root_markers = ["tsconfig.json", "jsconfig.json", "package.json", ".git"]
+
+[[servers]]
+name = "typescript"
+command = "typescript-language-server"
+args = ["--stdio"]
+extensions = ["ts", "mts", "cts"]
+language_id = "typescript"
+root_markers = ["tsconfig.json", "jsconfig.json", "package.json", ".git"]
+
+[[servers]]
+name = "tsx"
+command = "typescript-language-server"
+args = ["--stdio"]
+extensions = ["tsx"]
+language_id = "typescriptreact"
+root_markers = ["tsconfig.json", "jsconfig.json", "package.json", ".git"]
+
+[[servers]]
+name = "go"
+command = "gopls"
+args = []
+extensions = ["go"]
+language_id = "go"
+root_markers = ["go.work", "go.mod", ".git"]
+
+[[servers]]
+name = "java"
+command = "jdtls"
+args = []
+extensions = ["java"]
+language_id = "java"
+root_markers = ["pom.xml", "build.gradle", "build.gradle.kts", ".git"]
+
+[[servers]]
+name = "php"
+command = "intelephense"
+args = ["--stdio"]
+extensions = ["php", "phtml", "php3", "php4", "php5", "php7", "php8", "phps"]
+language_id = "php"
+root_markers = ["composer.json", ".git"]
+
+[[servers]]
+name = "bash"
+command = "bash-language-server"
+args = ["start"]
+extensions = ["sh", "bash", "bats"]
+language_id = "shellscript"
+root_markers = [".git"]
+
+[[servers]]
+name = "lua"
+command = "lua-language-server"
+args = []
+extensions = ["lua"]
+language_id = "lua"
+root_markers = [".luarc.json", ".luarc.jsonc", ".git"]
+
+[[servers]]
+name = "luau"
+command = "luau-lsp"
+args = ["lsp"]
+extensions = ["luau"]
+language_id = "luau"
+root_markers = [".luaurc", ".git"]
+
+[[servers]]
+name = "html"
+command = "vscode-html-language-server"
+args = ["--stdio"]
+extensions = ["html", "htm", "xhtml"]
+language_id = "html"
+root_markers = ["package.json", ".git"]
+
+[[servers]]
+name = "css"
+command = "vscode-css-language-server"
+args = ["--stdio"]
+extensions = ["css"]
+language_id = "css"
+root_markers = ["package.json", ".git"]
+
+[[servers]]
+name = "json"
+command = "vscode-json-language-server"
+args = ["--stdio"]
+extensions = ["json"]
+language_id = "json"
+root_markers = ["package.json", ".git"]
+
+[[servers]]
+name = "jsonc"
+command = "vscode-json-language-server"
+args = ["--stdio"]
+extensions = ["jsonc"]
+language_id = "jsonc"
+root_markers = ["package.json", ".git"]
+
+[[servers]]
+name = "yaml"
+command = "yaml-language-server"
+args = ["--stdio"]
+extensions = ["yaml", "yml"]
+language_id = "yaml"
+root_markers = [".git"]
+
+[[servers]]
+name = "toml"
+command = "taplo"
+args = ["lsp", "stdio"]
+extensions = ["toml"]
+language_id = "toml"
+root_markers = ["taplo.toml", ".taplo.toml", ".git"]
+
+[[servers]]
+name = "sql"
+command = "sqls"
+args = []
+extensions = ["sql"]
+language_id = "sql"
+root_markers = [".git"]

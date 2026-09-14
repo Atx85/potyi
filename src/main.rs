@@ -47,6 +47,7 @@ mod embedded_config;
 mod formatting;
 mod lsp;
 mod lsp_ui;
+mod lsp_setup;
 mod workspace_edit;
 #[cfg(test)]
 mod benchmarks;
@@ -170,8 +171,10 @@ impl Editor {
 
     
     fn new(config: EditorConfig) -> io::Result<Self> {
+        let mut document = PieceTable::empty()?;
+        piece_table::recovery::arm(&mut document, None);
         Ok(Self {
-            document: PieceTable::empty()?,
+            document,
             path: None,
             config,
             undo_stack: Vec::new(),
@@ -352,7 +355,7 @@ impl Editor {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "Enter a file path"));
         }
 
-        let document = PieceTable::empty()?;
+        let mut document = PieceTable::empty()?;
         if let Some(path) = path {
             document.write_to_new(std::path::Path::new(path)).map_err(|error| {
                 if error.kind() == io::ErrorKind::AlreadyExists {
@@ -362,6 +365,7 @@ impl Editor {
                 }
             })?;
         }
+        piece_table::recovery::arm(&mut document, path.map(std::path::Path::new));
         self.document = document;
         self.path = path.map(PathBuf::from);
         self.multi_edit_group = None;
@@ -378,8 +382,9 @@ impl Editor {
     ) -> io::Result<()> {
         let start = Instant::now();
 
-        let document =
+        let mut document =
             PieceTable::open(path)?;
+        piece_table::recovery::arm(&mut document, Some(std::path::Path::new(path)));
 
         println!(
             "PieceTable::open({}): {:?}",
@@ -409,6 +414,7 @@ fn save(&mut self) -> io::Result<()> {
 
     if let Some(path) = self.path.as_deref() {
         self.document.write_to(path)?;
+        self.document.recovery_saved(path);
         self.dirty = false;
         return Ok(());
     }
@@ -430,6 +436,7 @@ fn save(&mut self) -> io::Result<()> {
     };
 
     self.document.write_to(&path)?;
+    self.document.recovery_saved(&path);
 
     self.path = Some(path);
     self.dirty = false;
@@ -466,9 +473,19 @@ fn save(&mut self) -> io::Result<()> {
                 }
             })?;
         }
+        self.document.recovery_saved(&destination);
         self.path = Some(destination);
         self.dirty = false;
         Ok(())
+    }
+
+    fn recover_from(&mut self, root: &std::path::Path, number: usize) -> io::Result<bool> {
+        if self.dirty { return Err(io::Error::other("Save the current document before opening recovered work, or switch to an empty pane")); }
+        let (path, incomplete, session) = piece_table::recovery::restore_number_at(root, number)?;
+        self.open(path.to_str().ok_or_else(|| io::Error::other("Recovery path is not UTF-8"))?)?;
+        self.document.recovered_from(session);
+        self.dirty = true;
+        Ok(incomplete)
     }
 
     fn apply_formatted(
@@ -2151,7 +2168,13 @@ fn execute_command_bar(
             }
         }
         Ok(ParsedCommand::LspStatus) => command_bar.show_info(&lsp_ui.status(editor)),
-        Ok(ParsedCommand::LspStop) => { lsp_ui.stop(); command_bar.show_info("LSP stopped. Autocomplete is paused. Use :lsp start to connect again."); }
+        Ok(ParsedCommand::LspInstall { server }) => {
+            if let Err(error) = lsp_ui.setup(true, Some(&server), editor, command_bar) { command_bar.show_info(&error); }
+        }
+        Ok(ParsedCommand::LspDoctor { server }) => {
+            if let Err(error) = lsp_ui.setup(false, server.as_deref(), editor, command_bar) { command_bar.show_info(&error); }
+        }
+        Ok(ParsedCommand::LspStop) => { lsp_ui.stop(); command_bar.show_info("LSP stopped; any setup is being cancelled. Autocomplete is paused. Use :lsp start to connect again."); }
 
         Ok(ParsedCommand::Formatters) => {
             match formatting::Formatters::load(std::path::Path::new("config/formatters.toml")) {
@@ -2217,6 +2240,26 @@ fn execute_command_bar(
                 command_bar.open(if overwrite { ":save-as! " } else { ":save-as " });
                 command_bar.set_status("Enter a destination path; quote paths containing spaces");
                 search_ui.close();
+            }
+        }
+
+        Ok(ParsedCommand::Recover { number }) => {
+            if let Some(number) = number {
+                if editor.dirty {
+                    command_bar.show_info("Save the current document before opening recovered work, or switch to an empty pane.");
+                } else {
+                    let result = piece_table::recovery::root().and_then(|root| editor.recover_from(&root, number));
+                    match result {
+                        Ok(incomplete) => {
+                            search_ui.close();
+                            outcome.document_reloaded = true; outcome.path_changed = true; outcome.cursor_changed = true;
+                            command_bar.show_info(if incomplete { "Recovered through the last complete edit; an interrupted journal tail was ignored. Save As chooses the destination. The original file is unchanged." } else { "Recovered into a separate file. Save As chooses the destination; Save keeps this recovery copy. The original file is unchanged." });
+                        }
+                        Err(error) => command_bar.show_info(&format!("Recovery could not finish: {error}. The recovery files have been kept.")),
+                    }
+                }
+            } else {
+                command_bar.show_info(&piece_table::recovery::describe().unwrap_or_else(|error| format!("Could not list recovery sessions: {error}")));
             }
         }
 
@@ -2493,6 +2536,7 @@ fn handle_terminal_action(
 // ==========================================================================
 
 fn main() -> Result<(), String> {
+    piece_table::recovery::enable_for_application();
     let argument = std::env::args().nth(1);
     let launch = startup::LaunchTarget::resolve(
         argument.as_deref(),
@@ -2650,6 +2694,14 @@ if let Some(path) = editor.path.as_deref() {
 
     let mut command_bar =
         CommandBar::new();
+    match piece_table::recovery::root().and_then(|root| piece_table::recovery::list(&root)) {
+        Ok(entries) if !entries.is_empty() => {
+            command_bar.open(":recover");
+            command_bar.show_info(&piece_table::recovery::describe().unwrap_or_else(|e| format!("Could not list recovered work: {e}")));
+        }
+        Err(error) => { command_bar.open(":recover"); command_bar.show_info(&format!("Could not check crash recovery: {error}")); }
+        _ => (),
+    }
 
     let mut vim = VimController::new();
     let mut other_vim = VimController::new();
@@ -2692,7 +2744,9 @@ if let Some(path) = editor.path.as_deref() {
         terminal.open(None);
         terminal.enter_directory(root).map_err(|error| error.to_string())?;
     }
+    if command_bar.is_info() && matches!(command_bar.parse(), Ok(ParsedCommand::Recover { .. })) { terminal.close_to_editor(); }
     event_subsystem.register_custom_event::<lsp::Event>().map_err(|e| e.to_string())?;
+    event_subsystem.register_custom_event::<lsp_setup::Event>().map_err(|e| e.to_string())?;
     let mut lsp_ui = lsp_ui::LspUi::new(event_subsystem.clone());
 
     let mut event_pump =
@@ -2746,6 +2800,11 @@ if let Some(path) = editor.path.as_deref() {
                 continue;
             }
 
+            if let Some(event) = event.as_user_event_type::<lsp_setup::Event>() {
+                lsp_ui.accept_setup(event, &editor, &other_editor, &mut command_bar);
+                dirty = true;
+                continue;
+            }
             if let Some(event) = event.as_user_event_type::<lsp::Event>() {
                 lsp_ui.validate_completion(&editor, &other_editor,
                     !terminal.is_active() && !command_bar.is_active() && (!vim_enabled || vim.mode() == vim::VimMode::Insert));
@@ -4204,6 +4263,12 @@ Event::MouseMotion {
                 }
 
                 _ => {}
+            }
+        }
+
+        for document in [&mut editor.document, &mut other_editor.document] {
+            if let Some(warning) = document.take_recovery_warning() {
+                command_bar.open(":recover"); command_bar.show_info(&warning); dirty = true;
             }
         }
 

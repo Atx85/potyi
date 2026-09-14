@@ -9,12 +9,19 @@ processes or worker threads until an enabled member trigger or LSP command is re
 
 ## Setup
 
-Run `:extract-config` to create `config/lsp.toml` without overwriting existing
-configuration, then configure an installed server. Use `:lsp start` to enable
-LSP for this window, even if the configuration has `enabled = false`.
-Set `enabled = true` for automatic LSP in future windows.
-Configuration paths, like the other editor settings, are relative to Pötyi's
-working directory. This version does not download or install language servers.
+Run `:lsp install <server>` to install and configure a supported server for this
+computer—for example, `:lsp install csharp` for C#/Unity or `:lsp install python`.
+Type `:lsp install ` to browse all choices. Setup runs in the background and
+reports any missing runtime with instructions for your operating system.
+Use `:lsp doctor [server]` to check prerequisites and project requirements,
+`:lsp status` for progress, and `:lsp stop` to cancel.
+See [managed setup and all installation methods](lsp-setup.md).
+
+Managed setup preserves project settings. For manual configuration, run
+`:extract-config` to create `config/lsp.toml` without overwriting existing files,
+then use the recipes below. `:lsp start` enables LSP for this window, even when
+`enabled = false`; set `enabled = true` for future windows. Configuration paths
+are relative to Pötyi's working directory.
 
 ## Language server recipes
 
@@ -24,7 +31,7 @@ This guide covers all 18 language families in the bundled syntax configuration, 
 
 ### Paths, Windows, and checking your setup
 
-Use an absolute executable path when the server is not on Pötyi’s PATH. Installation commands run in your terminal; put only the server executable in `command` and its individual arguments in `args`. Pötyi does not expand `~`, environment variables, or shell commands in these fields. Replace example absolute paths before use.
+Use an absolute executable path when the server is not on Pötyi’s PATH. The manual installation commands below run in your terminal; put only the server executable in `command` and its individual arguments in `args`. Pötyi does not expand `~`, environment variables, or shell commands in these fields. Replace example absolute paths before use.
 
 On Windows, native servers use their `.exe` executable. TOML literal strings make paths easy to write, for example `command = 'C:\Tools\LLVM\bin\clangd.exe'`. For npm-installed servers, do not point to a `.cmd` or `.bat` launcher. Set `command = "node"` (or the absolute `node.exe` path), then put the server’s JavaScript entry file first in `args`, followed by its usual arguments.
 
@@ -618,7 +625,7 @@ Preferred fixes appear first; unavailable actions explain why they cannot run.
 
 The language server chooses the correct import, include or `using` directive.
 It needs the appropriate project configuration and dependencies to find the
-symbol. Pötyi does not install packages or invent missing imports. Actions that
+symbol. Code actions do not install project dependencies or invent missing imports. Actions that
 require custom server commands are shown as unavailable; standard workspace
 edits, including edits returned by `codeAction/resolve`, are supported.
 Diagnostics are fetched for explicit requests, with a bounded cache for pushed

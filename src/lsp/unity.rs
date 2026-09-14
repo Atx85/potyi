@@ -15,7 +15,7 @@ pub(super) fn root(path: &Path) -> Option<PathBuf> {
 
 /// Use Unity's generated solution, never recursive discovery through Library.
 /// Explicit server arguments and settings always win. All platforms share this.
-pub(super) fn server_config(config: &ServerConfig, root: &Path) -> Result<ServerConfig, String> {
+pub(crate) fn server_config(config: &ServerConfig, root: &Path) -> Result<ServerConfig, String> {
     let mut configured = config.clone();
     if config.language_id != "csharp" || !root.join("ProjectSettings/ProjectVersion.txt").is_file()
     {

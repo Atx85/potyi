@@ -148,10 +148,26 @@ Examples:
 :quit
 ```
 
+## Crash recovery
+
+Unsaved documents are journaled to disk with bounded memory overhead. On the
+next launch, Potyi offers available sessions. Use `:recover` to list them and
+`:recover 1` to open a separate recovered copy, then Save As to choose its
+location. Recovery preserves files changed outside Potyi and leaves sessions
+open in other windows alone. See [crash recovery](docs/crash-recovery.md) for
+storage, behavior and the memory measurements.
+
 ## Language Server Support (LSP)
 
 Type `:lsp` and press Enter or Tab to browse all language-server commands.
 Select with arrows and Enter or a mouse click. Old command names remain aliases.
+
+Use `:lsp install <server>` to install any supported language server, such as
+`:lsp install csharp`, `:lsp install python` or `:lsp install typescript`.
+Setup chooses the method for Windows, macOS or Linux, shows progress, and
+explains missing prerequisites. `:lsp doctor [server]` checks setup and project
+requirements. Existing project settings are preserved. See the
+[installation guide](docs/lsp-setup.md) for all 15 packages covering 22 profiles.
 
 Use `:lsp rename new_name` on a function or variable to preview its project-wide references. Click a file or press Enter to review its replacements, then select **Apply changes**. Open buffers stay unsaved; the preview marks unopened files that will be written. Normal Undo reverses the rename across files. Keep affected buffers open while you need their rename undo history. Use `:lsp actions` on an unresolved symbol for missing imports, `using` directives or includes offered by your language server. Use `:lsp refactor` on a type/module or selection for refactorings such as extract/move to file. Click an action or press Enter, review its files, then select **Apply changes**. Available actions depend on your server; command-only extensions are shown as unavailable.
 
@@ -160,9 +176,9 @@ With `:lsp hover` open, click another word to refresh its information without cl
 Optional LSP support provides `:lsp hover`, `:lsp definition`, `:lsp back`, `:lsp rename new_name`, `:lsp actions`, and `:lsp refactor` through
 the command bar, including in Vim mode. It is disabled by default.
 `:lsp start` enables LSP for this window and connects using the configured,
-separately installed server. `:lsp restart` reloads settings and reconnects;
+installed server. `:lsp restart` reloads settings and reconnects;
 `:lsp status` shows progress and the last connection result. `:lsp stop` stops
-servers and pauses autocomplete until Start. For automatic LSP in future
+servers, cancels installation and pauses autocomplete until Start. For automatic LSP in future
 windows, use `:extract-config` and set `enabled = true` in `config/lsp.toml`.
 
 When LSP is enabled, servers start when a member-access operator is typed or an LSP command is requested. Current unsaved text is synchronized

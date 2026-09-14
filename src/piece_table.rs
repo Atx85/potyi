@@ -28,6 +28,7 @@ use std::sync::atomic::{
 };
 use std::time::Instant;
 
+pub(crate) mod recovery;
 mod line_view;
 use line_view::LineViewCache;
 
@@ -127,6 +128,7 @@ struct EditStore {
     file: Option<File>,
     path: PathBuf,
     length: usize,
+    remove_on_drop: bool,
 }
 
 impl EditStore {
@@ -166,6 +168,7 @@ impl EditStore {
                         file: Some(file),
                         path,
                         length: 0,
+                        remove_on_drop: true,
                     });
                 }
 
@@ -269,7 +272,7 @@ impl Drop for EditStore {
     fn drop(&mut self) {
         // Windows cannot remove an open file, so close it explicitly first.
         drop(self.file.take());
-        let _ = fs::remove_file(&self.path);
+        if self.remove_on_drop { let _ = fs::remove_file(&self.path); }
     }
 }
 
@@ -340,6 +343,8 @@ pub struct PieceTable {
 
     pub(crate) cursor: Cursor,
     pub(crate) secondary_cursors: Vec<Cursor>,
+    // Drop recovery last, after its backing file handles (important on Windows).
+    recovery: recovery::State,
 }
 
 fn next_document_revision() -> u64 {
@@ -411,6 +416,7 @@ impl PieceTable {
             };
 
         let table = Self {
+            recovery: Default::default(),
             revision: next_document_revision(),
             line_views: Default::default(),
             original,
@@ -469,6 +475,7 @@ all_lines_cached: original_length == 0,
         };
 
         Ok(Self {
+            recovery: Default::default(),
             revision: next_document_revision(),
             line_views: Default::default(),
             original,
@@ -518,20 +525,9 @@ all_lines_cached: original_length == 0,
     fn temporary_path(
         path: &Path,
     ) -> PathBuf {
-        let file_name =
-            path.file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("potyi");
-
-        let mut temporary =
-            path.to_path_buf();
-
-        temporary.set_file_name(
-            format!(
-                ".{file_name}.potyi.tmp"
-            ),
-        );
-
+        let mut temporary = path.to_path_buf();
+        temporary.set_file_name(format!(".potyi-save-{}-{}-{}.tmp", std::process::id(), next_document_revision(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()));
         temporary
     }
 
@@ -551,7 +547,10 @@ all_lines_cached: original_length == 0,
             Self::temporary_path(path);
 
         let mut output =
-            File::create(&temporary_path)?;
+            OpenOptions::new().write(true).create_new(true).open(&temporary_path)?;
+        struct TemporarySave(PathBuf);
+        impl Drop for TemporarySave { fn drop(&mut self) { let _ = fs::remove_file(&self.0); } }
+        let _temporary = TemporarySave(temporary_path.clone());
 
         let mut buffer =
             [0u8; 64 * 1024];
@@ -662,18 +661,12 @@ all_lines_cached: original_length == 0,
             // already exists, including one created while we were writing.
             let result = fs::hard_link(&temporary_path, path);
             let _ = fs::remove_file(&temporary_path);
-            return result;
+            result?;
+        } else {
+            // Publish atomically: never delete the user's file before replacement.
+            fs::rename(&temporary_path, path)?;
         }
-
-        if path.exists() {
-            fs::remove_file(path)?;
-        }
-
-        fs::rename(
-            temporary_path,
-            path,
-        )?;
-
+        recovery::sync_directory(path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or_else(|| Path::new(".")))?;
         Ok(())
     }
 
@@ -3305,6 +3298,7 @@ all_lines_cached: original_length == 0,
             first_position
         );
 
+        self.recovery_snapshot();
         Ok(Some(PieceTableSnapshot {
             pieces: previous_pieces,
             length: previous_length,
@@ -3401,6 +3395,7 @@ all_lines_cached: original_length == 0,
                     length: std::mem::replace(&mut self.length, length),
                 };
                 self.invalidate_line_cache_from_position(0);
+                self.recovery_snapshot();
                 Ok(Some(snapshot))
             }
         }
@@ -3423,6 +3418,7 @@ all_lines_cached: original_length == 0,
         );
 
         self.invalidate_line_cache_from_position(0);
+        self.recovery_snapshot();
     }
 
     /// Captures a logical range as references to the original file or edit
@@ -3748,6 +3744,7 @@ all_lines_cached: original_length == 0,
             position
         );
 
+        self.record_recovery(recovery::Change::Insert(position, pieces));
         Ok(())
     }
 
@@ -3918,6 +3915,7 @@ all_lines_cached: original_length == 0,
             position
         );
 
+        self.record_recovery(recovery::Change::Delete(position, length));
         Ok(())
     }
 

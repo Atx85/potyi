@@ -101,6 +101,24 @@ jobs:
           BUILD_TARGET: ${{ matrix.target }}
         run: cargo +stable build --release --locked --target "$BUILD_TARGET"
 
+      - name: Check crash recovery and saving
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+        run: |
+          cargo +stable test --locked --target "$BUILD_TARGET" recovery -- --test-threads=1
+          cargo +stable test --locked --target "$BUILD_TARGET" save_as -- --test-threads=1
+
+      - name: Check language-server setup
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+        run: cargo +stable test --locked --target "$BUILD_TARGET" lsp_setup -- --test-threads=1
+
+      - name: Check background setup in the editor
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+          SDL_VIDEODRIVER: dummy
+        run: cargo +stable test --locked --target "$BUILD_TARGET" setup_ui_ -- --include-ignored --test-threads=1
+
       - name: Check Unity file opening and missing language server
         if: runner.os == 'Windows'
         env:
@@ -124,7 +142,7 @@ jobs:
           stage="$RUNNER_TEMP/$package"
           mkdir -p "$stage/fonts" "$stage/docs" dist
           cp LICENSE Readme.md "$stage/"
-          cp docs/formatters.md docs/syntax-highlighting.md docs/lsp.md "$stage/docs/"
+          cp docs/formatters.md docs/syntax-highlighting.md docs/lsp.md docs/lsp-setup.md docs/crash-recovery.md docs/recovery-memory-results.json "$stage/docs/"
           cp fonts/LICENSE-DejaVuSans.md "$stage/fonts/"
 
           case "$RUNNER_OS" in

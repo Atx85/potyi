@@ -485,3 +485,32 @@ fn start_enables_stopped_lsp_and_restart_recovers_after_failure() {
     assert!(bar.prepare_execute(),"Enter retries start/restart from their result panel");
     ui.stop();
 }
+
+#[test]
+#[ignore = "SDL setup integration; run with SDL_VIDEODRIVER=dummy and --test-threads=1"]
+fn setup_ui_doctor_keeps_editing_and_delivers_background_result() {
+    let sdl = sdl3::init().unwrap();
+    let events = sdl.event().unwrap();
+    events.register_custom_event::<crate::lsp_setup::Event>().unwrap();
+    let mut pump = sdl.event_pump().unwrap();
+    let mut ui = LspUi::new(events);
+    let mut document = editor("unsaved text");
+    let other = editor("");
+    let mut bar = CommandBar::new(); bar.open(":lsp doctor");
+    ui.setup(false, None, &document, &mut bar).unwrap();
+    document.document.insert(0, "still editing ").unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while std::time::Instant::now() < deadline {
+        for event in pump.poll_iter() {
+            if let Some(event) = event.as_user_event_type::<crate::lsp_setup::Event>() {
+                ui.accept_setup(event, &document, &other, &mut bar);
+            }
+        }
+        if ui.setup.last.as_ref().is_some_and(|text| text.contains("not managed by Potyi") || text.contains("configured")) { break; }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    assert!(ui.setup.last.as_ref().is_some_and(|text| text.contains("LSP setup ·")), "{:?}", ui.setup.last);
+    assert!(bar.is_info());
+    assert_eq!(document.document.text().unwrap(), "still editing unsaved text");
+    assert!(ui.sessions.is_empty());
+}

@@ -112,7 +112,7 @@ impl Transport {
         let mut process = Running::spawn(&mut command).map_err(|error| {
             if error.kind() == io::ErrorKind::NotFound {
                 format!(
-                    "Language server '{}' was not found. Install it and make it available on PATH, or set its full path in config/lsp.toml, then use :lsp restart. You can keep editing without LSP.",
+                    "Language server '{}' was not found. Use :lsp install <server> for supported servers, or install it on PATH / set its full path in config/lsp.toml, then use :lsp restart. You can keep editing without LSP.",
                     config.command,
                 )
             } else {
