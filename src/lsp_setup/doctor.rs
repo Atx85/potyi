@@ -112,7 +112,7 @@ pub(super) fn doctor(
     }
     let note = match recipe.id {
         "csharp" => {
-            "For Unity, generate the .sln/.csproj files in Unity and keep Unity's assemblies available. For other C# projects, restore their .NET dependencies."
+            "For Unity, keep the generated .sln or .slnx solution and .csproj files at the Unity project root, with Unity's assemblies available. For other C# projects, restore their .NET dependencies."
         }
         "python" => {
             "The managed Python server uses its own environment. For project-only dependencies, select your project's pylsp interpreter in config/lsp.toml or configure Jedi's environment."

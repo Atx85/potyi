@@ -130,7 +130,7 @@ adding a duplicate. Older configurations need the entry added manually.
 
 1. In Unity, generate/regenerate the C# project files under **Preferences >
    External Tools**, using Unity's Visual Studio Editor package. Keep the
-   generated `.sln` and `.csproj` files at the project root.
+   generated `.sln` or `.slnx` solution and `.csproj` files at the project root.
 2. Open a saved C# script under the project's `Assets` folder in Pötyi.
 3. Type `transform.` inside a `MonoBehaviour` method. Select `position` or
    another member with Up/Down and Enter, Tab, or a mouse click.
@@ -141,9 +141,14 @@ adding a duplicate. Older configurations need the entry added manually.
 
 Pötyi finds the Unity root using `Assets` and
 `ProjectSettings/ProjectVersion.txt`, even when the Git repository is higher
-up. For `csharp-ls`, it prefers `<project-folder>.sln`, otherwise the single
-root-level `.sln`. Multiple solutions need an explicit
-`args = ["--solution", "YourGame.sln"]`. Existing arguments and solution settings
+up. For `csharp-ls`, it prefers `<project-folder>.sln`, then
+`<project-folder>.slnx`, otherwise the single root-level `.sln` or `.slnx`.
+Both formats are recognized regardless of extension capitalization. If neither
+named solution exists, multiple solutions need an explicit
+`args = ["--solution", "YourGame.slnx"]`. The solution belongs at the Unity
+project root; the location of the Pötyi executable does not affect detection.
+Missing-solution errors show the searched folder and whether `.csproj` files
+were found. Existing arguments and solution settings
 are preserved. It does not scan `Library`, generate project files, or install
 Unity/.NET packages. Other configured C# servers receive the Unity root but
 retain their own launch arguments.
