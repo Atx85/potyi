@@ -75,7 +75,7 @@ pub(crate) enum ParsedCommand {
         mode: KeybindingMode,
     },
 
-    Term,
+    Term { command: Option<String> },
     Split,
     ExtractConfig,
     Format { provider: Option<String> },
@@ -129,7 +129,7 @@ enum SuggestionAction {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct CommandSuggestion<'a> {
     pub label: &'a str,
-    pub description: &'static str,
+    pub description: &'a str,
     pub active: bool,
     action: SuggestionAction,
 }
@@ -183,8 +183,8 @@ const COMMANDS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "term",
-        description: "Open the command terminal",
-        usage: ":term",
+        description: "Open the terminal or run a command",
+        usage: ":term [command]",
     },
     CommandSpec {
         name: "split",
@@ -203,8 +203,8 @@ const COMMANDS: &[CommandSpec] = &[
     },
     CommandSpec {
         name: "format",
-        description: "Format the focused document now",
-        usage: ":format [provider]",
+        description: "Format automatically, or choose a formatter by name",
+        usage: ":format [formatter name]",
     },
     CommandSpec {
         name: "formatters",
@@ -354,6 +354,10 @@ const KEYBINDING_CHOICES: &[OptionSpec] = &[
         name: "vim",
         description: "Use Vim-like modal keybindings",
     },
+    OptionSpec {
+        name: "emacs",
+        description: "Use Emacs editing keys and prefix commands",
+    },
 ];
 
 
@@ -364,7 +368,9 @@ pub(crate) struct CommandBar {
     selected: usize,
     selection_explicit: bool,
     status: Option<String>,
-    formatter_choices: Vec<(String, bool)>,
+    formatter_choices: Vec<crate::formatting::FormatterChoice>,
+    formatter_choices_loaded: bool,
+    formatter_list_open: bool,
     review_choices: Vec<String>,
     info_lines: Vec<String>,
     info_documentation: Vec<bool>,
@@ -382,6 +388,8 @@ impl CommandBar {
             selection_explicit: false,
             status: None,
             formatter_choices: Vec::new(),
+            formatter_choices_loaded: false,
+            formatter_list_open: false,
             review_choices: Vec::new(),
             info_lines: Vec::new(),
             info_documentation: Vec::new(),
@@ -478,7 +486,9 @@ impl CommandBar {
     }
 
     pub fn status(&self) -> Option<&str> {
-        self.status.as_deref()
+        self.status.as_deref().or_else(|| {
+            self.formatter_prefix().map(|_| "Enter formats automatically; Up/Down then Enter chooses; Tab completes a name")
+        })
     }
 
     pub fn set_status(
@@ -504,7 +514,7 @@ impl CommandBar {
         }
     }
 
-    pub fn show_formatters(&mut self, choices: Vec<(String, bool)>) {
+    pub fn show_formatters(&mut self, choices: Vec<crate::formatting::FormatterChoice>) {
         self.selected = 0;
         self.selection_explicit = false;
         self.status = Some(if choices.is_empty() {
@@ -513,6 +523,29 @@ impl CommandBar {
             "Up/Down or wheel to choose a formatter; Enter runs".to_string()
         });
         self.formatter_choices = choices;
+        self.formatter_choices_loaded = true;
+        self.formatter_list_open = true;
+    }
+
+    fn formatter_prefix(&self) -> Option<&str> {
+        let body = self.input.strip_prefix(':').unwrap_or(&self.input).trim_start();
+        let tail = body.strip_prefix("format")?;
+        if tail.is_empty() || tail.starts_with(char::is_whitespace) { Some(tail.trim()) }
+        else { None }
+    }
+
+    // Load only while the formatter UI is in use; keep the small choice list
+    // until the panel closes or a completion is accepted.
+    pub(crate) fn refresh_formatters(&mut self, path: Option<&std::path::Path>) {
+        if !self.active || self.is_info() || self.formatter_choices_loaded
+            || self.formatter_prefix().is_none() {
+            return;
+        }
+        self.formatter_choices_loaded = true;
+        match crate::formatting::Formatters::load(std::path::Path::new("config/formatters.toml")) {
+            Ok(config) => self.formatter_choices = config.choices(path),
+            Err(error) => self.set_status(error.to_string()),
+        }
     }
 
     pub fn open(
@@ -521,6 +554,8 @@ impl CommandBar {
     ) {
         self.active = true;
         self.formatter_choices = Vec::new();
+        self.formatter_choices_loaded = false;
+        self.formatter_list_open = false;
         self.input.clear();
 
         if initial.starts_with(':') {
@@ -542,6 +577,8 @@ impl CommandBar {
     pub fn close(&mut self) {
         self.active = false;
         self.formatter_choices = Vec::new();
+        self.formatter_choices_loaded = false;
+        self.formatter_list_open = false;
         self.status = None;
         self.info_lines.clear();
         self.review_choices.clear();
@@ -766,6 +803,8 @@ impl CommandBar {
         }
         let action = self.suggestion(self.selected()).map(|suggestion| suggestion.action);
         match action {
+            Some(SuggestionAction::FormatProvider(_))
+                if !self.selection_explicit && self.formatter_prefix() == Some("") => true,
             Some(SuggestionAction::CompleteCommand(_) | SuggestionAction::SetInput(_)
                 | SuggestionAction::FormatProvider(_) | SuggestionAction::LspRecipe { .. }) => {
                 self.apply_selected();
@@ -815,7 +854,7 @@ impl CommandBar {
             }
 
             SuggestionAction::FormatProvider(index) => {
-                self.input = format!(":format {}", self.formatter_choices[index].0);
+                self.input = format!(":format {}", self.formatter_choices[index].name);
             }
 
             SuggestionAction::None | SuggestionAction::Review(_) => {
@@ -832,6 +871,8 @@ impl CommandBar {
         self.epoch = self.epoch.wrapping_add(1);
 
         self.formatter_choices = Vec::new();
+        self.formatter_choices_loaded = false;
+        self.formatter_list_open = false;
 
         true
     }
@@ -864,13 +905,22 @@ impl CommandBar {
                 label, description: "", active: false, action: SuggestionAction::Review(visible_index),
             });
         }
-        if self.input.trim() == ":formatters" && !self.formatter_choices.is_empty() {
-            return self.formatter_choices.get(visible_index).map(|(name, available)| CommandSuggestion {
-                label: name,
-                description: if *available { "Available; select to format" } else { "Missing; install or configure executable" },
+        if self.formatter_choices_loaded && (self.formatter_prefix().is_some()
+            || (self.formatter_list_open && self.input.trim() == ":formatters")) {
+            let prefix = self.formatter_prefix().unwrap_or("");
+            let choice = self.formatter_choices.iter().enumerate()
+                .filter(|(_, choice)| choice.name.starts_with(prefix)).nth(visible_index);
+            return choice.map(|(index, choice)| CommandSuggestion {
+                label: &choice.name,
+                description: &choice.description,
                 active: false,
-                action: SuggestionAction::FormatProvider(visible_index),
-            });
+                action: SuggestionAction::FormatProvider(index),
+            }).or_else(|| (visible_index == 0).then_some(CommandSuggestion {
+                label: "No matching formatter",
+                description: "Use :formatters to see choices; configure others in config/formatters.toml",
+                active: false,
+                action: SuggestionAction::None,
+            }));
         }
         let body =
             self.input
@@ -1249,6 +1299,8 @@ fn setting_suggestion(
                         ":set keybindings conventional",
                     ("keybindings", "vim") =>
                         ":set keybindings vim",
+                    ("keybindings", "emacs") =>
+                        ":set keybindings emacs",
                     _ => unreachable!(),
                 };
 
@@ -1311,6 +1363,16 @@ pub(crate) fn quote_argument(
 fn parse_command(
     input: &str,
 ) -> Result<ParsedCommand, String> {
+    // Terminal commands belong to the terminal/shell parser. Preserve quotes,
+    // backslashes, pipes and flags instead of applying search-command syntax.
+    let body = input.strip_prefix(':').unwrap_or(input).trim_start();
+    let end = body.find(char::is_whitespace).unwrap_or(body.len());
+    if &body[..end] == "term" {
+        let command = body[end..].trim();
+        return Ok(ParsedCommand::Term {
+            command: (!command.is_empty()).then(|| command.to_string()),
+        });
+    }
     let mut words = tokenize(input)?;
     if words.first().is_some_and(|word| word.text == "lsp") {
         let subcommand = words.get(1).ok_or("Choose an LSP command: install, doctor, start, restart, hover, definition, rename, actions, refactor, back, status or stop")?;
@@ -1608,9 +1670,10 @@ fn parse_command(
                                 KeybindingMode::Conventional,
                             "vim" =>
                                 KeybindingMode::Vim,
+                            "emacs" => KeybindingMode::Emacs,
                             _ => {
                                 return Err(
-                                    "Keybinding mode must be conventional or vim"
+                                    "Keybinding mode must be conventional, vim, or emacs"
                                         .to_string()
                                 );
                             }
@@ -1626,18 +1689,6 @@ fn parse_command(
                         .to_string()
                 ),
             }
-        }
-
-        "term" => {
-            reject_no_arguments(
-                command,
-                &arguments,
-                search_option_used,
-                backward,
-                all,
-            )?;
-
-            Ok(ParsedCommand::Term)
         }
 
         "split" => {
@@ -2215,10 +2266,59 @@ mod tests {
     fn formatter_choices_beyond_first_page_can_run_with_enter() {
         let mut bar = CommandBar::new();
         bar.open(":formatters");
-        bar.show_formatters((0..12).map(|i| (format!("formatter{i}"), true)).collect());
+        bar.show_formatters((0..12).map(|i| crate::formatting::FormatterChoice {
+            name: format!("formatter{i}"), description: "Installed".into(),
+        }).collect());
         bar.scroll_suggestions(11);
         assert!(bar.prepare_execute());
         assert_eq!(bar.parse().unwrap(), ParsedCommand::Format { provider: Some("formatter11".into()) });
+    }
+
+    #[test]
+    fn format_completion_preserves_automatic_enter_and_filters_provider_names() {
+        let mut bar = CommandBar::new();
+        for text in [":format", ":format "] {
+            bar.open(text);
+            bar.refresh_formatters(None);
+            assert_eq!(bar.suggestion(0).unwrap().label, "builtin");
+            assert!(bar.suggestion(0).unwrap().description.contains("no installation"));
+            assert!(bar.status().unwrap().contains("automatically"));
+            assert!(bar.prepare_execute());
+            assert_eq!(bar.parse().unwrap(), ParsedCommand::Format { provider: None });
+        }
+        bar.insert_text("ru");
+        assert_eq!(bar.suggestion_count(), 2);
+        assert_eq!(bar.suggestion(0).unwrap().label, "rustfmt");
+        assert!(bar.suggestion(0).unwrap().description.contains(".rs"));
+        bar.move_selection(1);
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::Format { provider: Some("ruff".into()) });
+
+        bar.open(":format ");
+        bar.refresh_formatters(Some(std::path::Path::new("game.cs")));
+        assert_eq!(bar.suggestion_count(), 2);
+        bar.move_selection(1);
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::Format { provider: Some("clang-format".into()) });
+
+        bar.open(":format bu");
+        bar.refresh_formatters(None);
+        assert!(bar.apply_selected());
+        assert_eq!(bar.input(), ":format builtin");
+        bar.open(":format unknown");
+        bar.refresh_formatters(None);
+        assert_eq!(bar.suggestion(0).unwrap().label, "No matching formatter");
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.input(), ":format unknown");
+
+        // Completing the listing command must show the chooser before running
+        // any formatter, even if :format's live choices were already loaded.
+        bar.open(":format");
+        bar.refresh_formatters(None);
+        bar.insert_text("ters");
+        bar.refresh_formatters(None);
+        assert!(bar.prepare_execute());
+        assert_eq!(bar.parse().unwrap(), ParsedCommand::Formatters);
     }
 
     #[test]
@@ -2415,10 +2515,13 @@ mod tests {
     fn formatter_results_are_selectable_without_running_on_selection() {
         let mut bar = CommandBar::new();
         bar.open(":formatters");
-        bar.show_formatters(vec![("rustfmt".into(), true), ("ruff".into(), false)]);
+        bar.show_formatters(vec![
+            crate::formatting::FormatterChoice { name: "rustfmt".into(), description: ".rs — Installed".into() },
+            crate::formatting::FormatterChoice { name: "ruff".into(), description: ".py — Not installed".into() },
+        ]);
         assert_eq!(bar.suggestion_count(), 2);
         assert_eq!(bar.suggestion(0).unwrap().label, "rustfmt");
-        assert!(bar.suggestion(1).unwrap().description.starts_with("Missing"));
+        assert!(bar.suggestion(1).unwrap().description.contains("Not installed"));
         assert!(bar.apply_suggestion(0));
         assert_eq!(bar.input(), ":format rustfmt");
         assert!(bar.formatter_choices.is_empty());
@@ -2866,7 +2969,7 @@ mod tests {
     }
 
     #[test]
-    fn keybinding_setting_is_discoverable_and_parses_both_modes() {
+    fn keybinding_setting_is_discoverable_and_parses_all_modes() {
         let mut bar = CommandBar::new();
         bar.open(":set keybindings ");
 
@@ -2879,9 +2982,11 @@ mod tests {
             "vim",
         );
 
+        assert_eq!(bar.suggestion(2).unwrap().label, "emacs");
         for (name, mode) in [
             ("conventional", KeybindingMode::Conventional),
             ("vim", KeybindingMode::Vim),
+            ("emacs", KeybindingMode::Emacs),
         ] {
             assert_eq!(
                 parse_command(&format!(
@@ -2894,7 +2999,7 @@ mod tests {
         }
 
         assert!(parse_command(
-            ":set keybindings emacs"
+            ":set keybindings unknown"
         ).is_err());
     }
 
@@ -2913,11 +3018,20 @@ mod tests {
     fn parses_term_without_arguments() {
         assert_eq!(
             parse_command(":term").unwrap(),
-            ParsedCommand::Term,
+            ParsedCommand::Term { command: None },
         );
 
-        assert!(parse_command(":term now")
-            .is_err());
+        for command in [
+            "ls", "git log --oneline", "ls -lh", "ls | grep .rs",
+            r#"printf '%s\n' "a b" > output.txt"#,
+            r#"cd "C:\Users\Name\My Project""#,
+            "echo --all --case-sensitive", "echo 'unfinished",
+        ] {
+            assert_eq!(parse_command(&format!(":term {command}")).unwrap(),
+                ParsedCommand::Term { command: Some(command.into()) });
+        }
+        assert_eq!(parse_command(":term   ").unwrap(), ParsedCommand::Term { command: None });
+        assert!(parse_command(":terminal ls").is_err());
     }
 
     #[test]

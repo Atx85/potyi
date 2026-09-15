@@ -233,8 +233,17 @@ impl Transport {
                 return Err("LSP stopped".into());
             }
             let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
+                // A slow feature request does not mean the connection failed.
+                // Keep initialized servers (and their project indexing) alive.
+                // Set this before sending: a failed cancellation send is still fatal.
+                self.failed.set(!self.initialized);
                 let _ = self.notify("$/cancelRequest", json!({"id":id}));
-                return Err(format!("Language server timed out during {method}"));
+                let hint = if !self.failed.get() {
+                    ". The server is still running and may be loading the project; try again shortly. If it keeps timing out, use :lsp doctor or :lsp restart."
+                } else {
+                    ". Use :lsp doctor to check the server setup, then :lsp restart."
+                };
+                return Err(format!("Language server timed out during {method}{hint}"));
             };
             let message = match self
                 .incoming

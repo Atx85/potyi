@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Explicit, synchronous document formatting. Configuration is loaded only
-//! when requested; this module has no worker, watcher, or event-loop hook.
+//! when formatting or showing formatter choices; no worker or watcher is used.
 
 use std::ffi::{OsStr, OsString};
 use std::fs::{self, File, OpenOptions};
@@ -17,6 +17,7 @@ use crate::piece_table::PieceTable;
 use serde::Deserialize;
 
 pub(crate) mod process;
+pub(crate) mod builtin;
 
 pub(crate) const MAX_INPUT_BYTES: usize = 2 * 1024 * 1024;
 pub(crate) const MAX_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
@@ -49,6 +50,11 @@ pub(crate) struct Formatters {
     providers: Vec<Provider>,
 }
 
+pub(crate) struct FormatterChoice {
+    pub name: String,
+    pub description: String,
+}
+
 impl Formatters {
     pub fn load(path: &Path) -> io::Result<Self> {
         let mut contents = String::new();
@@ -75,6 +81,9 @@ impl Formatters {
             return Err(invalid("At most 32 formatter providers are supported"));
         }
         for (index, provider) in config.providers.iter().enumerate() {
+            if provider.name == "builtin" {
+                return Err(invalid("The formatter name 'builtin' is reserved for built-in indentation"));
+            }
             if provider.name.is_empty()
                 || provider.name.len() > 40
                 || !provider
@@ -134,11 +143,27 @@ impl Formatters {
         ))
     }
 
-    pub fn choices(&self, path: Option<&Path>) -> Vec<(String, bool)> {
-        self.providers
+    pub fn choices(&self, path: Option<&Path>) -> Vec<FormatterChoice> {
+        std::iter::once(FormatterChoice {
+            name: "builtin".into(),
+            description: if builtin::supported(path) {
+                "Basic C-style/JSON indentation — no installation needed"
+            } else {
+                "Not supported for this file type; choose a language formatter"
+            }.into(),
+        }).chain(self.providers
             .iter()
             .filter(|provider| path.is_none_or(|path| provider.matches(path)))
-            .map(|provider| (provider.name.clone(), provider.executable().is_ok()))
+            .map(|provider| {
+                let files = provider.extensions.iter().map(|ext| format!(".{ext}"))
+                    .chain(provider.filenames.iter().cloned()).collect::<Vec<_>>().join(", ");
+                let availability = if provider.executable().is_ok() { "Installed" }
+                    else { "Not installed; install tool or set its path" };
+                FormatterChoice {
+                    name: provider.name.clone(),
+                    description: format!("{availability} — {files}"),
+                }
+            }))
             .collect()
     }
 }

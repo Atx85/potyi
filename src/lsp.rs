@@ -27,6 +27,7 @@ use url::Url;
 
 pub(crate) const MAX_DOCUMENT_BYTES: usize = 2 * 1024 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(15);
+const HOVER_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -482,9 +483,10 @@ impl Session {
         } else {
             "textDocument/definition"
         };
+        let timeout = if matches!(request.action, Action::Hover) { HOVER_TIMEOUT } else { TIMEOUT };
         let result = self.transport.request(method, json!({
             "textDocument":{"uri":file_uri(&focused.path)?},"position":position(&focused.text, request.cursor)?
-        }), TIMEOUT)?;
+        }), timeout)?;
         if matches!(request.action, Action::Hover) {
             Ok(Reply::Hover(hover_content(&result)))
         } else {

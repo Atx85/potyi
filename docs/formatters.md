@@ -1,6 +1,20 @@
 # Formatter installation guide
 
-Pötyi includes presets for eight formatters. Install only the tools you need;
+Pötyi includes basic built-in indentation and presets for eight external formatters.
+`:format` needs no argument. It uses an installed matching tool when available,
+otherwise tries built-in indentation. `:format builtin` selects the built-in
+option explicitly. It handles simple delimiter-based indentation for C/C++, C#,
+Java, Objective-C, Protobuf, JSON and untitled code; it does not replace a full
+language formatter. Untitled code uses C-style rules; save with the correct
+extension first for other languages. Unsupported file types or syntax produce an explanation
+and leave the document unchanged. See [Code Formatting](../Readme.md#code-formatting)
+for the exact scope and limits.
+
+Type `:format ` to see names, file types and installation status. Press Enter
+for automatic formatting, or choose with Up/Down then Enter; Tab completes a
+name. You can also open the chooser with `:formatters`.
+
+Install only the tools you need;
 an existing installation can be reused. Pötyi does not install or update them.
 Run the installation commands below in a terminal, outside the editor.
 
@@ -199,9 +213,10 @@ Open a file and run `:formatters` to check availability for that file type.
 An untitled document shows all providers; missing tools you do not use can
 stay missing.
 
-Run `:format` to use the first installed matching provider, or select one
-explicitly with a command such as `:format ruff`. Untitled documents require
-an explicit provider. Formatting changes the editor buffer in one undo step;
+Run `:format` to use the first installed matching provider with a built-in
+indentation fallback, or select one explicitly with a command such as
+`:format ruff`. Untitled documents use the built-in option unless you select
+an external tool. Formatting changes the editor buffer in one undo step;
 save when you want to write the result to disk.
 
 ## If Pötyi cannot find the tool

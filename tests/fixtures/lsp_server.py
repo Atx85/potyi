@@ -8,6 +8,7 @@ documents = {}
 changes = []
 versions = {}
 hover_attempts = 0
+pending_hover = None
 
 
 def send(value):
@@ -112,6 +113,11 @@ while True:
         send({"id": message["id"], "result": params})
     elif method == "textDocument/hover":
         hover_attempts += 1
+        if mode == "crash-hover":
+            sys.exit(1)
+        if mode == "timeout-hover" and hover_attempts == 1:
+            pending_hover = message["id"]
+            continue
         if mode == "feature-error" and hover_attempts == 1:
             send({"id": message["id"], "error": {"code": -32602, "message": "No references found at position"}})
             continue
@@ -121,6 +127,10 @@ while True:
     elif method == "textDocument/definition":
         send({"id": message["id"], "result": [{"targetUri": params["textDocument"]["uri"],
             "targetSelectionRange": {"start": {"line": 0, "character": 2}, "end": {"line": 0, "character": 3}}}]})
+    elif method == "$/cancelRequest" and pending_hover == params["id"]:
+        # Send a late response to exercise request-ID isolation after a timeout.
+        send({"id": pending_hover, "result": {"contents": "stale hover"}})
+        pending_hover = None
     elif method == "shutdown":
         send({"id": message["id"], "result": None})
     elif method == "exit":

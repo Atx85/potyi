@@ -336,6 +336,7 @@ fn crashed_server_reports_failure_and_transport_times_out() {
             .contains("timed out")
     );
     assert!(start.elapsed() < Duration::from_secs(2));
+    assert!(server.has_failed(), "initialization timeouts must still stop the server");
     drop(server);
     assert!(
         Session::start(
@@ -687,4 +688,40 @@ fn real_servers_complete_member_access_and_prepare_insertion() {
         drop(client);
         std::fs::remove_dir_all(root).unwrap();
     }
+}
+
+
+#[cfg(unix)]
+#[test]
+fn hover_timeout_keeps_loaded_documents_and_ignores_late_responses() {
+    let root = std::env::temp_dir();
+    let config = mock_config("timeout-hover");
+    let mut session = Session::start(&config, &root, Arc::new(AtomicBool::new(false))).unwrap();
+    let path = root.join("timeout-hover.rs");
+    let mut request = Request {
+        id: 1, action: Action::Start,
+        documents: vec![Document {path: path.clone(), text: "OnEnable".into()}], cursor: 0,
+    };
+    session.execute(&config, &request).unwrap();
+    request.action = Action::Hover;
+    let started = std::time::Instant::now();
+    let error = session.execute(&config, &request).unwrap_err();
+    assert!(started.elapsed() < Duration::from_secs(4), "hover must use its short deadline");
+    assert!(error.contains("timed out"));
+    assert!(error.contains("server is still running"));
+    assert!(!session.transport.has_failed(), "timeout must not trigger reconnection");
+    request.action = Action::Hover;
+    let Reply::Hover(hover) = session.execute(&config, &request).unwrap() else { panic!() };
+    assert!(hover.text.contains("OnEnable"), "server must retain the open document");
+    assert!(!hover.text.contains("stale hover"), "late responses must not replace current results");
+    assert!(!session.transport.has_failed());
+}
+
+#[cfg(unix)]
+#[test]
+fn crashed_hover_still_marks_the_transport_failed() {
+    let config = mock_config("crash-hover");
+    let mut session = Session::start(&config, &std::env::temp_dir(), Arc::new(AtomicBool::new(false))).unwrap();
+    assert!(session.transport.request("textDocument/hover", json!({}), Duration::from_secs(2)).is_err());
+    assert!(session.transport.has_failed());
 }

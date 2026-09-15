@@ -52,6 +52,7 @@ pub(super) fn start(
     arguments: String,
     cwd: PathBuf,
     enter: Option<PathBuf>,
+    width: usize,
     events: Option<EventSender>,
 ) -> io::Result<Job> {
     let (sender, receiver) = sync_channel(QUEUED_CHUNKS);
@@ -65,6 +66,7 @@ pub(super) fn start(
                 events,
                 cancelled: worker_cancelled,
                 chunk: DirectoryListing::default(),
+                width,
             };
             let result = (|| {
                 let cwd = if let Some(path) = enter {
@@ -120,6 +122,60 @@ struct Writer {
     events: Option<EventSender>,
     cancelled: Arc<AtomicBool>,
     chunk: DirectoryListing,
+    width: usize,
+}
+
+/// Only a width and a row position are retained, even for huge directories.
+struct Columns {
+    cell: usize,
+    count: usize,
+    position: usize,
+}
+
+impl Columns {
+    fn new(width: usize, longest: usize) -> Self {
+        let cell = longest.saturating_add(2).max(1);
+        Self {
+            cell,
+            count: (width.saturating_add(2) / cell).max(1),
+            position: 0,
+        }
+    }
+
+    fn append(&mut self, output: &mut DirectoryListing) {
+        let entry = output.entries.last().unwrap();
+        let length = output.text[entry.range.clone()].chars().count();
+        output.text.truncate(entry.range.end);
+        self.position += 1;
+        if self.position == self.count {
+            output.text.push('\n');
+            self.position = 0;
+        } else {
+            output.text.extend(std::iter::repeat_n(
+                ' ',
+                self.cell.saturating_sub(length).max(2),
+            ));
+        }
+    }
+
+    fn finish(&mut self, output: &mut DirectoryListing) {
+        if self.position != 0 {
+            output.text.push('\n');
+            self.position = 0;
+        }
+    }
+}
+
+fn name_length(name: &str) -> usize {
+    name.chars()
+        .map(|c| {
+            if c.is_control() {
+                c.escape_default().count()
+            } else {
+                1
+            }
+        })
+        .sum()
 }
 
 impl Writer {
@@ -154,9 +210,23 @@ impl Writer {
         Ok(())
     }
 
-    fn entry(&mut self, path: &Path, name: &str, options: &LsOptions) -> io::Result<()> {
+    fn entry(
+        &mut self,
+        path: &Path,
+        name: &str,
+        options: &LsOptions,
+        columns: Option<&mut Columns>,
+    ) -> io::Result<()> {
         self.check_cancelled()?;
         append_ls_entry(&mut self.chunk, path, name, options)?;
+        if let Some(columns) = columns {
+            columns.append(&mut self.chunk);
+        } else if !options.long && !options.one_per_line {
+            self.chunk
+                .text
+                .truncate(self.chunk.entries.last().unwrap().range.end);
+            self.chunk.text.push('\n');
+        }
         if self.chunk.text.len() >= CHUNK_BYTES || self.chunk.entries.len() >= CHUNK_ENTRIES {
             self.flush()?;
         }
@@ -172,16 +242,34 @@ impl Writer {
     ) -> io::Result<()> {
         self.check_cancelled()?;
         if !std::fs::metadata(path)?.is_dir() {
-            return self.entry(path, name, options);
+            return self.entry(path, name, options, None);
         }
         if header {
-            self.chunk.text.push_str(&format!("{}:\n", super::display_path(Path::new(name))));
+            self.chunk
+                .text
+                .push_str(&format!("{}:\n", super::display_path(Path::new(name))));
         }
+        let mut columns = if options.long || options.one_per_line {
+            None
+        } else {
+            // Measure names only, on the worker. Do not collect directory entries
+            // or sniff file contents in this pass. The second pass retains order.
+            let mut longest = 3; // ../
+            for entry in std::fs::read_dir(path)? {
+                self.check_cancelled()?;
+                let entry = entry?;
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                if options.all || !name.starts_with('.') {
+                    // Reserve room for the optional directory slash.
+                    longest = longest.max(name_length(&name).saturating_add(1));
+                }
+            }
+            Some(Columns::new(self.width, longest))
+        };
         if let Some(parent) = path.canonicalize()?.parent() {
-            self.entry(parent, "..", options)?;
+            self.entry(parent, "..", options, columns.as_mut())?;
         }
-        // Show an initial batch immediately; large directories do not need to
-        // be read or sorted in full before the first result reaches the UI.
         self.flush()?;
         for entry in std::fs::read_dir(path)? {
             self.check_cancelled()?;
@@ -191,8 +279,11 @@ impl Writer {
             if !options.all && name.starts_with('.') {
                 continue;
             }
-            self.entry(&entry.path(), &name, options)?;
+            self.entry(&entry.path(), &name, options, columns.as_mut())?;
             if options.recursive && entry.file_type()?.is_dir() {
+                if let Some(columns) = &mut columns {
+                    columns.finish(&mut self.chunk);
+                }
                 self.chunk.text.push('\n');
                 self.path(
                     &entry.path(),
@@ -201,6 +292,9 @@ impl Writer {
                     true,
                 )?;
             }
+        }
+        if let Some(columns) = &mut columns {
+            columns.finish(&mut self.chunk);
         }
         self.flush()
     }

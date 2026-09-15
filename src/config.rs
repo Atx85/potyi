@@ -77,6 +77,7 @@ pub enum KeybindingMode {
     #[default]
     Conventional,
     Vim,
+    Emacs,
 }
 
 // ==========================================================================
@@ -213,6 +214,11 @@ mod tests {
             config.keybinding_mode,
             KeybindingMode::Vim,
         );
+    }
+
+    #[test]
+    fn emacs_keybinding_mode_parses() {
+        assert_eq!(parse_editor("[editor]\nkeybinding_mode = \"emacs\"\n").keybinding_mode, KeybindingMode::Emacs);
     }
 
     #[test]

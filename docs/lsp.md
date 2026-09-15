@@ -562,7 +562,7 @@ but only the grouped names appear in suggestions.
 | `:lsp restart` | Reload configuration and reconnect. |
 | `:lsp stop` | Stop sessions and pause LSP until Start. |
 
-Commands work through the existing command bar in conventional and Vim modes.
+Commands work through the existing command bar in conventional, Vim and Emacs modes.
 No existing shortcuts are reassigned. Hover information is displayed as plain
 text; recognized documentation sections use the active language’s comment color, while signatures keep the normal text color. Use Up/Down to scroll and Escape to dismiss it. Markdown returned by a
 server is displayed literally. Results are bounded to prevent oversized UI
@@ -582,6 +582,12 @@ no matching documents remain open. `:lsp restart` reloads configuration and
 reconnects. Start/Stop override `enabled` for the current window; changing the
 file setting affects windows without such an override. Use `:lsp stop` to
 terminate existing sessions and pause LSP.
+
+Hover has a two-second response deadline; other feature requests allow up to
+15 seconds. If an initialized server times out, Pötyi cancels that request and leaves the server running, so
+project loading can continue. Retry shortly; repeated timeouts may need
+`:lsp doctor` or an explicit `:lsp restart`. Initialization failures and broken
+connections still stop the server.
 
 ## Renaming a function or variable
 

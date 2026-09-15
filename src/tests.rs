@@ -17,6 +17,40 @@
 use super::*;
 
 #[test]
+fn builtin_formatting_needs_no_provider_and_preserves_history_on_failure() {
+    let source = "class Test {\nvoid OnEnable() {\nCall();\n}\n}\n";
+    let mut editor = test_editor(source);
+    editor.path = None;
+    editor.config.insert_spaces = true;
+    editor.config.tab_width = 2;
+    let (name, changed) = editor.format_document(None).unwrap();
+    assert_eq!(name, "built-in indentation");
+    assert!(changed);
+    let expected = "class Test {\n  void OnEnable() {\n    Call();\n  }\n}\n";
+    assert_eq!(editor.document.text().unwrap(), expected);
+    assert_eq!(editor.undo_stack.len(), 1);
+    assert!(!editor.format_document(Some("builtin")).unwrap().1);
+    assert_eq!(editor.undo_stack.len(), 1);
+    editor.undo().unwrap();
+    assert_eq!(editor.document.text().unwrap(), source);
+    editor.redo().unwrap();
+    assert_eq!(editor.document.text().unwrap(), expected);
+    editor.read_only = true;
+    assert!(editor.format_document(Some("builtin")).is_err());
+    editor.read_only = false;
+    editor.path = Some(PathBuf::from("script.py"));
+    assert!(editor.format_document(Some("builtin")).is_err());
+    assert_eq!(editor.document.text().unwrap(), expected);
+
+    let mut invalid = test_editor("{\nx();\n]\n");
+    invalid.path = None;
+    assert!(invalid.format_document(None).is_err());
+    assert_eq!(invalid.document.text().unwrap(), "{\nx();\n]\n");
+    assert!(invalid.undo_stack.is_empty());
+    assert!(!invalid.dirty);
+}
+
+#[test]
 fn formatting_preserves_selection_and_is_one_undo_step() {
     let mut editor = test_editor("fn main(){\nlet café=1;\n}\n");
     editor.set_cursor_and_anchor(17, 11).unwrap();
@@ -658,6 +692,7 @@ fn insert_utf8_then_space() {
 fn editor_typing_hello_then_space() {
     let mut editor = Editor {
         document: empty_table(),
+        emacs: crate::emacs::State::default(),
         path: None,
         config: EditorConfig {
             tab_width: 4,

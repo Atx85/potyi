@@ -67,6 +67,7 @@ mod terminal;
 mod terminal_layout;
 mod terminal_text_cache;
 mod vim;
+mod emacs;
 
 use keybindings::{Command, KeyBindings};
 use piece_table::{
@@ -155,6 +156,7 @@ struct ReplacementRun {
 
 struct Editor {
     document: PieceTable,
+    emacs: emacs::State,
     path: Option<PathBuf>,
     config: EditorConfig,
 
@@ -175,6 +177,7 @@ impl Editor {
         piece_table::recovery::arm(&mut document, None);
         Ok(Self {
             document,
+            emacs: emacs::State::default(),
             path: None,
             config,
             undo_stack: Vec::new(),
@@ -367,6 +370,7 @@ impl Editor {
         }
         piece_table::recovery::arm(&mut document, path.map(std::path::Path::new));
         self.document = document;
+        self.emacs.reset();
         self.path = path.map(PathBuf::from);
         self.multi_edit_group = None;
         self.undo_stack.clear();
@@ -393,6 +397,7 @@ impl Editor {
         );
 
         self.document = document;
+        self.emacs.reset();
         self.path = Some(PathBuf::from(path));
 
         self.multi_edit_group = None;
@@ -528,9 +533,22 @@ fn save(&mut self) -> io::Result<()> {
         if self.document.len() > formatting::MAX_INPUT_BYTES {
             return Err(io::Error::new(io::ErrorKind::InvalidInput, "Formatting is limited to documents up to 2 MiB"));
         }
-        let config = formatting::Formatters::load(std::path::Path::new("config/formatters.toml"))?;
-        let (provider, executable) = config.select(self.path.as_deref(), name)?;
         let scratch = formatting::Scratch::create()?;
+        if name == Some("builtin") || (name.is_none() && self.path.is_none()) {
+            let mut output = formatting::builtin::run(self.path.as_deref(), &self.document, &scratch,
+                self.config.tab_width, self.config.insert_spaces)?;
+            return Ok(("built-in indentation".into(), self.apply_formatted(&mut output)?));
+        }
+        let config = formatting::Formatters::load(std::path::Path::new("config/formatters.toml"))?;
+        let (provider, executable) = match config.select(self.path.as_deref(), name) {
+            Ok(selected) => selected,
+            Err(_) if name.is_none() => {
+                let mut output = formatting::builtin::run(self.path.as_deref(), &self.document, &scratch,
+                    self.config.tab_width, self.config.insert_spaces)?;
+                return Ok(("built-in indentation".into(), self.apply_formatted(&mut output)?));
+            }
+            Err(error) => return Err(error),
+        };
         let mut output = formatting::run(provider, &executable, self.path.as_deref(), &self.document, &scratch)?;
         let changed = self.apply_formatted(&mut output)?;
         Ok((provider.name.clone(), changed))
@@ -2116,12 +2134,34 @@ fn execute_command_bar(
             outcome.keybinding_mode = Some(mode);
         }
 
-        Ok(ParsedCommand::Term) => {
+        Ok(ParsedCommand::Term { command }) => {
             command_bar.close();
             search_ui.close();
             terminal.open(
                 editor.path.as_deref()
             );
+            if let Some(command) = command {
+                terminal.set_listing_width(renderer.terminal_columns());
+                match terminal.run_command(&command) {
+                    Ok(action) => {
+                        let opens_document = matches!(&action,
+                            TerminalAction::ListedFile(_) | TerminalAction::Location(_, _)
+                            | TerminalAction::Edit(_) | TerminalAction::View(_));
+                        match handle_terminal_action(action, terminal, editor, other_editor, renderer) {
+                            Ok(focus_other) => {
+                                outcome.focus_other = focus_other;
+                                if opens_document && !terminal.is_active() {
+                                    outcome.document_reloaded = true;
+                                    outcome.path_changed = true;
+                                    outcome.cursor_changed = true;
+                                }
+                            }
+                            Err(error) => terminal.set_status(error),
+                        }
+                    }
+                    Err(error) => terminal.set_status(error.to_string()),
+                }
+            }
         }
 
         Ok(ParsedCommand::Split) => {
@@ -2356,6 +2396,14 @@ fn file_is_open_in(
     }
 }
 
+fn editor_mode_label(editor: &Editor, vim: &VimController) -> Option<&'static str> {
+    match editor.config.keybinding_mode {
+        KeybindingMode::Vim => Some(vim.mode_label()),
+        KeybindingMode::Emacs => Some(editor.emacs.label()),
+        KeybindingMode::Conventional => None,
+    }
+}
+
 fn focus_pane(
     target: usize,
     active_pane: &mut usize,
@@ -2371,6 +2419,8 @@ fn focus_pane(
         return;
     }
 
+    editor.emacs.cancel_sequence();
+    other_editor.emacs.cancel_sequence();
     std::mem::swap(editor, other_editor);
     std::mem::swap(vim, other_vim);
     renderer.swap_view();
@@ -2380,10 +2430,7 @@ fn focus_pane(
     renderer.invalidate_scroll_cache();
     renderer.update_cursor(&editor.document);
     renderer.ensure_cursor_visible(&mut editor.document);
-    renderer.set_mode_label(
-        (editor.config.keybinding_mode == KeybindingMode::Vim)
-            .then_some(vim.mode_label())
-    );
+    renderer.set_mode_label(editor_mode_label(editor, vim));
 }
 
 fn apply_keybinding_mode(
@@ -2397,6 +2444,8 @@ fn apply_keybinding_mode(
 ) {
     editor.clear_secondary_cursors();
     other_editor.clear_secondary_cursors();
+    editor.emacs.reset();
+    other_editor.emacs.reset();
     *vim_enabled = mode == KeybindingMode::Vim;
 
     if *vim_enabled {
@@ -2412,7 +2461,7 @@ fn apply_keybinding_mode(
     } else {
         vim.deactivate(editor);
         other_vim.deactivate(other_editor);
-        renderer.set_mode_label(None);
+        renderer.set_mode_label(if mode == KeybindingMode::Emacs { Some("Emacs") } else { None });
     }
 }
 
@@ -2579,6 +2628,7 @@ let mut other_editor =
     Editor::new(editor_config)
         .map_err(|e| e.to_string())?;
 
+let mut emacs = emacs::Controller::default();
 let mut vim_enabled =
     editor.config.keybinding_mode == KeybindingMode::Vim;
 
@@ -2707,7 +2757,7 @@ if let Some(path) = editor.path.as_deref() {
     let mut other_vim = VimController::new();
 
     renderer.set_mode_label(
-        vim_enabled.then_some(vim.mode_label())
+        editor_mode_label(&editor, &vim)
     );
 
     let terminal_directory =
@@ -2791,6 +2841,7 @@ if let Some(path) = editor.path.as_deref() {
         );
 
         for mut event in pending_events.drain(..) {
+            command_bar.refresh_formatters(editor.path.as_deref());
             if let Some(terminal_event) = event
                 .as_user_event_type::<TerminalEvent>()
             {
@@ -2818,7 +2869,7 @@ if let Some(path) = editor.path.as_deref() {
                     search_ui.close();
                     if vim_enabled && outcome.document_reloaded { vim.reset(); }
                     renderer.set_file_path(editor.path.as_deref());
-                    renderer.set_mode_label(vim_enabled.then_some(vim.mode_label()));
+                    renderer.set_mode_label(editor_mode_label(&editor, &vim));
                     renderer.invalidate_scroll_cache();
                     renderer.update_cursor(&editor.document);
                     renderer.ensure_cursor_visible(&mut editor.document);
@@ -3180,6 +3231,7 @@ Event::MouseButtonDown {
                     search_ui.close();
                 }
 
+                editor.emacs.reset();
                 if vim_enabled {
                     vim.handle_document_click();
                     renderer.set_mode_label(
@@ -3273,6 +3325,7 @@ Event::MouseMotion {
                     repeat,
                     ..
                 } => {
+                    emacs.begin_key();
                     if ctrl_pressed(keymod)
                         && key == Keycode::Grave
                         && !repeat
@@ -3467,12 +3520,130 @@ Event::MouseMotion {
                         continue;
                     }
 
+                    if editor.config.keybinding_mode == KeybindingMode::Emacs {
+                        let control = ctrl_pressed(keymod);
+                        if command_bar.is_active() {
+                            let searching = emacs.search_origin.is_some()
+                                && matches!(command_bar.parse(), Ok(ParsedCommand::Find { .. }));
+                            if control && key == Keycode::G || key == Keycode::Escape {
+                                if let Some(origin) = emacs.search_origin.take() {
+                                    editor.document.move_cursor(origin.min(editor.document.len())).map_err(|e| e.to_string())?;
+                                }
+                                editor.emacs.reset(); command_bar.close(); search_ui.close();
+                                renderer.update_cursor(&editor.document); dirty = true; continue;
+                            }
+                            if searching && matches!(key, Keycode::Return | Keycode::KpEnter) {
+                                emacs.search_origin = None; command_bar.close();
+                                editor.document.move_cursor(editor.document.cursor.position).map_err(|e| e.to_string())?;
+                                dirty = true; continue;
+                            }
+                            if searching && control && matches!(key, Keycode::S | Keycode::R) {
+                                let result = if key == Keycode::R { search_ui.previous(&mut editor.document) }
+                                    else { search_ui.next(&mut editor.document) };
+                                if let Err(error) = result { command_bar.set_status(error.to_string()); }
+                                renderer.ensure_cursor_visible(&mut editor.document); dirty = true; continue;
+                            }
+                            if control && matches!(key, Keycode::A | Keycode::E | Keycode::B | Keycode::F
+                                | Keycode::H | Keycode::D | Keycode::K | Keycode::Y | Keycode::N | Keycode::P) {
+                                match key {
+                                    Keycode::A => command_bar.move_home(), Keycode::E => command_bar.move_end(),
+                                    Keycode::B => command_bar.move_left(), Keycode::F => command_bar.move_right(),
+                                    Keycode::H => command_bar.backspace(), Keycode::D => command_bar.delete(),
+                                    Keycode::N => { command_bar.move_selection(1); },
+                                    Keycode::P => { command_bar.move_selection(-1); },
+                                    Keycode::K => {
+                                        let text = command_bar.input()[command_bar.cursor()..].to_string();
+                                        if !text.is_empty() {
+                                            match crate::clipboard::TextClipboard::set_text(&clipboard, &text) {
+                                                Ok(()) => { while command_bar.cursor() < command_bar.input().len() { command_bar.delete(); } },
+                                                Err(error) => command_bar.set_status(error),
+                                            }
+                                        }
+                                    }
+                                    Keycode::Y => match read_text(&clipboard) {
+                                        Ok(text) => command_bar.insert_text(&text),
+                                        Err(error) => command_bar.set_status(error),
+                                    },
+                                    _ => (),
+                                }
+                                if let Err(error) = sync_command_search(&command_bar, &mut search_ui, &mut editor.document, emacs.search_origin) {
+                                    command_bar.set_status(error.to_string());
+                                }
+                                renderer.ensure_cursor_visible(&mut editor.document); dirty = true; continue;
+                            }
+                        } else {
+                            let handled = emacs.key(&mut editor, &clipboard, key, keymod, renderer.visible_line_count());
+                            match handled {
+                                Err(error) => { command_bar.open(":"); command_bar.show_info(&error); dirty = true; continue; }
+                                Ok(action) if action.consumed => {
+                                    let mut outcome = CommandOutcome::default();
+                                    match action.ui {
+                                        emacs::Ui::None => (),
+                                        emacs::Ui::Cancel => { search_ui.close(); emacs.search_origin = None; },
+                                        emacs::Ui::Command(text, execute) => {
+                                            emacs.search_origin = None; search_ui.close(); command_bar.open(text);
+                                            if text == ":quit" && (editor.dirty || other_editor.dirty) {
+                                                command_bar.show_info("Save modified documents before quitting with Ctrl+X Ctrl+C.");
+                                            } else if execute {
+                                                outcome = execute_command_bar(&mut command_bar, &mut search_ui, &mut editor,
+                                                    &mut other_editor, &mut renderer, &mut terminal, &mut vim, false,
+                                                    &mut other_vim, &mut lsp_ui);
+                                            }
+                                        }
+                                        emacs::Ui::Search(backward) => {
+                                            emacs.search_origin = Some(editor.document.cursor.position);
+                                            search_ui.close();
+                                            command_bar.open(if backward { ":find  --backward" } else { ":find " });
+                                            command_bar.set_cursor(6);
+                                        }
+                                        emacs::Ui::History(redo, count) => {
+                                            for _ in 0..count {
+                                                let result = workspace_edit::history(&mut editor, &mut other_editor, redo)
+                                                    .and_then(|handled| if handled { Ok(()) } else {
+                                                        if redo { editor.redo() } else { editor.undo() }.map_err(|e| e.to_string())
+                                                    });
+                                                if let Err(error) = result { command_bar.open(":"); command_bar.show_info(&error); break; }
+                                            }
+                                            editor.emacs.reset();
+                                            lsp_ui.files_changed(workspace_edit::recent_disk_changes(&editor, !redo));
+                                            search_ui.close(); renderer.invalidate_scroll_cache();
+                                            renderer.set_file_path(editor.path.as_deref());
+                                        }
+                                        emacs::Ui::Help => {
+                                            command_bar.open(":"); command_bar.show_info(emacs::HELP);
+                                        }
+                                        emacs::Ui::OtherPane => {
+                                            if split_mode { outcome.focus_other = true; }
+                                        }
+                                        emacs::Ui::Split => { split_mode = true; renderer.set_split_mode(true); },
+                                        emacs::Ui::OnlyPane => { split_mode = false; renderer.set_split_mode(false); },
+                                    }
+                                    if outcome.quit { break 'event_loop; }
+                                    if outcome.focus_other {
+                                        focus_pane(1-active_pane, &mut active_pane, &mut editor, &mut other_editor,
+                                            &mut vim, &mut other_vim, &mut renderer);
+                                    }
+                                    if action.changed || outcome.document_changed || outcome.document_reloaded {
+                                        renderer.invalidate_scroll_cache();
+                                    }
+                                    if outcome.path_changed { renderer.set_file_path(editor.path.as_deref()); }
+                                    renderer.set_mode_label(editor_mode_label(&editor, &vim));
+                                    renderer.update_cursor(&editor.document);
+                                    renderer.ensure_cursor_visible(&mut editor.document);
+                                    dirty = true; continue;
+                                }
+                                _ => (),
+                            }
+                        }
+                    }
+
                     /*
                      * Familiar shortcuts open the shared command bar with
                      * their command already selected. Ctrl+P opens the full
                      * command list.
                      */
-                    if ctrl_pressed(keymod)
+                    if editor.config.keybinding_mode != KeybindingMode::Emacs
+                        && ctrl_pressed(keymod)
                         && !(vim_enabled
                             && vim.mode() != vim::VimMode::Insert
                             && !command_bar.is_active()
@@ -3504,7 +3675,7 @@ Event::MouseMotion {
                             &command_bar,
                             &mut search_ui,
                             &mut editor.document,
-                            vim.search_origin(),
+                            if editor.config.keybinding_mode == KeybindingMode::Emacs { emacs.search_origin } else { vim.search_origin() },
                         )
                         .map_err(|error| {
                             error.to_string()
@@ -3555,7 +3726,7 @@ Event::MouseMotion {
                                         &command_bar,
                                         &mut search_ui,
                                         &mut editor.document,
-                                        vim.search_origin(),
+                                        if editor.config.keybinding_mode == KeybindingMode::Emacs { emacs.search_origin } else { vim.search_origin() },
                                     )
                                     .map_err(|error| {
                                         error.to_string()
@@ -3675,7 +3846,7 @@ Event::MouseMotion {
                                 &command_bar,
                                 &mut search_ui,
                                 &mut editor.document,
-                                vim.search_origin(),
+                                if editor.config.keybinding_mode == KeybindingMode::Emacs { emacs.search_origin } else { vim.search_origin() },
                             )
                             .map_err(|error| {
                                 error.to_string()
@@ -4068,6 +4239,7 @@ Event::MouseMotion {
                     text,
                     ..
                 } => {
+                    if emacs.consume_text() { continue; }
                     if terminal.is_active() {
                         if !terminal.output_focused() {
                             terminal.insert_text(&text);
@@ -4084,7 +4256,8 @@ Event::MouseMotion {
 
                     if command_bar.is_active() {
                         if !text.is_empty() {
-                            if command_bar.input() == ":"
+                            if editor.config.keybinding_mode != KeybindingMode::Emacs
+                                && command_bar.input() == ":"
                                 && text == ":"
                             {
                                 command_bar.close();
@@ -4113,7 +4286,7 @@ Event::MouseMotion {
                                 &command_bar,
                                 &mut search_ui,
                                 &mut editor.document,
-                                vim.search_origin(),
+                                if editor.config.keybinding_mode == KeybindingMode::Emacs { emacs.search_origin } else { vim.search_origin() },
                             )
                             .map_err(|error| {
                                 error.to_string()
@@ -4147,7 +4320,7 @@ Event::MouseMotion {
                         continue;
                     }
 
-                    if !vim_enabled && text == ":" && editor.document.secondary_cursors.is_empty() {
+                    if editor.config.keybinding_mode == KeybindingMode::Conventional && text == ":" && editor.document.secondary_cursors.is_empty() {
                         let line = editor
                             .document
                             .cursor
@@ -4169,11 +4342,14 @@ Event::MouseMotion {
                     }
 
                     if !text.is_empty() {
-                        editor
-                            .insert(&text)
-                            .map_err(
-                                |e| e.to_string()
-                            )?;
+                        if editor.config.keybinding_mode == KeybindingMode::Emacs {
+                            if let Err(error) = emacs.insert(&mut editor, &text) {
+                                command_bar.open(":"); command_bar.show_info(&error.to_string());
+                            }
+                            renderer.set_mode_label(editor_mode_label(&editor, &vim));
+                        } else {
+                            editor.insert(&text).map_err(|e| e.to_string())?;
+                        }
 
                         if vim_enabled {
                             vim.record_text(&text);
@@ -4279,6 +4455,7 @@ Event::MouseMotion {
 
         dirty |= terminal.is_active() && terminal_frames.due(Instant::now());
         if dirty {
+            command_bar.refresh_formatters(editor.path.as_deref());
             let start =
                 Instant::now();
 

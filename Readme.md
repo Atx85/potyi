@@ -92,6 +92,15 @@ In conventional mode, press `Cmd+D` / `Ctrl+D` to select the word under the curs
 
 Press `Escape` to keep only the most recent selection or cursor. Arrow keys move every cursor together; Shift+arrows select text at each cursor so you can edit just part of each occurrence. Word, Home/End, and page movements also apply to every cursor, including their selection variants. Cursors or selections that converge are merged. Clicking elsewhere or opening search returns to one cursor. For this workflow from Vim, use `:set keybindings conventional`, make the edits, then open the command bar with `Ctrl+P` and use `:set keybindings vim`. Switching back keeps the edits and drops extra cursors; Vim's `Ctrl+D` half-page motion is unchanged.
 
+## Emacs Keybindings
+
+Use `:set keybindings emacs` for Emacs-style movement, marked selections,
+kill/yank editing, search, repeat counts, and file/pane prefix commands.
+`Alt+X` opens Pötyi's command bar; `Ctrl+G` cancels; `Ctrl+H` shows the keys.
+Set `keybinding_mode = "emacs"` under `[editor]` to use it at startup.
+The kill ring is shared between panes and bounded to 32 entries / 256 KiB.
+See the [Emacs key reference](docs/emacs.md) for the supported subset.
+
 ## Vim-like Keybindings
 
 Set `keybinding_mode = "vim"` under `[editor]` in
@@ -202,11 +211,30 @@ Unity project validation is still pending; Rust and C++ completion have live-ser
 ## Code Formatting
 
 Run `:format` or press `Ctrl+Shift+I` (`Cmd+Shift+I` on macOS) to format
-the focused document, including unsaved edits. `:format NAME` selects a
-specific provider. `:formatters` shows matching providers and whether their
-executables are available; an untitled document shows all providers. To format
-an untitled document, select a provider explicitly; its first configured
-extension supplies a virtual filename for language detection.
+the focused document, including unsaved edits. No argument is required: Pötyi
+uses the first installed matching formatter, falling back to built-in indentation
+when none is available. Untitled documents use built-in indentation by default.
+Untitled code is treated as C-style code; save it with its language's extension
+first when that assumption does not apply.
+`:format builtin` explicitly selects it; `:format NAME` selects an external tool.
+Typing `:format ` shows matching names, file extensions and installation status.
+Enter keeps automatic selection; Up/Down then Enter chooses a tool, and Tab
+completes its name. `:formatters` opens the chooser; an untitled document shows
+all tools. When explicitly selecting an external formatter for an untitled
+document, its first configured extension supplies a virtual filename.
+
+Built-in indentation adjusts leading whitespace using braces, brackets and
+parentheses for C/C++, C#, Java, Objective-C, Protobuf, JSON and untitled code.
+It follows `tab_width` and `insert_spaces`, preserving line endings, blank lines,
+trailing whitespace and multiline string/comment contents. It does not wrap
+expressions, rearrange braces, or implement language-specific indentation rules
+such as unbraced statements and switch labels. Unsupported file types (including
+Python), interpolated strings, unmatched closing brackets and unclosed strings
+or comments receive an explanation without changes. Use a language formatter
+for these cases. The built-in path uses temporary files and bounded buffers
+(a 64 KiB maximum line length and 256 nesting levels), with the same document
+and output size limits as external formatting. It does not keep a document copy
+in memory or require an installed executable.
 
 Formatting is a foreground operation: the editor waits for it to finish.
 There is no format-on-save, background worker, watcher, daemon, startup probe,
@@ -243,6 +271,7 @@ configuration files are preserved. Formatter configuration is read on each
 explicit request, so edits take effect without restarting. The first installed
 matching provider in the file wins; reorder entries to change preference.
 A selected provider's failure is reported without trying another tool.
+The name `builtin` is reserved and cannot be used for a custom provider.
 
 Custom providers use the same stdin/stdout contract:
 
@@ -300,7 +329,7 @@ Search options are `--case-sensitive`, `--ignore-case`, `--regex`, and `--backwa
 
 Without a sign, `:goto line[:column]` matches the number shown in the gutter. In `normal` mode that is an absolute line number. In `relative` and `dynamic` modes it selects the line carrying that label, above or below the cursor. For example, on the last line of a 12-line document in dynamic mode, `:goto 2` selects actual line 10, while `:goto 12` stays on the current line. If multiple lines carry the requested label, the command shows an error with the signed commands to choose a direction. Use `:goto 3 --rel` to force three lines down or `:goto 3 --abs` to force absolute line 3; `:goto +3 --abs` also selects absolute line 3. Absolute destinations must be positive. Missing labels and out-of-range destinations show an error without moving the cursor or clearing the selection.
 
-`:set keybindings vim|conventional` switches keyboard behavior immediately for the current session. Set `keybinding_mode` under `[editor]` in `config/editor.toml` to choose the mode used at startup.
+`:set keybindings vim|emacs|conventional` switches keyboard behavior immediately for the current session. Set `keybinding_mode` under `[editor]` in `config/editor.toml` to choose the mode used at startup.
 
 Pötyi embeds its default editor settings, keybindings, and syntax-highlighting definitions in the executable. Run `:extract-config` to create editable copies under `config/`. Existing files are preserved, so the command never overwrites custom configuration. Pötyi uses an extracted file when available and otherwise falls back to the embedded default.
 
@@ -341,7 +370,13 @@ or `touch --no-create` to skip missing files, and `touch -- -notes.txt` for a na
 starting with a dash. Relative paths use the terminal's current directory;
 parent folders must already exist. Other touch flags are not built in.
 
-`ls` shows text files in green, folders in blue with a trailing `/`, and binary files in amber. Underlined names are clickable: text files open in the editor, and folders change the terminal directory and show its contents. A clickable `../` entry at the start of each folder listing goes up one folder; it is omitted at the filesystem root. Binary and unreadable files are not links. Listing links remember their original paths, including names with spaces. File types are detected from a small content sample.
+Use `:term ls` or `:term git log --oneline` from the editor to open the terminal
+and run a command immediately. Everything after `:term` uses the same handling
+as the terminal prompt, including quotes, flags, pipelines and redirects. It
+uses the terminal's current directory and records the command in its history.
+Plain `:term` opens the terminal without running anything.
+
+`ls` uses aligned columns sized to the terminal width when the command runs. Use `ls -1` for one name per line or `ls -lh` for file sizes. It shows text files in green, folders in blue with a trailing `/`, and binary files in amber. Underlined names are clickable: text files open in the editor, and folders change the terminal directory and show its contents. A clickable `../` entry at the start of each folder listing goes up one folder; it is omitted at the filesystem root. Binary and unreadable files are not links. Listing links remember their original paths, including names with spaces. File types are detected from a small content sample.
 
 `edit` opens a file normally, while `view` opens it read-only. Relative paths are resolved from the terminal's current directory. File paths printed in terminal output can be clicked, including compiler-style `path:line:column` locations. If the current file has unsaved edits, terminal file links open in the other pane and preserve those edits; use `:split` to see both files. Links to an already-open file return to that document without reloading it. If both panes have unsaved edits, save one before opening a third file. Terminal messages appear above the command input and wrap to fit the window. Terminal output, including `ls`, also wraps at word boundaries and reflows when the window or font size changes. Very long words and filenames continue on the next row; links remain clickable on every wrapped part. Scrolling follows the displayed rows, while copied output keeps its original line breaks.
 

@@ -17,4 +17,5 @@ line_numbers = "dynamic"
 font_size = 18
 
 # Keyboard behavior: "conventional" or "vim".
+# conventional, vim, or emacs
 keybinding_mode = "conventional"

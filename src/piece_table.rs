@@ -2042,7 +2042,7 @@ all_lines_cached: original_length == 0,
     Ok(position)
 }
     
-    fn current_line_start(
+    pub(crate) fn current_line_start(
         &mut self,
     ) -> io::Result<usize> {
         self.ensure_position_cached(

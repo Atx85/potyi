@@ -1,6 +1,8 @@
 # Formatting runs only on :format or the FormatDocument shortcut.
 # The first installed matching provider wins. Reorder entries to change that
 # preference. :format NAME explicitly selects a provider (also for untitled files).
+# With no installed match, :format uses built-in indentation for supported files.
+# :format builtin always selects it. The name "builtin" is reserved.
 # Commands must read stdin and write only formatted source to stdout. Never use
 # in-place, directory-wide, daemon, or package-manager commands here.
 # {filepath} is the absolute source filename, passed as a literal argument;

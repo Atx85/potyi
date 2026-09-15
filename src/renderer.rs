@@ -2178,7 +2178,12 @@ impl<'a> Renderer<'a> {
         Ok(())
     }
 
+    pub(crate) fn terminal_columns(&self) -> usize {
+        ((self.window_width - 24).max(1) / self.char_width.max(1)).max(1) as usize
+    }
+
     fn update_terminal_layout(&mut self, terminal: &mut Terminal) -> Result<(), String> {
+        terminal.set_listing_width(self.terminal_columns());
         let metrics = WrapMetrics {
             width: (self.window_width - 24).max(1),
             cell_width: self.char_width.max(1),

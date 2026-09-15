@@ -167,6 +167,7 @@ pub(crate) struct Terminal {
     history_draft: String,
     running: Option<RunningProcess>,
     listing: Option<listing::Job>,
+    listing_width: usize,
     completions: completion::Cache,
     last_command: Option<String>,
     status: Option<String>,
@@ -213,6 +214,7 @@ impl Terminal {
             history_draft: String::new(),
             running: None,
             listing: None,
+            listing_width: 80,
             completions: completion::Cache::default(),
             last_command: None,
             status: None,
@@ -551,6 +553,17 @@ ls links: green = edit file, blue = enter folder; amber = binary\n"
         self.scroll_back = 0;
         self.status = None;
         Ok(())
+    }
+
+    /// Use the same execution, history and action handling as the terminal prompt.
+    pub(crate) fn run_command(&mut self, command: &str) -> io::Result<TerminalAction> {
+        if self.is_running() {
+            return Err(io::Error::other("A command is already running"));
+        }
+        let events = self.events.clone().ok_or_else(|| io::Error::other("Terminal events are unavailable"))?;
+        self.input = command.to_string();
+        self.cursor = self.input.len();
+        self.submit(&events)
     }
 
     pub fn submit(
@@ -910,8 +923,12 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
         self.enter_directory(&target)
     }
 
+    pub(crate) fn set_listing_width(&mut self, columns: usize) {
+        self.listing_width = columns.clamp(1, 1000);
+    }
+
     fn start_listing(&mut self, arguments: &str, enter: Option<PathBuf>) -> io::Result<()> {
-        self.listing = Some(listing::start(arguments.to_string(), self.cwd.clone(), enter, self.events.as_ref().map(EventSubsystem::event_sender))?);
+        self.listing = Some(listing::start(arguments.to_string(), self.cwd.clone(), enter, self.listing_width, self.events.as_ref().map(EventSubsystem::event_sender))?);
         self.status = Some("Listing… Ctrl+C stops".into());
         self.scroll_back = 0;
         Ok(())
@@ -2305,6 +2322,49 @@ mod tests {
     }
 
     #[test]
+    fn default_listing_columns_fit_width_and_keep_click_targets_across_batches() {
+        let root = Fixture::new();
+        for i in 0..150 {
+            fs::write(root.0.join(format!("file-{i:03}{}", "x".repeat(i % 7))), "text").unwrap();
+        }
+        fs::create_dir(root.0.join("a folder")).unwrap();
+        let mut terminal = Terminal::new(root.0.clone()).unwrap();
+        terminal.clear().unwrap();
+        terminal.set_listing_width(60);
+        terminal.start_listing("", None).unwrap();
+        finish_listing(&mut terminal);
+        let text = terminal.output_text().unwrap();
+        assert_eq!(terminal.entries.len(), 152);
+        let mut starts = std::collections::BTreeSet::new();
+        for entry in terminal.entries.clone() {
+            let line_start = text[..entry.range.start].rfind('\n').map_or(0, |p| p + 1);
+            starts.insert(text[line_start..entry.range.start].chars().count());
+            let shown = &text[entry.range.clone()];
+            assert!(!shown.contains('\n'));
+            let expected = if entry.path == root.0.parent().unwrap() {
+                "../".to_string()
+            } else {
+                format!("{}{}", entry.path.file_name().unwrap().to_string_lossy(),
+                    if entry.kind == EntryKind::Directory { "/" } else { "" })
+            };
+            assert_eq!(shown, expected);
+            assert_eq!(terminal.action_at_output_offset(entry.range.start).unwrap(), entry.action());
+        }
+        assert_eq!(starts.into_iter().collect::<Vec<_>>(), vec![0, 17, 34]);
+        assert!(text.lines().all(|line| line.chars().count() <= 60));
+        for (width, options) in [(10, ""), (60, "-1"), (60, "-lh")] {
+            terminal.clear().unwrap();
+            terminal.set_listing_width(width);
+            terminal.start_listing(options, None).unwrap();
+            finish_listing(&mut terminal);
+            let text = terminal.output_text().unwrap();
+            let lines: std::collections::BTreeSet<_> = terminal.entries.iter().map(|entry|
+                text[..entry.range.start].bytes().filter(|&b| b == b'\n').count()).collect();
+            assert_eq!(lines.len(), terminal.entries.len(), "{options} at width {width}");
+        }
+    }
+
+    #[test]
     fn large_listing_streams_in_batches_and_can_be_cancelled_without_stale_output() {
         let root = Fixture::new();
         for i in 0..800 { fs::write(root.0.join(format!("file-{i:04}.txt")), "text").unwrap(); }
@@ -2531,6 +2591,53 @@ mod tests {
             assert_eq!(output.status.code(), Some(code), "{command}: {}", String::from_utf8_lossy(&output.stderr));
             assert_eq!(String::from_utf8(output.stdout).unwrap(), expected, "{command}");
         }
+    }
+
+    #[test]
+    #[ignore = "Uses SDL events; run with --ignored --test-threads=1"]
+    fn term_command_shortcut_shares_execution_history_and_busy_guard() {
+        let sdl = sdl3::init().unwrap();
+        let events = sdl.event().unwrap();
+        let mut pump = sdl.event_pump().unwrap();
+        register_test_events(&events);
+        let root = Fixture::new();
+        fs::create_dir(root.0.join("nested folder")).unwrap();
+        fs::write(root.0.join("nested folder/sample.txt"), "hello").unwrap();
+        let mut terminal = Terminal::new(root.0.clone()).unwrap();
+        terminal.set_events(events);
+        terminal.open(None);
+        terminal.run_command("cd \"nested folder\"").unwrap();
+        finish_listing(&mut terminal);
+        assert_eq!(terminal.cwd, root.0.join("nested folder").canonicalize().unwrap());
+        terminal.run_command("ls").unwrap();
+        terminal.insert_text("unfinished draft");
+        assert!(terminal.run_command("pwd").unwrap_err().to_string().contains("already running"));
+        assert_eq!(terminal.input(), "unfinished draft");
+        finish_listing(&mut terminal);
+        assert!(terminal.output_text().unwrap().contains("sample.txt"));
+        terminal.run_command("pwd").unwrap();
+        assert_eq!(terminal.history.back().unwrap(), "pwd");
+        assert!(terminal.input().is_empty());
+        assert_eq!(terminal.run_command("edit sample.txt").unwrap(), TerminalAction::Edit("sample.txt".into()));
+        assert_eq!(terminal.run_command("view sample.txt").unwrap(), TerminalAction::View("sample.txt".into()));
+        let command = if cfg!(windows) { "echo shortcut-output > result.txt" }
+            else { "printf '%s\\n' 'shortcut-output' | cat > result.txt" };
+        terminal.run_command(command).unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while terminal.is_running() {
+            for event in pump.poll_iter() {
+                if let Some(event) = event.as_user_event_type::<TerminalEvent>() {
+                    terminal.handle_event(event).unwrap();
+                }
+            }
+            terminal.poll_background().unwrap();
+            assert!(std::time::Instant::now() < deadline);
+            thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert_eq!(fs::read_to_string(terminal.cwd.join("result.txt")).unwrap().trim(), "shortcut-output");
+        assert_eq!(terminal.history.back().unwrap(), command);
+        terminal.run_command("exit").unwrap();
+        assert!(!terminal.is_active());
     }
 
     #[test]
