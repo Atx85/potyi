@@ -4,6 +4,8 @@
 use std::{fs::{self, File}, io::Write, time::{Duration, Instant}};
 use crate::{PieceTable, Searcher};
 
+mod recovery_latency;
+
 pub(crate) fn record(name: &str, elapsed: Duration, bytes: usize) {
     if std::env::var_os("POTYI_BENCHMARK_JSON").is_some() {
         println!("POTYI_BENCH {}", serde_json::json!({

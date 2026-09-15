@@ -371,6 +371,7 @@ name = "potyi"
 version = "0.1.1"
 dependencies = [
  "flate2",
+ "libc",
  "regex",
  "sdl3",
  "serde",

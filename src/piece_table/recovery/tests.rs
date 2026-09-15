@@ -5,9 +5,9 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
     time::{Duration, Instant},
 };
-struct Temp(PathBuf);
+pub(super) struct Temp(pub(super) PathBuf);
 impl Temp {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let path = std::env::temp_dir().join(format!(
             "potyi recovery test {} {} {}",
@@ -111,6 +111,23 @@ fn recovery_untitled_save_then_undo_keeps_immutable_original() {
         fs::read_to_string(destination).unwrap(),
         "outside modification"
     );
+}
+
+#[test]
+fn recovery_snapshots_the_open_handle_after_source_path_is_replaced() {
+    let temp = Temp::new();
+    let mut table = temp.table("opened original");
+    let source = temp.0.join("source.txt");
+    let moved = temp.0.join("moved.txt");
+    fs::rename(&source, &moved).unwrap();
+    fs::write(&source, "replacement at the same path").unwrap();
+    table.insert(0, "edited ").unwrap();
+    fs::write(&moved, "outside change to the original inode").unwrap();
+    assert_eq!(table.text().unwrap(), "edited opened original");
+    assert!(table.take_recovery_warning().is_none());
+    drop(table);
+    assert_eq!(temp.restore(), ("edited opened original".into(), false));
+    assert_eq!(fs::read_to_string(source).unwrap(), "replacement at the same path");
 }
 
 #[test]

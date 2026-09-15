@@ -1,0 +1,25 @@
+
+running 1 test
+test piece_table::recovery::tests::recovery_memory_probe ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 68844 1789479557515333000 0/large.txt): 348.833µs
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 9.19s
+
+        9.22 real         0.05 user         0.32 sys
+             6352896  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                1864  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                8093  voluntary context switches
+                 503  involuntary context switches
+          1021443248  instructions retired
+           901435406  cycles elapsed
+             4252992  peak memory footprint

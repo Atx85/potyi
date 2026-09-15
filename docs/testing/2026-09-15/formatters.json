@@ -1,0 +1,44 @@
+[
+  {
+    "name": "rustfmt",
+    "status": "PASS",
+    "log": "formatter-rustfmt.log",
+    "scope": "Configured CLI stdin/stdout recipe; rustfmt additionally has editor apply/undo integration coverage"
+  },
+  {
+    "name": "ruff",
+    "status": "UNVERIFIED",
+    "reason": "Formatter executable not installed"
+  },
+  {
+    "name": "gofmt",
+    "status": "UNVERIFIED",
+    "reason": "Formatter executable not installed"
+  },
+  {
+    "name": "clang-format",
+    "status": "UNVERIFIED",
+    "reason": "Formatter executable not installed"
+  },
+  {
+    "name": "shfmt",
+    "status": "UNVERIFIED",
+    "reason": "Formatter executable not installed"
+  },
+  {
+    "name": "stylua",
+    "status": "UNVERIFIED",
+    "reason": "Formatter executable not installed"
+  },
+  {
+    "name": "taplo",
+    "status": "UNVERIFIED",
+    "reason": "Formatter executable not installed"
+  },
+  {
+    "name": "biome",
+    "status": "PASS",
+    "log": "formatter-biome.log",
+    "scope": "Configured CLI stdin/stdout recipe; rustfmt additionally has editor apply/undo integration coverage"
+  }
+]

@@ -1,0 +1,179 @@
+
+running 1 test
+test benchmarks::editor_performance_probe ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66202/1mib.txt): 481.542µs
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.515625,"name":"open_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.252541,"name":"first_40_lines_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.830875,"name":"literal_scan_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":5.476292,"name":"1000_insert_delete_pairs_1mib"}
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66202/100mib.txt): 563.667µs
+POTYI_BENCH {"bytes":104857600,"milliseconds":0.5792080000000001,"name":"open_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":0.231791,"name":"first_40_lines_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":86.875292,"name":"literal_scan_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":5.364790999999999,"name":"1000_insert_delete_pairs_100mib"}
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66202/1gb.txt): 671.5µs
+POTYI_BENCH {"bytes":1000000000,"milliseconds":0.683875,"name":"open_1gb"}
+POTYI_BENCH {"bytes":1000000000,"milliseconds":0.23925,"name":"first_40_lines_1gb"}
+POTYI_BENCH {"bytes":1000000000,"milliseconds":0.9231670000000001,"name":"open_and_first_40_lines_1gb"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.61s
+
+
+
+running 1 test
+test renderer::terminal_selection_render_tests::terminal_command_latency_probe ... LATENCY "printf terminal-ready": first drawn output 20.45875ms, complete 20.925459ms
+POTYI_BENCH {"bytes":0,"milliseconds":20.458750000000002,"name":"terminal_printf_first_frame"}
+LATENCY "grep -n 'fn main' src/main.rs": first drawn output 35.795833ms, complete 36.101875ms
+POTYI_BENCH {"bytes":0,"milliseconds":35.795833,"name":"terminal_grep_first_frame"}
+LATENCY "printf 'ready\\n' | grep -n ready": first drawn output 38.20425ms, complete 39.771542ms
+POTYI_BENCH {"bytes":0,"milliseconds":38.20425,"name":"terminal_pipe_first_frame"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.16s
+
+
+
+running 1 test
+test renderer::terminal_selection_render_tests::terminal_performance_probe ... PERF 120 unchanged frames: 59.434458ms
+POTYI_BENCH {"bytes":0,"milliseconds":59.434458,"name":"terminal_120_cached_frames"}
+PERF unfinished-line append/layout 2060800 bytes: 44.016292ms
+POTYI_BENCH {"bytes":2060800,"milliseconds":44.016292,"name":"terminal_append_layout_2mb"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.18s
+
+
+
+running 1 test
+test benchmarks::editor_performance_probe ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66218/1mib.txt): 519.167µs
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.567042,"name":"open_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.28575,"name":"first_40_lines_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.839,"name":"literal_scan_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":5.213833,"name":"1000_insert_delete_pairs_1mib"}
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66218/100mib.txt): 529.209µs
+POTYI_BENCH {"bytes":104857600,"milliseconds":0.541667,"name":"open_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":0.236417,"name":"first_40_lines_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":86.807917,"name":"literal_scan_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":5.346416,"name":"1000_insert_delete_pairs_100mib"}
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66218/1gb.txt): 1.236917ms
+POTYI_BENCH {"bytes":1000000000,"milliseconds":1.253167,"name":"open_1gb"}
+POTYI_BENCH {"bytes":1000000000,"milliseconds":0.28675,"name":"first_40_lines_1gb"}
+POTYI_BENCH {"bytes":1000000000,"milliseconds":1.540042,"name":"open_and_first_40_lines_1gb"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.58s
+
+
+
+running 1 test
+test renderer::terminal_selection_render_tests::terminal_command_latency_probe ... LATENCY "printf terminal-ready": first drawn output 20.546917ms, complete 21.014542ms
+POTYI_BENCH {"bytes":0,"milliseconds":20.546917,"name":"terminal_printf_first_frame"}
+LATENCY "grep -n 'fn main' src/main.rs": first drawn output 35.303666ms, complete 35.582958ms
+POTYI_BENCH {"bytes":0,"milliseconds":35.303666,"name":"terminal_grep_first_frame"}
+LATENCY "printf 'ready\\n' | grep -n ready": first drawn output 39.696125ms, complete 41.260167ms
+POTYI_BENCH {"bytes":0,"milliseconds":39.696125,"name":"terminal_pipe_first_frame"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.16s
+
+
+
+running 1 test
+test renderer::terminal_selection_render_tests::terminal_performance_probe ... PERF 120 unchanged frames: 60.201458ms
+POTYI_BENCH {"bytes":0,"milliseconds":60.201458,"name":"terminal_120_cached_frames"}
+PERF unfinished-line append/layout 2060800 bytes: 49.12825ms
+POTYI_BENCH {"bytes":2060800,"milliseconds":49.12825,"name":"terminal_append_layout_2mb"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.19s
+
+
+
+running 1 test
+test benchmarks::editor_performance_probe ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66226/1mib.txt): 444.083µs
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.466416,"name":"open_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.235708,"name":"first_40_lines_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.849708,"name":"literal_scan_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":5.279458,"name":"1000_insert_delete_pairs_1mib"}
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66226/100mib.txt): 532.167µs
+POTYI_BENCH {"bytes":104857600,"milliseconds":0.545041,"name":"open_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":0.213208,"name":"first_40_lines_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":86.504916,"name":"literal_scan_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":5.506125,"name":"1000_insert_delete_pairs_100mib"}
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66226/1gb.txt): 603.292µs
+POTYI_BENCH {"bytes":1000000000,"milliseconds":0.616375,"name":"open_1gb"}
+POTYI_BENCH {"bytes":1000000000,"milliseconds":0.264125,"name":"first_40_lines_1gb"}
+POTYI_BENCH {"bytes":1000000000,"milliseconds":0.880667,"name":"open_and_first_40_lines_1gb"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.48s
+
+
+
+running 1 test
+test renderer::terminal_selection_render_tests::terminal_command_latency_probe ... LATENCY "printf terminal-ready": first drawn output 20.517083ms, complete 20.931208ms
+POTYI_BENCH {"bytes":0,"milliseconds":20.517083,"name":"terminal_printf_first_frame"}
+LATENCY "grep -n 'fn main' src/main.rs": first drawn output 33.80925ms, complete 34.117167ms
+POTYI_BENCH {"bytes":0,"milliseconds":33.80925,"name":"terminal_grep_first_frame"}
+LATENCY "printf 'ready\\n' | grep -n ready": first drawn output 39.745459ms, complete 41.307125ms
+POTYI_BENCH {"bytes":0,"milliseconds":39.745459,"name":"terminal_pipe_first_frame"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.16s
+
+
+
+running 1 test
+test renderer::terminal_selection_render_tests::terminal_performance_probe ... PERF 120 unchanged frames: 59.787125ms
+POTYI_BENCH {"bytes":0,"milliseconds":59.787125,"name":"terminal_120_cached_frames"}
+PERF unfinished-line append/layout 2060800 bytes: 50.271833ms
+POTYI_BENCH {"bytes":2060800,"milliseconds":50.271833,"name":"terminal_append_layout_2mb"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.19s
+
+
+
+running 1 test
+test benchmarks::editor_performance_probe ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66234/1mib.txt): 515.917µs
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.54625,"name":"open_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.258125,"name":"first_40_lines_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":0.8711669999999999,"name":"literal_scan_1mib"}
+POTYI_BENCH {"bytes":1048576,"milliseconds":5.29,"name":"1000_insert_delete_pairs_1mib"}
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66234/100mib.txt): 520.959µs
+POTYI_BENCH {"bytes":104857600,"milliseconds":0.5321250000000001,"name":"open_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":0.24854199999999999,"name":"first_40_lines_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":87.316833,"name":"literal_scan_100mib"}
+POTYI_BENCH {"bytes":104857600,"milliseconds":5.40575,"name":"1000_insert_delete_pairs_100mib"}
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-benchmark-66234/1gb.txt): 712.917µs
+POTYI_BENCH {"bytes":1000000000,"milliseconds":0.727708,"name":"open_1gb"}
+POTYI_BENCH {"bytes":1000000000,"milliseconds":0.3615,"name":"first_40_lines_1gb"}
+POTYI_BENCH {"bytes":1000000000,"milliseconds":1.089417,"name":"open_and_first_40_lines_1gb"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.48s
+
+
+
+running 1 test
+test renderer::terminal_selection_render_tests::terminal_command_latency_probe ... LATENCY "printf terminal-ready": first drawn output 19.610541ms, complete 20.102875ms
+POTYI_BENCH {"bytes":0,"milliseconds":19.610540999999998,"name":"terminal_printf_first_frame"}
+LATENCY "grep -n 'fn main' src/main.rs": first drawn output 33.399875ms, complete 33.6705ms
+POTYI_BENCH {"bytes":0,"milliseconds":33.399875,"name":"terminal_grep_first_frame"}
+LATENCY "printf 'ready\\n' | grep -n ready": first drawn output 39.702375ms, complete 41.167125ms
+POTYI_BENCH {"bytes":0,"milliseconds":39.702374999999996,"name":"terminal_pipe_first_frame"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.16s
+
+
+
+running 1 test
+test renderer::terminal_selection_render_tests::terminal_performance_probe ... PERF 120 unchanged frames: 61.515625ms
+POTYI_BENCH {"bytes":0,"milliseconds":61.515625,"name":"terminal_120_cached_frames"}
+PERF unfinished-line append/layout 2060800 bytes: 48.235ms
+POTYI_BENCH {"bytes":2060800,"milliseconds":48.235,"name":"terminal_append_layout_2mb"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.19s
+

@@ -1,0 +1,16 @@
+
+running 1 test
+test lsp::tests::real_rust_analyzer_hover_and_definition ... rust-analyzer hover: potyi_lsp_test
+
+fn answer() -> u32
+
+
+Test hover documentation.
+rust-analyzer definition: main.rs:2:4
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-real-rust-lsp-62095-1789478557676804000/src/main.rs): 353.416µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-real-rust-lsp-62095-1789478557676804000/src/main.rs): 374.416µs
+rust-analyzer rename: declaration + call, preview/apply/undo passed
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 7.38s
+

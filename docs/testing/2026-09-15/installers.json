@@ -1,0 +1,121 @@
+[
+  {
+    "recipe": "rust",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 20.49,
+    "timeout": false,
+    "log": "install-rust.log",
+    "utc": "2026-09-15T13:40:17.234698+00:00"
+  },
+  {
+    "recipe": "clangd",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 0.46,
+    "timeout": false,
+    "log": "install-clangd.log",
+    "utc": "2026-09-15T13:40:17.693212+00:00"
+  },
+  {
+    "recipe": "python",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 9.02,
+    "timeout": false,
+    "log": "install-python.log",
+    "utc": "2026-09-15T13:40:26.712602+00:00"
+  },
+  {
+    "recipe": "typescript",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.38,
+    "timeout": false,
+    "log": "install-typescript.log",
+    "utc": "2026-09-15T13:40:29.096278+00:00"
+  },
+  {
+    "recipe": "php",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 7.88,
+    "timeout": false,
+    "log": "install-php.log",
+    "utc": "2026-09-15T13:40:36.978290+00:00"
+  },
+  {
+    "recipe": "bash",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.6,
+    "timeout": false,
+    "log": "install-bash.log",
+    "utc": "2026-09-15T13:40:39.580011+00:00"
+  },
+  {
+    "recipe": "lua",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.23,
+    "timeout": false,
+    "log": "install-lua.log",
+    "utc": "2026-09-15T13:40:42.814857+00:00"
+  },
+  {
+    "recipe": "luau",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.55,
+    "timeout": false,
+    "log": "install-luau.log",
+    "utc": "2026-09-15T13:40:47.368334+00:00"
+  },
+  {
+    "recipe": "web",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.45,
+    "timeout": false,
+    "log": "install-web.log",
+    "utc": "2026-09-15T13:40:51.814682+00:00"
+  },
+  {
+    "recipe": "yaml",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.32,
+    "timeout": false,
+    "log": "install-yaml.log",
+    "utc": "2026-09-15T13:40:54.138329+00:00"
+  },
+  {
+    "recipe": "toml",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 309.86,
+    "timeout": false,
+    "log": "install-toml.log",
+    "utc": "2026-09-15T13:46:04.001061+00:00"
+  },
+  {
+    "recipe": "csharp",
+    "status": "UNVERIFIED",
+    "reason": "No .NET SDK installed"
+  },
+  {
+    "recipe": "go",
+    "status": "UNVERIFIED",
+    "reason": "No Go toolchain installed"
+  },
+  {
+    "recipe": "java",
+    "status": "UNVERIFIED",
+    "reason": "No JDK installed; macOS java launcher is only a stub"
+  },
+  {
+    "recipe": "sql",
+    "status": "UNVERIFIED",
+    "reason": "No Go toolchain installed"
+  }
+]

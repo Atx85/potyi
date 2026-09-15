@@ -1,0 +1,35 @@
+benchmarks::editor_performance_probe: test
+formatting::tests::resource_probe: test
+formatting::tests::rustfmt_smoke_test_formats_buffer_without_saving: test
+lsp::tests::real_clangd_hover_and_definition: test
+lsp::tests::real_rust_analyzer_extract_module_to_file: test
+lsp::tests::real_rust_analyzer_hover_and_definition: test
+lsp::tests::real_servers_complete_member_access_and_prepare_insertion: test
+lsp_setup::tests::live_install_and_initialize: test
+lsp_setup::tests::live_java_distribution: test
+lsp_setup::tests::process_fixture: test
+lsp_ui::tests::action_picker_click_enter_cancel_and_selection_invalidation: test
+lsp_ui::tests::completion_popup_keys_undo_and_stale_results: test
+lsp_ui::tests::hover_clicks_refresh_only_the_latest_target_and_respect_dismissal: test
+lsp_ui::tests::rename_reply_preview_click_enter_apply_and_dismissal: test
+lsp_ui::tests::setup_ui_doctor_keeps_editing_and_delivers_background_result: test
+lsp_ui::tests::start_enables_stopped_lsp_and_restart_recovers_after_failure: test
+lsp_ui::tests::unity_missing_language_server_keeps_the_document_editable: test
+piece_table::recovery::tests::crash_fixture: test
+piece_table::recovery::tests::recovery_memory_probe: test
+renderer::completion::tests::completion_mouse_rows_stay_inside_each_pane: test
+renderer::terminal_selection_render_tests::compact_hover_panel_renders_with_small_paragraph_gaps: test
+renderer::terminal_selection_render_tests::editor_viewport_preserves_scrolled_unicode_tabs_and_clicks: test
+renderer::terminal_selection_render_tests::git_commit_mouse_target_and_back_restore_terminal_layout: test
+renderer::terminal_selection_render_tests::long_line_navigation_probe: test
+renderer::terminal_selection_render_tests::occurrence_selections_carets_and_vim_transition_render_correctly: test
+renderer::terminal_selection_render_tests::terminal_command_latency_probe: test
+renderer::terminal_selection_render_tests::terminal_performance_probe: test
+renderer::terminal_selection_render_tests::terminal_selection_handles_wrapping_unicode_and_streaming: test
+renderer::terminal_selection_render_tests::unity_csharp_bom_and_windows_line_endings_render_without_error: test
+terminal::git::tests::commit_diff_streams_and_back_restores_log_without_rerunning_it: test
+terminal::tests::submit_runs_grep_pipeline_and_preserves_navigation_builtins: test
+terminal::tests::term_command_shortcut_shares_execution_history_and_busy_guard: test
+tests::goto_executes_command_and_renders_destination: test
+
+33 tests, 0 benchmarks

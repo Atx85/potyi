@@ -1,0 +1,30 @@
+
+running 1 test
+test tests::goto_executes_command_and_renders_destination ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586545033000.txt): 342.042µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586551677000.txt): 431.542µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586556865000.txt): 350.917µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586564699000.txt): 209.166µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586573044000.txt): 234.209µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586577352000.txt): 237µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586587025000.txt): 253.167µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586605706000.txt): 274.458µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586609555000.txt): 271.292µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586614567000.txt): 237.084µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586622980000.txt): 224.292µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586628608000.txt): 372.958µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586634366000.txt): 202.709µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586655746000.txt): 277.041µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586659064000.txt): 249.375µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586664420000.txt): 230.333µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586668621000.txt): 276.292µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586672031000.txt): 235.041µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586677301000.txt): 353.75µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586681405000.txt): 325.25µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586685112000.txt): 327.542µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586689125000.txt): 334.041µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586693828000.txt): 629.625µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789478586698400000.txt): 365.292µs
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.37s
+

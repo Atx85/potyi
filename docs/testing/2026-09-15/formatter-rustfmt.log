@@ -1,0 +1,8 @@
+command: ['/Users/abanko/.cargo/bin/rustfmt', '--emit', 'stdout', '--edition', '2024']
+exit: 0
+stdout:
+fn main() {
+    let x = 1;
+}
+
+stderr:

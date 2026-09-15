@@ -1,0 +1,278 @@
+   Compiling potyi v0.1.1 (/Users/abanko/Desktop/untitled folder/potyi)
+warning: unused import: `VimMode`
+   --> src/main.rs:108:26
+    |
+108 | use vim::{VimController, VimMode, VimUiAction};
+    |                          ^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:746:9
+    |
+746 |     let mut table = PieceTable::open(
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:833:9
+    |
+833 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:845:9
+    |
+845 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:856:9
+    |
+856 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:872:9
+    |
+872 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/tests.rs:1238:9
+     |
+1238 |     let mut table =
+     |         ----^^^^^
+     |         |
+     |         help: remove this `mut`
+
+warning: method `line_text_from_start` is never used
+    --> src/piece_table.rs:1337:12
+     |
+ 355 | impl PieceTable {
+     | --------------- method in this implementation
+...
+1337 |     pub fn line_text_from_start(
+     |            ^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `search_bar_reserved_height` is never used
+    --> src/renderer.rs:1596:8
+     |
+ 179 | impl<'a> Renderer<'a> {
+     | --------------------- associated function in this implementation
+...
+1596 |     fn search_bar_reserved_height(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `search_origin` is never read
+  --> src/search.rs:68:5
+   |
+65 | pub struct Searcher {
+   |            -------- field in this struct
+...
+68 |     search_origin: usize,
+   |     ^^^^^^^^^^^^^
+
+warning: field `pattern` is never read
+  --> src/syntax.rs:49:9
+   |
+47 | pub struct SyntaxRule {
+   |            ---------- field in this struct
+48 |     pub name: String,
+49 |     pub pattern: String,
+   |         ^^^^^^^
+   |
+   = note: `SyntaxRule` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `test_file` is never used
+   --> src/tests.rs:131:4
+    |
+131 | fn test_file(contents: &[u8]) -> PathBuf {
+    |    ^^^^^^^^^
+
+warning: `potyi` (bin "potyi" test) generated 12 warnings (run `cargo fix --bin "potyi" -p potyi --tests` to apply 7 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 38.96s
+     Running unittests src/main.rs (target/debug/deps/potyi-40ec68d80e9c704e)
+
+running 25 tests
+test benchmarks::recovery_latency::typing_latency_probe ... ignored, Opt-in recovery typing probe; run tools/qa/recovery_latency.py
+test command_bar::tests::recovery_commands_require_a_positive_session_number ... ok
+test piece_table::recovery::snapshot::tests::recovery_native_clone_is_independent_when_supported ... Native copy-on-write clone exercised successfully.
+ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_empty_original_skips_clone_and_does_not_copy_appends ... ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_fallback_copies_exact_range_without_moving_source_cursor ... ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_never_overwrites_an_existing_destination ... ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_of_read_only_file_is_private_and_writable ... ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_rejects_shortened_sources_in_both_paths ... ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_trims_appends_and_keeps_both_files_independent ... ok
+test piece_table::recovery::tests::crash_fixture ... ignored, child fixture for a real process-kill recovery test
+test piece_table::recovery::tests::cross_filesystem_add_copy_and_failed_format_keep_journal_consistent ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509066627000 7/source.txt): 254.375µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509066627000 7/recovery/session-76722-1789481509068115000-2/original): 333.75µs
+ok
+test piece_table::recovery::tests::damaged_metadata_does_not_hide_other_recovery_sessions ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509143102000 8/source.txt): 437.75µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509143102000 8/source.txt): 276.833µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509143102000 8/recovery/session-76722-1789481509172657000-12/original): 232.666µs
+ok
+test piece_table::recovery::tests::recovery_failure_keeps_edits_and_reports_a_warning ... ok
+test piece_table::recovery::tests::recovery_handles_format_undo_redo_and_empty_documents ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509219268000 10/source.txt): 328.125µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509219268000 10/recovery/session-76722-1789481509220294000-19/original): 302.625µs
+ok
+test piece_table::recovery::tests::recovery_ignores_every_truncated_tail_and_checksum_damage ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/source.txt): 403.875µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 482.459µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 282.958µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 947.583µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 291µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 428.416µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 329.708µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 286.375µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 548.084µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 462.75µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 405.375µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 698.458µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 636.125µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 572.958µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 397.042µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 268.125µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 560.042µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 241.958µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 544.125µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 279.084µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 308.208µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 286.584µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 357.208µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 785.042µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 394µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 439.875µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 588.75µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 333.25µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 597.417µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 499.291µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 249µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 315.375µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 254.584µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 345.667µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 462.333µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 806.167µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 244.5µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 273.333µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 302.166µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 557.75µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 534.042µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 252.042µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 259.667µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 254.542µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 354.5µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 292.625µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 264.209µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 242.625µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 240.709µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 247.292µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 297µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 255.125µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 291.75µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 259.625µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 410.75µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 246.375µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 298.209µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 290.333µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 513.958µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 290.625µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 333.25µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 328.375µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 297.667µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 287.208µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 355µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 277.292µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 237.041µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 246.833µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 320.375µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 318.125µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 272.667µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 195.75µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 187.458µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 182.166µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 123.166µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 128.458µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 166.958µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 151.875µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 125.708µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 123.958µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 141.125µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 126.292µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 131.833µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 158.083µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 190.625µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 155.542µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 192.959µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 169.625µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 178.25µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 195.833µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 186.542µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 187.542µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 138.167µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 148.417µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 191.458µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 139.792µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 141.542µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 141µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 153.916µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 133.375µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 151.792µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 172.333µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 174.041µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 136.416µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 186.625µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 143.5µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 205.041µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509284921000 11/recovery/session-76722-1789481509286535000-28/original): 186.75µs
+ok
+test piece_table::recovery::tests::recovery_memory_probe ... ignored, memory probe; run separately with /usr/bin/time and POTYI_RECOVERY_MEMORY=on or off
+test piece_table::recovery::tests::recovery_rejects_missing_sources_and_unbounded_frame_lengths ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509454921000 12/source.txt): 144µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509454921000 12/recovery/session-76722-1789481509455472000-139/original): 218.125µs
+ok
+test piece_table::recovery::tests::recovery_replays_unicode_deletions_piece_undo_and_batches ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509484608000 13/source.txt): 162.334µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509484608000 13/recovery/session-76722-1789481509485386000-142/original): 469.834µs
+ok
+test piece_table::recovery::tests::recovery_snapshots_the_open_handle_after_source_path_is_replaced ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509557563000 14/source.txt): 734.958µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509557563000 14/recovery/session-76722-1789481509559484000-153/original): 303.584µs
+ok
+test piece_table::recovery::tests::recovery_survives_process_kill_and_skips_live_processes ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509608800000 15/recovery/session-76726-1789481509761216000-2/original): 237.167µs
+ok
+test piece_table::recovery::tests::recovery_untitled_save_then_undo_keeps_immutable_original ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509809213000 16/recovery/session-76722-1789481509810385000-160/original): 230.333µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509847899000 17/source.txt): 211µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509847899000 17/recovery/session-76722-1789481509848753000-164/original): 241.833µs
+ok
+test piece_table::recovery::tests::recovery_uses_fixed_buffers_and_small_per_edit_records ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481509920043000 18/source.txt): 264.875µs
+ok
+test piece_table::recovery::tests::saving_after_a_journal_failure_restarts_from_the_complete_current_state ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481510867743000 19/source.txt): 611.708µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481510867743000 19/recovery/session-76722-1789481510941909000-275/original): 1.91425ms
+ok
+test piece_table::recovery::tests::successful_saves_clear_recovery_but_failed_saves_do_not ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481511022599000 20/source.txt): 1.838208ms
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481511022599000 20/recovery/session-76722-1789481511025293000-279/original): 392.041µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481511022599000 20/source.txt): 1.224083ms
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481511130241000 21/source.txt): 306.167µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481511130241000 21/recovery/session-76722-1789481511132219000-285/original): 403.5µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi recovery test 76722 1789481511130241000 21/renamed.cs): 459.792µs
+ok
+test tests::recovery_opens_separate_work_and_save_as_acknowledges_without_clobbering ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789481511300122000.recovery/original.cs): 361.417µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789481511300122000.recovery/original.cs): 381.375µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789481511300122000.recovery/sessions/session-76722-1789481511304725000-296/original): 290.708µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789481511300122000.recovery/sessions/recovered-76722-1789481511304725000-296-1789481511352385000.cs): 324.875µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi_test_1789481511300122000.recovery/sessions/recovered-76722-1789481511304725000-296-1789481511352385000.cs): 342.791µs
+ok
+
+test result: ok. 22 passed; 0 failed; 3 ignored; 0 measured; 552 filtered out; finished in 2.34s
+

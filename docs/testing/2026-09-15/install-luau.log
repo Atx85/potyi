@@ -1,0 +1,28 @@
+
+running 1 test
+test lsp_setup::tests::live_install_and_initialize ... Checking downloader
+Downloading from the server's official distribution
+Downloading from the server's official distribution
+Unpacking the language server
+Checking the installed launcher
+Checking the installed launcher
+Usage: luau-lsp [--help] [--version] [--show-flags] {analyze,lsp,require-graph}
+
+Optional arguments:
+  -h, --help     shows help message and exits 
+  -v, --version  prints version information and exits 
+  --show-flags   display all the currently available Luau FFlags and their values 
+
+Subcommands:
+  analyze       Run luau-analyze type checking and linting
+  lsp           Start the language server
+  require-graph Output a dependency graph
+
+Installed and configured Luau · luau-lsp.
+Files: /var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi setup test 69954 1789479642956091000/luau/server
+Existing project settings are preserved. Use :lsp doctor luau for project requirements.
+luau: initialize OK
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 4.37s
+

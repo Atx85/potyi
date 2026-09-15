@@ -1,0 +1,8 @@
+
+running 1 test
+test lsp_ui::tests::rename_reply_preview_click_enter_apply_and_dismissal ... PieceTable::open(/private/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-lsp-ui-62612-1789478581271343000/main.rs): 325.792µs
+PieceTable::open(/private/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-lsp-ui-62612-1789478581271343000/main.rs): 355.292µs
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.01s
+

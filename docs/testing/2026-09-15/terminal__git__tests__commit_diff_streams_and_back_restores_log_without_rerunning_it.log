@@ -1,0 +1,6 @@
+
+running 1 test
+test terminal::git::tests::commit_diff_streams_and_back_restores_log_without_rerunning_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.64s
+

@@ -1,0 +1,205 @@
+   Compiling potyi v0.1.1 (/Users/abanko/Desktop/untitled folder/potyi)
+warning: unused import: `VimMode`
+   --> src/main.rs:108:26
+    |
+108 | use vim::{VimController, VimMode, VimUiAction};
+    |                          ^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `handle_search_key` is never used
+    --> src/main.rs:1443:4
+     |
+1443 | fn handle_search_key(
+     |    ^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: enum `SearchKeyResult` is never used
+    --> src/main.rs:1590:6
+     |
+1590 | enum SearchKeyResult {
+     |      ^^^^^^^^^^^^^^^
+
+warning: function `replacement_requires_cursor_refresh` is never used
+    --> src/main.rs:1598:4
+     |
+1598 | fn replacement_requires_cursor_refresh(
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `line_text_from_start`, `cursor_line_column`, and `replace_ranges` are never used
+    --> src/piece_table.rs:1337:12
+     |
+ 355 | impl PieceTable {
+     | --------------- methods in this implementation
+...
+1337 |     pub fn line_text_from_start(
+     |            ^^^^^^^^^^^^^^^^^^^^
+...
+1755 |     pub fn cursor_line_column(
+     |            ^^^^^^^^^^^^^^^^^^
+...
+3312 |     pub(crate) fn replace_ranges<I>(
+     |                   ^^^^^^^^^^^^^^
+
+warning: associated items `visual_column_for_text`, `visual_x_for_column`, `logical_column_for_document_x`, and `search_bar_reserved_height` are never used
+    --> src/renderer.rs:515:8
+     |
+ 179 | impl<'a> Renderer<'a> {
+     | --------------------- associated items in this implementation
+...
+ 515 |     fn visual_column_for_text(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 558 |     fn visual_x_for_column(
+     |        ^^^^^^^^^^^^^^^^^^^
+...
+ 573 |     fn logical_column_for_document_x(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1596 |     fn search_bar_reserved_height(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `search_origin` is never read
+  --> src/search.rs:68:5
+   |
+65 | pub struct Searcher {
+   |            -------- field in this struct
+...
+68 |     search_origin: usize,
+   |     ^^^^^^^^^^^^^
+
+warning: methods `is_empty`, `len`, `visit_non_overlapping_matches`, `find_forward`, and `find_backward` are never used
+   --> src/search.rs:130:12
+    |
+ 72 | impl Searcher {
+    | ------------- methods in this implementation
+...
+130 |     pub fn is_empty(&self) -> bool {
+    |            ^^^^^^^^
+...
+135 |     pub fn len(&self) -> usize {
+    |            ^^^
+...
+148 |     pub fn visit_non_overlapping_matches<F>(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+382 |     pub fn find_forward(
+    |            ^^^^^^^^^^^^
+...
+554 | pub fn find_backward(
+    |        ^^^^^^^^^^^^^
+
+warning: multiple methods are never used
+   --> src/search_ui.rs:126:12
+    |
+ 87 | impl SearchUi {
+    | ------------- methods in this implementation
+...
+126 |     pub fn panel_mode(&self) -> SearchPanelMode {
+    |            ^^^^^^^^^^
+...
+187 |     pub fn set_mode(
+    |            ^^^^^^^^
+...
+212 |     pub fn cycle_mode(
+    |            ^^^^^^^^^^
+...
+240 |     pub fn open(
+    |            ^^^^
+...
+272 |     pub fn open_replace(
+    |            ^^^^^^^^^^^^
+...
+402 |     pub fn focus_next_field(&mut self, _backwards: bool) {
+    |            ^^^^^^^^^^^^^^^^
+...
+423 |     pub fn set_query(
+    |            ^^^^^^^^^
+...
+451 |     pub fn insert_text(
+    |            ^^^^^^^^^^^
+...
+487 |     pub fn backspace(
+    |            ^^^^^^^^^
+...
+524 |     pub fn delete(
+    |            ^^^^^^
+...
+565 |     pub fn move_left(&mut self) {
+    |            ^^^^^^^^^
+...
+577 |     pub fn move_right(&mut self) {
+    |            ^^^^^^^^^^
+...
+591 |     pub fn move_home(&mut self) {
+    |            ^^^^^^^^^
+...
+597 |     pub fn move_end(&mut self) {
+    |            ^^^^^^^^
+...
+607 |     pub fn insert_focused_text(
+    |            ^^^^^^^^^^^^^^^^^^^
+...
+643 |     pub fn backspace_focused(
+    |            ^^^^^^^^^^^^^^^^^
+...
+678 |     pub fn delete_focused(
+    |            ^^^^^^^^^^^^^^
+...
+711 |     pub fn move_focused_left(&mut self) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+730 |     pub fn move_focused_right(&mut self) {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+749 |     pub fn move_focused_home(&mut self) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+764 |     pub fn move_focused_end(&mut self) {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: function `previous_char_boundary` is never used
+    --> src/search_ui.rs:1132:4
+     |
+1132 | fn previous_char_boundary(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `next_char_boundary` is never used
+    --> src/search_ui.rs:1152:4
+     |
+1152 | fn next_char_boundary(
+     |    ^^^^^^^^^^^^^^^^^^
+
+warning: field `name` is never read
+  --> src/syntax.rs:41:9
+   |
+40 | pub struct SyntaxDefinition {
+   |            ---------------- field in this struct
+41 |     pub name: String,
+   |         ^^^^
+   |
+   = note: `SyntaxDefinition` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `pattern` is never read
+  --> src/syntax.rs:49:9
+   |
+47 | pub struct SyntaxRule {
+   |            ---------- field in this struct
+48 |     pub name: String,
+49 |     pub pattern: String,
+   |         ^^^^^^^
+   |
+   = note: `SyntaxRule` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `output_text` is never used
+   --> src/terminal.rs:304:12
+    |
+186 | impl Terminal {
+    | ------------- method in this implementation
+...
+304 |     pub fn output_text(&self) -> io::Result<String> {
+    |            ^^^^^^^^^^^
+
+warning: `potyi` (bin "potyi") generated 14 warnings (run `cargo fix --bin "potyi" -p potyi` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 24.54s

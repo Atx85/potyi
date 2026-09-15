@@ -1,0 +1,1385 @@
+[
+  {
+    "id": "F01",
+    "title": "Create documents",
+    "procedure": "Create unnamed and named files; try an existing destination and a dirty current pane.",
+    "expected": "New files start empty; existing files and unsaved edits survive rejected requests.",
+    "test_prefixes": [
+      "tests::new_document",
+      "command_bar::tests::new_command"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "command_bar::tests::new_command_accepts_optional_quoted_path",
+      "tests::new_document_contains_original_text",
+      "tests::new_document_creates_named_file_and_saves_edits_to_it",
+      "tests::new_document_preserves_unsaved_edits_and_existing_destinations"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F02",
+    "title": "Open files by path",
+    "procedure": "Open relative, absolute, quoted and missing paths; reopen a file already in the other pane.",
+    "expected": "Correct file opens once; missing files leave both documents intact.",
+    "test_prefixes": [
+      "startup::tests::",
+      "tests::open_file_detection",
+      "tests::terminal_failed_open",
+      "terminal::tests::standalone_text_paths"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "startup::tests::existing_colon_names_and_symlinked_folders_are_supported",
+      "startup::tests::file_launches_preserve_location_arguments_and_reject_missing_paths",
+      "startup::tests::folder_launches_resolve_against_the_calling_directory",
+      "terminal::tests::standalone_text_paths_open_relative_absolute_and_quoted_files",
+      "tests::open_file_detection_prevents_duplicate_pane_documents",
+      "tests::terminal_failed_open_preserves_both_documents"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F03",
+    "title": "Drag and drop files",
+    "procedure": "Drop a Unicode filename and a BOM/CRLF C# file onto a native window; also drop a missing path.",
+    "expected": "Correct file opens, malformed/missing input reports an error, and the app remains running.",
+    "test_prefixes": [
+      "renderer::terminal_selection_render_tests::unity_csharp",
+      "lsp_ui::tests::unity_missing"
+    ],
+    "additional_gate": "Native drag-and-drop event delivery is not covered by these component tests.",
+    "local_status": "PARTIAL: file loading/rendering only",
+    "executed_tests": [
+      "lsp_ui::tests::unity_missing_language_server_keeps_the_document_editable",
+      "renderer::terminal_selection_render_tests::unity_csharp_bom_and_windows_line_endings_render_without_error"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F04",
+    "title": "Save and Save As",
+    "procedure": "Save, Save As, overwrite rejection and explicit overwrite; repeat on read-only and dirty documents.",
+    "expected": "Exact bytes saved; original stays intact after Save As; failed saves retain edits/history.",
+    "test_prefixes": [
+      "tests::save_as",
+      "tests::new_document_creates",
+      "piece_table::recovery::tests::successful_saves"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "piece_table::recovery::tests::successful_saves_clear_recovery_but_failed_saves_do_not",
+      "tests::new_document_creates_named_file_and_saves_edits_to_it",
+      "tests::save_as_failure_preserves_document_and_requires_explicit_overwrite",
+      "tests::save_as_preserves_original_cursor_history_and_uses_new_path_for_later_saves",
+      "tests::save_as_protects_other_pane_and_read_only_documents"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F05",
+    "title": "Read-only viewing",
+    "procedure": "Open with view; attempt typing, deletion, formatting, replacement, cut and Save As.",
+    "expected": "Mutating commands leave file and document unchanged; selection and navigation still work.",
+    "test_prefixes": [
+      "tests::view_mode",
+      "tests::save_as_protects",
+      "vim::tests::read_only",
+      "multi_cursor::tests::occurrence_empty"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "multi_cursor::tests::occurrence_empty_whitespace_and_read_only_are_safe",
+      "tests::save_as_protects_other_pane_and_read_only_documents",
+      "tests::view_mode_keeps_document_unchanged",
+      "vim::tests::read_only_editor_allows_motion_but_not_changes"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F06",
+    "title": "Folder workspaces",
+    "procedure": "Resolve dot, relative and quoted folders; change terminal directory afterward.",
+    "expected": "Launch root is correct; terminal directory changes persist without changing the window root.",
+    "test_prefixes": [
+      "startup::tests::folder_launches",
+      "startup::tests::existing_colon",
+      "terminal::tests::reopening"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "startup::tests::existing_colon_names_and_symlinked_folders_are_supported",
+      "startup::tests::folder_launches_resolve_against_the_calling_directory",
+      "terminal::tests::reopening_preserves_terminal_directory"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F07",
+    "title": "Launch at a location",
+    "procedure": "Launch file:line:column with Unicode and colon-bearing filenames; try invalid paths.",
+    "expected": "File/location parses correctly; goto reaches a valid UTF-8 position and errors preserve the buffer.",
+    "test_prefixes": [
+      "startup::tests::file_launches",
+      "tests::terminal_locations"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "startup::tests::file_launches_preserve_location_arguments_and_reject_missing_paths",
+      "tests::terminal_locations_jump_to_reported_lines_and_unicode_byte_columns",
+      "tests::terminal_locations_support_unix_and_windows_paths"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F08",
+    "title": "Crash recovery",
+    "procedure": "Kill an editing process, restore, truncate the journal, change original on disk, and attempt failed saves.",
+    "expected": "Last complete text recovers separately; active sessions and externally modified originals are protected.",
+    "test_prefixes": [
+      "piece_table::recovery::tests::",
+      "tests::recovery_opens"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "piece_table::recovery::tests::cross_filesystem_add_copy_and_failed_format_keep_journal_consistent",
+      "piece_table::recovery::tests::damaged_metadata_does_not_hide_other_recovery_sessions",
+      "piece_table::recovery::tests::recovery_failure_keeps_edits_and_reports_a_warning",
+      "piece_table::recovery::tests::recovery_handles_format_undo_redo_and_empty_documents",
+      "piece_table::recovery::tests::recovery_ignores_every_truncated_tail_and_checksum_damage",
+      "piece_table::recovery::tests::recovery_memory_probe",
+      "piece_table::recovery::tests::recovery_rejects_missing_sources_and_unbounded_frame_lengths",
+      "piece_table::recovery::tests::recovery_replays_unicode_deletions_piece_undo_and_batches",
+      "piece_table::recovery::tests::recovery_survives_process_kill_and_skips_live_processes",
+      "piece_table::recovery::tests::recovery_untitled_save_then_undo_keeps_immutable_original",
+      "piece_table::recovery::tests::recovery_uses_fixed_buffers_and_small_per_edit_records",
+      "piece_table::recovery::tests::saving_after_a_journal_failure_restarts_from_the_complete_current_state",
+      "piece_table::recovery::tests::successful_saves_clear_recovery_but_failed_saves_do_not",
+      "tests::recovery_opens_separate_work_and_save_as_acknowledges_without_clobbering"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F09",
+    "title": "Unicode text editing and movement",
+    "procedure": "Edit Unicode at document/line boundaries; navigate short and long lines, tabs and pages.",
+    "expected": "No split UTF-8 code points; correct cursor/line state; original bytes remain valid.",
+    "test_prefixes": [
+      "tests::editor_",
+      "tests::cursor_",
+      "piece_table::line_view::tests::"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "piece_table::line_view::tests::checkpoint_storage_is_bounded_across_lines_and_tab_settings",
+      "piece_table::line_view::tests::empty_lines_crlf_and_unterminated_cr_keep_display_and_byte_columns",
+      "piece_table::line_view::tests::repeated_far_right_viewport_reads_stay_bounded_and_edits_invalidate_points",
+      "piece_table::line_view::tests::up_down_and_selection_preserve_columns_on_long_lines",
+      "piece_table::line_view::tests::utf8_crossing_scan_blocks_preserves_lines_and_positions",
+      "piece_table::line_view::tests::viewport_matches_unicode_and_tab_reference_at_every_offset",
+      "tests::cursor_cannot_move_after_end",
+      "tests::cursor_cannot_move_before_beginning",
+      "tests::cursor_does_not_enter_middle_of_utf8_character",
+      "tests::cursor_end_moves_to_current_line",
+      "tests::cursor_home_and_end",
+      "tests::cursor_home_moves_to_current_line",
+      "tests::cursor_line_and_column",
+      "tests::cursor_move_to_clicked_column_is_utf8_safe_and_clears_selection",
+      "tests::cursor_move_to_clicked_position_clamps_to_document_end",
+      "tests::cursor_moves_left_and_right",
+      "tests::cursor_moves_over_multibyte_character",
+      "tests::cursor_starts_at_zero",
+      "tests::editor_backspace_deletes_previous_character",
+      "tests::editor_backspace_removes_utf8_character",
+      "tests::editor_delete_deletes_next_character",
+      "tests::editor_delete_removes_utf8_character",
+      "tests::editor_insert_replaces_selection",
+      "tests::editor_newline_inserts_newline",
+      "tests::editor_typing_hello_then_space"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F10",
+    "title": "System clipboard editing",
+    "procedure": "Copy/cut forward and backward selections; paste Unicode and mixed newline styles; test empty/NUL input.",
+    "expected": "Clipboard operations preserve intended text; paste is one undo step; invalid data is handled.",
+    "test_prefixes": [
+      "clipboard::tests::"
+    ],
+    "additional_gate": "Native clipboard interoperability requires a separate desktop check.",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "clipboard::tests::copy_preserves_backward_selection",
+      "clipboard::tests::copy_preserves_forward_utf8_selection",
+      "clipboard::tests::copy_rejects_embedded_nul_without_panicking",
+      "clipboard::tests::copy_without_selection_leaves_clipboard_unchanged",
+      "clipboard::tests::cut_copies_and_removes_selection",
+      "clipboard::tests::empty_paste_does_not_create_history",
+      "clipboard::tests::newline_normalization_reuses_the_clipboard_allocation",
+      "clipboard::tests::paste_replaces_selection_as_one_undo_step",
+      "clipboard::tests::read_text_keeps_lf_and_utf8_content",
+      "clipboard::tests::read_text_normalizes_windows_and_classic_line_endings"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F11",
+    "title": "Undo and redo",
+    "procedure": "Group typing, undo and redo; mix formatting, replacements and workspace edits; verify redo invalidation.",
+    "expected": "Expected text and selection restore; unchanged operations preserve history; storage is reused.",
+    "test_prefixes": [
+      "tests::undo_",
+      "tests::formatting_",
+      "tests::replace_",
+      "workspace_edit::tests::"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "tests::formatting_noop_preserves_redo_dirty_and_cursor",
+      "tests::formatting_only_changes_the_target_pane_and_preserves_older_history",
+      "tests::formatting_preserves_selection_and_is_one_undo_step",
+      "tests::formatting_rejects_readonly_empty_and_invalid_output_without_changes",
+      "tests::replace_all_can_delete_every_match",
+      "tests::replace_all_does_not_reprocess_replacement_text",
+      "tests::replace_all_is_one_history_step_and_restores_selection",
+      "tests::replace_all_uses_leftmost_non_overlapping_matches",
+      "tests::replace_current_advances_without_wrapping_or_repeating",
+      "tests::replace_current_longer_unicode_undoes_and_redoes",
+      "tests::replace_current_shorter_unicode_undoes_and_redoes",
+      "tests::replace_current_uses_case_insensitive_match_byte_range",
+      "tests::undo_and_redo_reuse_file_backed_text",
+      "workspace_edit::tests::annotated_edits_are_reviewed_and_unknown_annotations_and_snippets_rejected",
+      "workspace_edit::tests::deleting_open_file_keeps_draft_and_undo_restores_file_and_path",
+      "workspace_edit::tests::disk_commit_failure_rolls_back_previous_files",
+      "workspace_edit::tests::disk_only_edit_still_has_an_undo_anchor_and_preview_is_non_mutating",
+      "workspace_edit::tests::extract_to_new_file_preserves_unsaved_source_and_has_atomic_undo_redo",
+      "workspace_edit::tests::moving_an_open_file_preserves_dirty_text_and_reverses_paths",
+      "workspace_edit::tests::preview_choices_work_with_mouse_enter_and_paging",
+      "workspace_edit::tests::rename_groups_two_unsaved_buffers_and_disk_with_undo_redo",
+      "workspace_edit::tests::resource_preview_refuses_collisions_and_stale_disk_without_partial_apply",
+      "workspace_edit::tests::resource_undo_waits_for_newer_edits_in_both_copies_of_an_open_buffer",
+      "workspace_edit::tests::stale_disk_buffer_and_readonly_fail_before_any_changes",
+      "workspace_edit::tests::undo_refuses_newer_edits_and_external_disk_changes_without_partial_undo",
+      "workspace_edit::tests::vim_insert_groups_cannot_swallow_a_workspace_undo_marker",
+      "workspace_edit::tests::workspace_parser_rejects_overlap_versions_resource_ops_and_unicode_splits"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F12",
+    "title": "Text selection",
+    "procedure": "Select by word, line and page in both directions; click tabs, Unicode and empty lines.",
+    "expected": "Selection endpoints stay valid and agree with rendered hit targets.",
+    "test_prefixes": [
+      "renderer::cursor_hit_tests::",
+      "tests::selection_",
+      "tests::cursor_move_to_clicked",
+      "piece_table::line_view::tests::"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "piece_table::line_view::tests::checkpoint_storage_is_bounded_across_lines_and_tab_settings",
+      "piece_table::line_view::tests::empty_lines_crlf_and_unterminated_cr_keep_display_and_byte_columns",
+      "piece_table::line_view::tests::repeated_far_right_viewport_reads_stay_bounded_and_edits_invalidate_points",
+      "piece_table::line_view::tests::up_down_and_selection_preserve_columns_on_long_lines",
+      "piece_table::line_view::tests::utf8_crossing_scan_blocks_preserves_lines_and_positions",
+      "piece_table::line_view::tests::viewport_matches_unicode_and_tab_reference_at_every_offset",
+      "renderer::cursor_hit_tests::ascii_clicks_snap_to_nearest_caret",
+      "renderer::cursor_hit_tests::click_on_empty_middle_line_stays_on_that_line",
+      "renderer::cursor_hit_tests::click_past_non_final_line_stops_before_newline",
+      "renderer::cursor_hit_tests::collapsed_search_field_still_keeps_the_caret_in_bounds",
+      "renderer::cursor_hit_tests::extremely_narrow_search_bar_hides_trailing_labels",
+      "renderer::cursor_hit_tests::fixed_split_assigns_every_horizontal_pixel",
+      "renderer::cursor_hit_tests::hit_test_applies_horizontal_and_vertical_scroll",
+      "renderer::cursor_hit_tests::hit_test_clamps_rows_below_document_to_eof",
+      "renderer::cursor_hit_tests::hit_test_rejects_gutter_title_and_outside_edges",
+      "renderer::cursor_hit_tests::narrow_search_bar_prioritizes_status",
+      "renderer::cursor_hit_tests::odd_width_characters_snap_at_the_true_midpoint",
+      "renderer::cursor_hit_tests::search_bar_shows_mode_and_status_when_both_fit",
+      "renderer::cursor_hit_tests::search_scroll_keeps_end_caret_inside_the_field",
+      "renderer::cursor_hit_tests::short_search_query_does_not_scroll",
+      "renderer::cursor_hit_tests::split_text_chunks_keep_line_relative_tab_stops",
+      "renderer::cursor_hit_tests::tab_clicks_honor_non_default_width",
+      "renderer::cursor_hit_tests::tab_clicks_snap_to_reachable_carets",
+      "renderer::cursor_hit_tests::unicode_clicks_use_character_columns",
+      "renderer::cursor_hit_tests::unicode_hit_target_becomes_a_valid_byte_position",
+      "renderer::cursor_hit_tests::vertical_clicks_only_map_to_complete_visible_rows",
+      "tests::cursor_move_to_clicked_column_is_utf8_safe_and_clears_selection",
+      "tests::cursor_move_to_clicked_position_clamps_to_document_end",
+      "tests::selection_can_go_backwards",
+      "tests::selection_left_and_right"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F13",
+    "title": "Multiple cursors and occurrences",
+    "procedure": "Add occurrences, edit/cut/paste at all cursors, move/extend them and merge overlaps; undo.",
+    "expected": "Every selected occurrence changes once; overlapping cursors merge; grouped undo restores text.",
+    "test_prefixes": [
+      "multi_cursor::tests::",
+      "renderer::terminal_selection_render_tests::occurrence_"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "multi_cursor::tests::occurrence_arrows_move_inside_unicode_words_without_losing_cursors",
+      "multi_cursor::tests::occurrence_arrows_select_and_replace_only_a_suffix",
+      "multi_cursor::tests::occurrence_converging_carets_and_overlapping_selections_merge",
+      "multi_cursor::tests::occurrence_empty_whitespace_and_read_only_are_safe",
+      "multi_cursor::tests::occurrence_fifty_matches_share_inserted_storage_and_undo",
+      "multi_cursor::tests::occurrence_home_end_and_word_selection_edit_each_line",
+      "multi_cursor::tests::occurrence_navigation_preserves_cursors_and_vim_return_ends_them",
+      "multi_cursor::tests::occurrence_overlaps_and_adjacent_deletions_do_not_duplicate_cursors",
+      "multi_cursor::tests::occurrence_page_movement_and_selection_keep_all_cursors",
+      "multi_cursor::tests::occurrence_paste_cut_newline_tab_and_noop_history",
+      "multi_cursor::tests::occurrence_selection_accepts_backward_and_multiline_text",
+      "multi_cursor::tests::occurrence_selection_wraps_skips_duplicates_and_is_literal",
+      "multi_cursor::tests::occurrence_shift_vertical_arrows_select_at_each_cursor",
+      "multi_cursor::tests::occurrence_shortcuts_require_an_explicit_press",
+      "multi_cursor::tests::occurrence_typing_is_one_group_and_restores_all_selections",
+      "multi_cursor::tests::occurrence_vertical_arrows_keep_each_preferred_column",
+      "multi_cursor::tests::occurrence_word_selection_uses_unicode_boundaries",
+      "renderer::terminal_selection_render_tests::occurrence_selections_carets_and_vim_transition_render_correctly"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F14",
+    "title": "Vim-style editing",
+    "procedure": "Exercise modes, counts, motions, operators, insertion, visual selections, search, dot repeat and read-only.",
+    "expected": "Document/cursor/history match expected Vim subset; mode transitions render correctly.",
+    "test_prefixes": [
+      "vim::tests::",
+      "renderer::terminal_selection_render_tests::occurrence_"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "renderer::terminal_selection_render_tests::occurrence_selections_carets_and_vim_transition_render_correctly",
+      "vim::tests::cancelling_search_restores_the_original_cursor",
+      "vim::tests::counted_motion_moves_by_words",
+      "vim::tests::cw_preserves_space_and_dot_changes_next_word",
+      "vim::tests::dd_and_dot_delete_complete_lines",
+      "vim::tests::deleting_the_last_line_removes_its_leading_newline",
+      "vim::tests::dw_is_semantic_and_dot_repeats_it",
+      "vim::tests::formatting_separates_surrounding_insert_sessions_in_undo_history",
+      "vim::tests::insert_and_dot_share_the_semantic_edit_path",
+      "vim::tests::insert_newline_is_grouped_and_repeated",
+      "vim::tests::insert_session_is_one_undo_step",
+      "vim::tests::line_end_and_append_stay_before_the_newline",
+      "vim::tests::open_above_types_on_the_new_line_and_repeats",
+      "vim::tests::operator_document_motions_are_linewise",
+      "vim::tests::read_only_editor_allows_motion_but_not_changes",
+      "vim::tests::save_as_shortcut_passes_through_in_every_vim_mode",
+      "vim::tests::search_keys_return_actions_without_editing",
+      "vim::tests::shifted_d_deletes_to_end_of_line",
+      "vim::tests::vim_gg_upper_v_upper_g_selects_every_byte_and_yanks_linewise",
+      "vim::tests::vim_line_selection_change_preserves_line_break_and_delete_repeats_by_line",
+      "vim::tests::vim_line_selection_pages_from_logical_cursor_and_reverses",
+      "vim::tests::vim_pages_half_pages_counts_and_visual_selection",
+      "vim::tests::vim_shift_page_starts_selection_and_insert_mode_falls_through",
+      "vim::tests::vim_word_motions_work_in_visual_mode_with_unicode",
+      "vim::tests::visual_delete_removes_selected_characters",
+      "vim::tests::yy_and_p_use_linewise_clipboard_semantics"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F15",
+    "title": "Emacs-style editing",
+    "procedure": "Exercise marks, movement, prefix counts, kill coalescing, yank cycling, search and file/pane commands.",
+    "expected": "Correct Unicode movement and actions; kill ring obeys bounds; undo and cancellation work.",
+    "test_prefixes": [
+      "emacs::"
+    ],
+    "additional_gate": "Native keyboard event routing still needs a desktop walkthrough.",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "emacs::edge_tests::emacs_empty_edges_prefix_actions_and_modifier_keys",
+      "emacs::tests::emacs_kills_coalesce_yanks_cycle_and_undo",
+      "emacs::tests::emacs_line_page_and_whole_document_selection",
+      "emacs::tests::emacs_prefixes_counts_and_text_suppression",
+      "emacs::tests::emacs_ring_is_shared_bounded_and_readonly_kills_do_nothing",
+      "emacs::tests::emacs_unicode_words_marks_and_exchange"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F16",
+    "title": "Incremental text search",
+    "procedure": "Type a live query; navigate forward/backward, change case sensitivity and cancel.",
+    "expected": "Matches update without editing document; expected direction/case behavior and cursor restoration.",
+    "test_prefixes": [
+      "search::tests::",
+      "tests::command_bar_drives_live_search_preview",
+      "vim::tests::cancelling_search"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "search::tests::backward_finds_match_across_buffer_boundary",
+      "search::tests::backward_search_at_zero_finds_match",
+      "search::tests::backward_search_cursor_at_match_start",
+      "search::tests::backward_search_from_end_finds_last_match",
+      "search::tests::backward_search_from_exact_match_includes_match",
+      "search::tests::backward_search_includes_match_at_start",
+      "search::tests::case_insensitive_backward_search_finds_overlapping_match",
+      "search::tests::case_insensitive_mode_matches_unicode_case",
+      "search::tests::case_insensitive_mode_treats_regex_syntax_literally",
+      "search::tests::case_sensitive_mode_preserves_literal_search",
+      "search::tests::does_not_match_inside_utf8_character",
+      "search::tests::empty_query_never_matches",
+      "search::tests::failure_table_for_empty_query",
+      "search::tests::failure_table_for_mixed_query",
+      "search::tests::failure_table_for_repeated_query",
+      "search::tests::failure_table_for_simple_query",
+      "search::tests::finds_backward",
+      "search::tests::finds_forward",
+      "search::tests::finds_large_query_without_large_memory_usage",
+      "search::tests::finds_later_repeated_match_backward",
+      "search::tests::finds_match_across_search_buffer_boundary",
+      "search::tests::finds_match_starting_before_buffer_boundary",
+      "search::tests::finds_query_much_larger_than_search_buffer",
+      "search::tests::finds_world_backward_from_end",
+      "search::tests::forward_search_at_end_returns_none",
+      "search::tests::forward_search_at_exact_match_position",
+      "search::tests::forward_search_beyond_end_returns_none",
+      "search::tests::handles_empty_document",
+      "search::tests::handles_highly_repetitive_query",
+      "search::tests::handles_query_larger_than_document",
+      "search::tests::handles_repeated_pattern",
+      "search::tests::large_query_not_found",
+      "search::tests::legacy_start_only_api_honours_selected_mode",
+      "search::tests::literal_replacement_visitor_short_circuits_identical_query",
+      "search::tests::query_equal_to_document_matches",
+      "search::tests::regex_backward_search_finds_overlapping_match",
+      "search::tests::regex_mode_reports_invalid_patterns",
+      "search::tests::regex_mode_returns_variable_length_match_ranges",
+      "search::tests::regex_search_keeps_context_before_start",
+      "search::tests::regex_zero_width_matches_have_exact_ranges",
+      "search::tests::replacement_visitor_skips_byte_identical_matches",
+      "search::tests::reports_empty_query",
+      "search::tests::reports_non_empty_query",
+      "search::tests::reports_query_length_in_bytes",
+      "search::tests::returns_none_when_not_found",
+      "search::tests::search_after_start_position",
+      "search::tests::search_can_find_across_lines",
+      "search::tests::search_can_find_across_multiple_lines",
+      "search::tests::search_finds_match_after_delete",
+      "search::tests::search_finds_match_created_by_edit",
+      "search::tests::search_finds_text_across_pieces",
+      "search::tests::unicode_ascii_mixed_search",
+      "search::tests::unicode_search_finds_multibyte_query",
+      "search::tests::unicode_search_is_safe",
+      "search::tests::visitor_does_not_call_callback_for_empty_query",
+      "search::tests::visitor_finds_literal_match_across_piece_boundaries",
+      "search::tests::visitor_iterates_case_insensitive_matches",
+      "search::tests::visitor_iterates_multiline_zero_width_regex_matches",
+      "search::tests::visitor_keeps_kmp_state_across_search_buffer_boundary",
+      "search::tests::visitor_reports_leftmost_non_overlapping_literal_matches",
+      "search::tests::visitor_reports_unicode_byte_ranges",
+      "tests::command_bar_drives_live_search_preview",
+      "vim::tests::cancelling_search_restores_the_original_cursor"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F17",
+    "title": "Regular-expression search",
+    "procedure": "Search regex metacharacters, Unicode, zero-width and invalid patterns across buffer boundaries.",
+    "expected": "Correct match byte ranges; invalid patterns are reported; navigation terminates.",
+    "test_prefixes": [
+      "search::tests::regex",
+      "tests::regex",
+      "command_bar::tests::parses_quoted"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "command_bar::tests::parses_quoted_find_and_visible_options",
+      "search::tests::regex_backward_search_finds_overlapping_match",
+      "search::tests::regex_mode_reports_invalid_patterns",
+      "search::tests::regex_mode_returns_variable_length_match_ranges",
+      "search::tests::regex_search_keeps_context_before_start",
+      "search::tests::regex_zero_width_matches_have_exact_ranges",
+      "tests::regex_zero_width_replace_all_terminates_with_exact_output"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F18",
+    "title": "Find and replace",
+    "procedure": "Replace current/all, overlapping and dense matches, multiline/Unicode and empty replacement; undo.",
+    "expected": "Only intended matches change; replacement text is not reprocessed; one undo restores input.",
+    "test_prefixes": [
+      "tests::replace_",
+      "tests::dense_replace",
+      "tests::multiline_replacement",
+      "tests::no_op_replace"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "tests::dense_replace_all_keeps_metadata_compact_and_maps_selection",
+      "tests::multiline_replacement_updates_line_and_cursor_state",
+      "tests::no_op_replace_all_preserves_history_and_redo",
+      "tests::replace_all_can_delete_every_match",
+      "tests::replace_all_does_not_reprocess_replacement_text",
+      "tests::replace_all_is_one_history_step_and_restores_selection",
+      "tests::replace_all_uses_leftmost_non_overlapping_matches",
+      "tests::replace_current_advances_without_wrapping_or_repeating",
+      "tests::replace_current_longer_unicode_undoes_and_redoes",
+      "tests::replace_current_shorter_unicode_undoes_and_redoes",
+      "tests::replace_current_uses_case_insensitive_match_byte_range"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F19",
+    "title": "Go to a location",
+    "procedure": "Goto absolute/relative/gutter labels with columns in all line-number modes; try ambiguous/out-of-range values.",
+    "expected": "Correct line and column render; invalid destinations preserve cursor/selection.",
+    "test_prefixes": [
+      "tests::goto_",
+      "command_bar::tests::goto_",
+      "line_numbers::tests::"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "command_bar::tests::goto_options_are_discoverable_and_exclusive",
+      "command_bar::tests::goto_parses_line_number_overrides",
+      "command_bar::tests::goto_preserves_direction_and_explicit_overrides",
+      "line_numbers::tests::dynamic_numbers_keep_cursor_line_absolute",
+      "line_numbers::tests::normal_numbers_are_absolute",
+      "line_numbers::tests::relative_numbers_are_cursor_distances",
+      "tests::goto_dynamic_commands_move_to_expected_document_lines",
+      "tests::goto_executes_command_and_renders_destination",
+      "tests::goto_rejects_invalid_absolute_and_relative_lines",
+      "tests::goto_respects_line_number_mode_and_overrides"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F20",
+    "title": "Discoverable command bar",
+    "procedure": "Browse every command over multiple pages; Tab, Enter, click, scroll, missing arguments and invalid options.",
+    "expected": "All entries reachable; completion and execution differ correctly; errors explain the next action.",
+    "test_prefixes": [
+      "command_bar::tests::"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "command_bar::tests::all_commands_are_reachable_by_arrows_and_clicks_across_pages",
+      "command_bar::tests::command_and_option_clicks_are_actionable",
+      "command_bar::tests::enter_accepts_highlighted_commands_settings_and_options",
+      "command_bar::tests::font_size_setting_is_discoverable_and_clickable",
+      "command_bar::tests::font_size_setting_rejects_unsafe_sizes",
+      "command_bar::tests::format_completion_preserves_automatic_enter_and_filters_provider_names",
+      "command_bar::tests::formatter_choices_beyond_first_page_can_run_with_enter",
+      "command_bar::tests::formatter_results_are_selectable_without_running_on_selection",
+      "command_bar::tests::formatting_commands_are_explicit_and_reject_extra_options",
+      "command_bar::tests::goto_options_are_discoverable_and_exclusive",
+      "command_bar::tests::goto_parses_line_number_overrides",
+      "command_bar::tests::goto_preserves_direction_and_explicit_overrides",
+      "command_bar::tests::grouped_lsp_commands_match_aliases_and_validate_arguments",
+      "command_bar::tests::hover_and_definition_results_can_be_repeated_with_enter",
+      "command_bar::tests::hover_documentation_color_survives_wrapping_and_scrolling",
+      "command_bar::tests::hover_spacing_collapses_blank_lines_and_keeps_hit_targets_aligned",
+      "command_bar::tests::hover_spacing_keeps_indentation_and_scrolled_layout_consistent",
+      "command_bar::tests::informational_results_scroll_and_clear_on_input",
+      "command_bar::tests::keybinding_setting_is_discoverable_and_parses_all_modes",
+      "command_bar::tests::line_number_setting_is_discoverable_and_clickable",
+      "command_bar::tests::line_number_setting_parses_all_types",
+      "command_bar::tests::lsp_commands_are_explicit_and_reject_extra_arguments",
+      "command_bar::tests::lsp_group_supports_prefixes_clicks_and_rename_arguments",
+      "command_bar::tests::lsp_setup_commands_validate_arguments_and_complete_all_servers",
+      "command_bar::tests::new_command_accepts_optional_quoted_path",
+      "command_bar::tests::parses_extract_config_without_arguments",
+      "command_bar::tests::parses_quoted_find_and_visible_options",
+      "command_bar::tests::parses_replace_all_and_goto",
+      "command_bar::tests::parses_split_without_arguments",
+      "command_bar::tests::parses_term_without_arguments",
+      "command_bar::tests::pasted_controls_stay_single_line_and_parse_as_text",
+      "command_bar::tests::quote_argument_round_trips",
+      "command_bar::tests::quoted_option_name_is_search_text",
+      "command_bar::tests::recovery_commands_require_a_positive_session_number",
+      "command_bar::tests::save_as_commands_parse_paths_and_overwrite_intent",
+      "command_bar::tests::utf8_cursor_editing_stays_on_boundaries",
+      "command_bar::tests::wheel_reaches_lsp_and_editing_resets_the_page",
+      "command_bar::tests::windows_paths_and_empty_replacements_round_trip"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F21",
+    "title": "Two-pane editing",
+    "procedure": "Show split, focus either pane, open an already loaded file, and follow links with both panes dirty.",
+    "expected": "Independent cursors/history; no duplicate document; no unsaved buffer is discarded by terminal links.",
+    "test_prefixes": [
+      "renderer::cursor_hit_tests::fixed_split",
+      "tests::terminal_file_click",
+      "tests::open_file_detection",
+      "tests::formatting_only"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "renderer::cursor_hit_tests::fixed_split_assigns_every_horizontal_pixel",
+      "tests::formatting_only_changes_the_target_pane_and_preserves_older_history",
+      "tests::open_file_detection_prevents_duplicate_pane_documents",
+      "tests::terminal_file_click_cannot_discard_two_unsaved_documents",
+      "tests::terminal_file_click_preserves_unsaved_document_in_other_pane",
+      "tests::terminal_file_click_reuses_open_files_even_when_both_are_dirty"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F22",
+    "title": "Syntax highlighting",
+    "procedure": "Load representative source for all 18 definitions; override colors; test long/dense/Unicode lines.",
+    "expected": "Expected tokens receive colors, unrelated rules are not compiled, and limits preserve text.",
+    "test_prefixes": [
+      "syntax::tests::"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "syntax::tests::browser_download_loads_in_desktop_with_custom_colors",
+      "syntax::tests::bundled_languages_highlight_representative_source",
+      "syntax::tests::color_parser_accepts_hex_color",
+      "syntax::tests::color_parser_accepts_hex_without_hash",
+      "syntax::tests::color_parser_falls_back_for_invalid_color",
+      "syntax::tests::common_languages_keep_strings_and_comments_distinct",
+      "syntax::tests::embedded_extensions_are_unique_and_case_insensitive",
+      "syntax::tests::embedded_syntax_definitions_are_valid",
+      "syntax::tests::highlighting_caps_dense_match_output",
+      "syntax::tests::highlighting_caps_long_lines_at_utf8_boundaries",
+      "syntax::tests::non_overlapping_matches_are_preserved",
+      "syntax::tests::overlap_resolution_removes_overlapping_matches",
+      "syntax::tests::unrelated_language_regexes_are_not_compiled"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F23",
+    "title": "Live editor settings",
+    "procedure": "Change font size, line-number mode and keyboard mode; test valid and invalid values and small windows.",
+    "expected": "Settings parse and apply; cursor hit targets and layouts remain correct; invalid values are rejected.",
+    "test_prefixes": [
+      "config::tests::",
+      "command_bar::tests::font_",
+      "command_bar::tests::line_number",
+      "command_bar::tests::keybinding",
+      "dpi_text::tests::"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "command_bar::tests::font_size_setting_is_discoverable_and_clickable",
+      "command_bar::tests::font_size_setting_rejects_unsafe_sizes",
+      "command_bar::tests::keybinding_setting_is_discoverable_and_parses_all_modes",
+      "command_bar::tests::line_number_setting_is_discoverable_and_clickable",
+      "command_bar::tests::line_number_setting_parses_all_types",
+      "config::tests::all_line_number_modes_parse",
+      "config::tests::emacs_keybinding_mode_parses",
+      "config::tests::font_size_defaults_to_eighteen",
+      "config::tests::font_size_validation_has_safe_bounds",
+      "config::tests::missing_config_uses_embedded_editor_defaults",
+      "config::tests::vim_keybinding_mode_parses",
+      "dpi_text::tests::fractional_scale_adjusts_font_size",
+      "dpi_text::tests::invalid_scales_fall_back_to_one_x",
+      "dpi_text::tests::one_x_keeps_font_and_surface_dimensions",
+      "dpi_text::tests::two_x_uses_high_resolution_raster_dimensions",
+      "dpi_text::tests::update_check_ignores_tiny_scale_jitter",
+      "dpi_text::tests::update_check_normalizes_invalid_new_scale"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F24",
+    "title": "Custom keyboard shortcuts",
+    "procedure": "Load custom conventional bindings, repeat flags and modifier combinations; submit unknown names.",
+    "expected": "Correct command resolves; extra modifiers/repeats are rejected as configured; defaults still work.",
+    "test_prefixes": [
+      "keybindings::tests::"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "keybindings::tests::accepts_snake_case_commands",
+      "keybindings::tests::clipboard_shortcuts_work_with_ctrl_and_command",
+      "keybindings::tests::default_bindings_work",
+      "keybindings::tests::default_navigation_bindings_and_selection_variants",
+      "keybindings::tests::extra_modifier_does_not_match",
+      "keybindings::tests::formatting_shortcut_requires_modifiers_and_never_repeats",
+      "keybindings::tests::missing_config_uses_embedded_bindings",
+      "keybindings::tests::missing_modifiers_defaults_to_no_modifiers",
+      "keybindings::tests::new_file_shortcuts_accept_ctrl_and_command_without_repeat",
+      "keybindings::tests::non_repeatable_binding_rejects_repeat",
+      "keybindings::tests::parses_basic_binding",
+      "keybindings::tests::parses_custom_page_and_word_selection_commands",
+      "keybindings::tests::parses_modifier_binding",
+      "keybindings::tests::parses_multiple_bindings",
+      "keybindings::tests::rejects_unknown_command",
+      "keybindings::tests::rejects_unknown_key",
+      "keybindings::tests::rejects_unknown_modifier",
+      "keybindings::tests::repeatable_binding_accepts_repeat",
+      "keybindings::tests::right_ctrl_matches_left_ctrl_binding",
+      "keybindings::tests::save_as_shortcuts_are_distinct_and_do_not_repeat",
+      "keybindings::tests::shift_binding_works",
+      "keybindings::tests::terminal_clipboard_supports_command_and_preserves_ctrl_c_for_stop"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F25",
+    "title": "Embedded defaults and configuration export",
+    "procedure": "Start with absent config, extract defaults twice, and retain an edited override.",
+    "expected": "Embedded settings work; export creates missing files and does not overwrite custom files.",
+    "test_prefixes": [
+      "embedded_config::tests::",
+      "config::tests::missing_config",
+      "keybindings::tests::missing_config",
+      "syntax::tests::"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "config::tests::missing_config_uses_embedded_editor_defaults",
+      "embedded_config::tests::extraction_creates_defaults_without_overwriting",
+      "keybindings::tests::missing_config_uses_embedded_bindings",
+      "syntax::tests::browser_download_loads_in_desktop_with_custom_colors",
+      "syntax::tests::bundled_languages_highlight_representative_source",
+      "syntax::tests::color_parser_accepts_hex_color",
+      "syntax::tests::color_parser_accepts_hex_without_hash",
+      "syntax::tests::color_parser_falls_back_for_invalid_color",
+      "syntax::tests::common_languages_keep_strings_and_comments_distinct",
+      "syntax::tests::embedded_extensions_are_unique_and_case_insensitive",
+      "syntax::tests::embedded_syntax_definitions_are_valid",
+      "syntax::tests::highlighting_caps_dense_match_output",
+      "syntax::tests::highlighting_caps_long_lines_at_utf8_boundaries",
+      "syntax::tests::non_overlapping_matches_are_preserved",
+      "syntax::tests::overlap_resolution_removes_overlapping_matches",
+      "syntax::tests::unrelated_language_regexes_are_not_compiled"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F26",
+    "title": "Shell command execution",
+    "procedure": "Run echo, a grep pipeline, redirection and a failing command; change directory; stream large output.",
+    "expected": "Shell semantics, exit status and persistent directory are correct; output remains responsive and bounded.",
+    "test_prefixes": [
+      "terminal::tests::shell_",
+      "terminal::tests::commands_skip",
+      "terminal::tests::submit_runs",
+      "terminal::tests::output_"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "terminal::tests::commands_skip_login_profiles_but_keep_environment_and_shell_syntax",
+      "terminal::tests::output_events_wake_without_work_and_batches_are_bounded",
+      "terminal::tests::output_is_capped",
+      "terminal::tests::shell_operators_bypass_standalone_builtins",
+      "terminal::tests::shell_preserves_grep_options_patterns_and_exit_codes",
+      "terminal::tests::shell_runs_noninteractive_commands",
+      "terminal::tests::submit_runs_grep_pipeline_and_preserves_navigation_builtins"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F27",
+    "title": "Commands directly from the editor",
+    "procedure": "Run :term ls and shell pipelines directly; repeat while busy and inspect command history.",
+    "expected": "Same cwd/execution/history as prompt; busy submission leaves the current command/input intact.",
+    "test_prefixes": [
+      "terminal::tests::term_command_shortcut",
+      "command_bar::tests::parses_term"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "command_bar::tests::parses_term_without_arguments",
+      "terminal::tests::term_command_shortcut_shares_execution_history_and_busy_guard"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F28",
+    "title": "Clickable directory browsing",
+    "procedure": "List empty, large and nested folders, text/binary files, Unicode and spaces; resize and use -1/-lh.",
+    "expected": "Column widths fit; links retain exact paths; parent entry works; streaming/cancellation remains correct.",
+    "test_prefixes": [
+      "terminal::tests::default_listing",
+      "terminal::tests::listing_",
+      "terminal::tests::ls_",
+      "terminal::tests::folder_click",
+      "terminal::tests::parent_link"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "terminal::tests::default_listing_columns_fit_width_and_keep_click_targets_across_batches",
+      "terminal::tests::folder_click_lists_contents_and_preserves_old_targets",
+      "terminal::tests::listing_offsets_survive_trimming_and_clear",
+      "terminal::tests::listing_types_and_links_use_content_and_exact_paths",
+      "terminal::tests::ls_supports_common_options_and_relative_paths",
+      "terminal::tests::parent_link_in_empty_folder_navigates_up_and_refreshes_listing"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F29",
+    "title": "Filename completion",
+    "procedure": "Complete filenames at the cursor, cycle both directions, quote special names and change directory.",
+    "expected": "Correct cached candidates replace only the current argument; directory-only and cache bounds hold.",
+    "test_prefixes": [
+      "terminal::completion::tests::",
+      "terminal::tests::completion_refreshes"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "terminal::completion::tests::cache_is_bounded_by_both_entry_count_and_path_bytes",
+      "terminal::completion::tests::completes_a_bare_filename_for_direct_open",
+      "terminal::completion::tests::completes_quoted_unicode_argument_at_cursor_and_preserves_other_arguments",
+      "terminal::completion::tests::cycles_both_directions_using_cached_paths_without_filesystem_access",
+      "terminal::completion::tests::directory_and_nested_path_completion_preserve_the_typed_path_style",
+      "terminal::completion::tests::no_match_and_command_names_in_pipelines_are_left_unchanged",
+      "terminal::completion::tests::shell_quotes_keep_metacharacters_and_quotes_literal",
+      "terminal::tests::completion_refreshes_after_ls_cd_and_user_edits"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F30",
+    "title": "Create or touch files",
+    "procedure": "Touch multiple quoted paths, existing files, -c and invalid destinations.",
+    "expected": "Expected files/timestamps change without content loss; invalid paths produce useful errors.",
+    "test_prefixes": [
+      "terminal::tests::touch_"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "terminal::tests::touch_creates_multiple_files_and_preserves_existing_contents",
+      "terminal::tests::touch_quote_parser_preserves_paths",
+      "terminal::tests::touch_reports_invalid_paths_and_keeps_processing_valid_files"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F31",
+    "title": "Clickable output locations",
+    "procedure": "Click grep/compiler locations with Unicode byte columns, spaces, wrapping and after cd.",
+    "expected": "Correct original file and location open; selection dragging does not activate links.",
+    "test_prefixes": [
+      "terminal::locations::tests::",
+      "tests::terminal_locations",
+      "terminal::tests::wrapped_compiler"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "terminal::locations::tests::does_not_guess_files_for_stdin_pipelines_or_ambiguous_arguments",
+      "terminal::locations::tests::filename_results_support_spaces_colons_unicode_and_column_output",
+      "terminal::locations::tests::links_remain_clickable_after_cd_wrapping_and_trimming",
+      "terminal::locations::tests::scanner_bounds_unfinished_lines_and_recovers_at_next_newline",
+      "terminal::locations::tests::single_file_grep_remembers_quoted_filename_and_does_not_invent_columns",
+      "terminal::tests::wrapped_compiler_location_resolves_the_entire_original_token",
+      "tests::terminal_locations_jump_to_reported_lines_and_unicode_byte_columns",
+      "tests::terminal_locations_support_unix_and_windows_paths"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F32",
+    "title": "Command history",
+    "procedure": "Recall commands with arrows, submit duplicates and exceed history capacity.",
+    "expected": "Expected order and draft handling; duplicate suppression and capacity bounds hold.",
+    "test_prefixes": [
+      "terminal::tests::history_",
+      "terminal::tests::term_command_shortcut"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "terminal::tests::history_is_bounded_and_skips_duplicates",
+      "terminal::tests::term_command_shortcut_shares_execution_history_and_busy_guard"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F33",
+    "title": "Selectable terminal output",
+    "procedure": "Select/copy wrapped output by mouse/keyboard and Vim keys; stream and trim during selection.",
+    "expected": "Selected bytes remain correct; links activate only on clicks; retained selections survive streaming.",
+    "test_prefixes": [
+      "terminal::selection::tests::",
+      "renderer::terminal_selection_render_tests::terminal_selection_"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "renderer::terminal_selection_render_tests::terminal_selection_handles_wrapping_unicode_and_streaming",
+      "terminal::selection::tests::conventional_selection_copies_unicode_in_both_directions",
+      "terminal::selection::tests::dragging_a_link_selects_without_opening_but_click_still_opens",
+      "terminal::selection::tests::empty_selection_does_not_overwrite_clipboard",
+      "terminal::selection::tests::streaming_preserves_selection_and_clear_resets_focus",
+      "terminal::selection::tests::trimming_preserves_retained_selection_and_discards_old_selection",
+      "terminal::selection::tests::vim_visual_is_inclusive_and_yank_returns_to_output_navigation",
+      "terminal::selection::tests::vim_words_and_line_end_leave_output_unchanged",
+      "terminal::selection::tests::visual_line_selects_whole_lines_in_both_directions"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F34",
+    "title": "Command controls",
+    "procedure": "Stop a directory scan/process, rerun and clear; dismiss while output is pending.",
+    "expected": "Cancelled/stale output cannot corrupt later sessions; controls preserve or clear the intended state.",
+    "test_prefixes": [
+      "terminal::tests::large_listing",
+      "terminal::tests::output_events",
+      "terminal::tests::term_command_shortcut",
+      "lsp_setup::tests::background_runner"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "lsp_setup::tests::background_runner_reports_failure_timeout_cancellation_and_literal_arguments",
+      "terminal::tests::large_listing_streams_in_batches_and_can_be_cancelled_without_stale_output",
+      "terminal::tests::output_events_wake_without_work_and_batches_are_bounded",
+      "terminal::tests::term_command_shortcut_shares_execution_history_and_busy_guard"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F35",
+    "title": "Git log and diff browsing",
+    "procedure": "Run Git log, click a commit, inspect colored diff and go Back while streaming.",
+    "expected": "Correct commit/repository; saved log, scroll and draft restore without rerunning; text copies unchanged.",
+    "test_prefixes": [
+      "terminal::git::tests::",
+      "terminal::colors::tests::",
+      "renderer::terminal_selection_render_tests::git_commit_"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "renderer::terminal_selection_render_tests::git_commit_mouse_target_and_back_restore_terminal_layout",
+      "terminal::colors::tests::fragmented_diff_matches_whole_output_and_keeps_history",
+      "terminal::colors::tests::huge_lines_and_history_have_fixed_bounds",
+      "terminal::colors::tests::normal_diff_and_git_status_colors",
+      "terminal::colors::tests::oneline_logs_and_graphs_keep_color_across_stream_chunks_and_wrapping",
+      "terminal::git::tests::commit_diff_streams_and_back_restores_log_without_rerunning_it",
+      "terminal::git::tests::commit_link_storage_is_bounded_and_trim_rebases_clicks",
+      "terminal::git::tests::links_cover_only_hashes_and_keep_the_original_repository"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F36",
+    "title": "Server installation",
+    "procedure": "Validate all recipes/platform mappings; install eligible real servers into temporary locations and initialize every profile.",
+    "expected": "Aliases and native methods resolve; installation/initialization works; failure/cancel preserves previous records.",
+    "test_prefixes": [
+      "lsp_setup::tests::catalogue_",
+      "lsp_setup::tests::downloads_",
+      "lsp_setup::tests::archives_",
+      "lsp_setup::tests::installation_",
+      "lsp_setup::tests::npm_",
+      "lsp_setup::tests::live_install"
+    ],
+    "additional_gate": "Live checks need relevant runtimes and network; OS-specific packages need native platforms.",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "lsp_setup::tests::archives_extract_and_check_integrity_and_reject_traversal_and_links",
+      "lsp_setup::tests::catalogue_covers_every_documented_profile_and_alias",
+      "lsp_setup::tests::downloads_match_platform_and_architecture_without_ambiguous_tools",
+      "lsp_setup::tests::installation_reuse_releases_windows_lock_and_cancel_keeps_previous_record",
+      "lsp_setup::tests::live_install_and_initialize",
+      "lsp_setup::tests::npm_bin_scripts_accept_spaces_and_reject_package_escape"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F37",
+    "title": "Setup diagnostics",
+    "procedure": "Run doctor with missing tools/prerequisites and project files; dismiss progress while typing.",
+    "expected": "Useful diagnosis arrives in background; dismissed/stale panels stay closed; document stays editable.",
+    "test_prefixes": [
+      "lsp_ui::tests::setup_ui_doctor",
+      "lsp_setup::tests::setup_results",
+      "lsp_setup::tests::managed_configuration"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "lsp_setup::tests::managed_configuration_preserves_custom_commands_arguments_and_precedence",
+      "lsp_setup::tests::setup_results_respect_dismissed_panels_and_other_documents",
+      "lsp_ui::tests::setup_ui_doctor_keeps_editing_and_delivers_background_result"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F38",
+    "title": "Server lifecycle controls",
+    "procedure": "Start/stop/restart, crash or hang a server, cancel initialization, and deliver stale responses.",
+    "expected": "Bounded waits and clear errors; healthy loaded sessions survive hover timeout; restart recovers.",
+    "test_prefixes": [
+      "lsp::tests::crashed_",
+      "lsp::tests::hover_timeout",
+      "lsp::tests::hung_",
+      "lsp::tests::a_feature_error",
+      "lsp_ui::tests::start_enables"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "lsp::tests::a_feature_error_keeps_the_initialized_session_alive",
+      "lsp::tests::crashed_hover_still_marks_the_transport_failed",
+      "lsp::tests::crashed_server_reports_failure_and_transport_times_out",
+      "lsp::tests::hover_timeout_keeps_loaded_documents_and_ignores_late_responses",
+      "lsp::tests::hung_initialization_can_be_cancelled_without_blocking_the_caller",
+      "lsp_ui::tests::start_enables_stopped_lsp_and_restart_recovers_after_failure"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F39",
+    "title": "Member completion",
+    "procedure": "Trigger member completion, choose via keyboard/mouse, apply import edits, undo, and invalidate stale results.",
+    "expected": "Correct insertion and one undo; Unicode ranges valid; stale replies ignored; popup stays within pane.",
+    "test_prefixes": [
+      "lsp::completion::tests::",
+      "lsp_ui::tests::completion_",
+      "renderer::completion::tests::",
+      "lsp::tests::real_servers_complete"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "lsp::completion::tests::insertion_range_preserves_suffix_and_unicode_boundaries",
+      "lsp::completion::tests::lists_are_sorted_bounded_and_exclude_snippets",
+      "lsp::completion::tests::unicode_completion_and_import_are_one_prepared_change",
+      "lsp::tests::real_servers_complete_member_access_and_prepare_insertion",
+      "lsp_ui::tests::completion_popup_keys_undo_and_stale_results",
+      "renderer::completion::tests::completion_mouse_rows_stay_inside_each_pane"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F40",
+    "title": "Hover information",
+    "procedure": "Hover documented symbols, click another word, dismiss, and time out a request.",
+    "expected": "Correct information/style; latest target wins; timeout retains initialized server and ignores late reply.",
+    "test_prefixes": [
+      "lsp::tests::parses_hover",
+      "lsp::tests::hover_",
+      "lsp_ui::tests::hover_",
+      "lsp::tests::real_clangd",
+      "lsp::tests::real_rust_analyzer_hover"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "lsp::tests::hover_documentation_spans_preserve_code_and_plaintext_signatures",
+      "lsp::tests::hover_timeout_keeps_loaded_documents_and_ignores_late_responses",
+      "lsp::tests::parses_hover_variants_and_definition_links",
+      "lsp::tests::real_clangd_hover_and_definition",
+      "lsp::tests::real_rust_analyzer_hover_and_definition",
+      "lsp_ui::tests::hover_clicks_refresh_only_the_latest_target_and_respect_dismissal"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F41",
+    "title": "Definition navigation",
+    "procedure": "Jump to a definition and back with unsaved panes, invalid destinations and Unicode locations.",
+    "expected": "Correct location; existing buffers/history preserved; failure cannot replace clean or dirty work.",
+    "test_prefixes": [
+      "lsp_ui::tests::navigation_",
+      "lsp_ui::tests::invalid_definition",
+      "lsp::tests::real_clangd",
+      "lsp::tests::real_rust_analyzer_hover"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "lsp::tests::real_clangd_hover_and_definition",
+      "lsp::tests::real_rust_analyzer_hover_and_definition",
+      "lsp_ui::tests::invalid_definition_does_not_replace_a_clean_document",
+      "lsp_ui::tests::navigation_preserves_both_dirty_panes_and_existing_undo_history"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F42",
+    "title": "Project-wide symbol rename",
+    "procedure": "Rename a symbol from a cold server; preview, apply and undo across open/unopened files.",
+    "expected": "Declaration and references change together; stale/overlapping edits rejected; undo restores files.",
+    "test_prefixes": [
+      "lsp_ui::tests::rename_",
+      "workspace_edit::tests::",
+      "lsp::tests::real_rust_analyzer_hover"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "lsp::tests::real_rust_analyzer_hover_and_definition",
+      "lsp_ui::tests::rename_reply_preview_click_enter_apply_and_dismissal",
+      "workspace_edit::tests::annotated_edits_are_reviewed_and_unknown_annotations_and_snippets_rejected",
+      "workspace_edit::tests::deleting_open_file_keeps_draft_and_undo_restores_file_and_path",
+      "workspace_edit::tests::disk_commit_failure_rolls_back_previous_files",
+      "workspace_edit::tests::disk_only_edit_still_has_an_undo_anchor_and_preview_is_non_mutating",
+      "workspace_edit::tests::extract_to_new_file_preserves_unsaved_source_and_has_atomic_undo_redo",
+      "workspace_edit::tests::moving_an_open_file_preserves_dirty_text_and_reverses_paths",
+      "workspace_edit::tests::preview_choices_work_with_mouse_enter_and_paging",
+      "workspace_edit::tests::rename_groups_two_unsaved_buffers_and_disk_with_undo_redo",
+      "workspace_edit::tests::resource_preview_refuses_collisions_and_stale_disk_without_partial_apply",
+      "workspace_edit::tests::resource_undo_waits_for_newer_edits_in_both_copies_of_an_open_buffer",
+      "workspace_edit::tests::stale_disk_buffer_and_readonly_fail_before_any_changes",
+      "workspace_edit::tests::undo_refuses_newer_edits_and_external_disk_changes_without_partial_undo",
+      "workspace_edit::tests::vim_insert_groups_cannot_swallow_a_workspace_undo_marker",
+      "workspace_edit::tests::workspace_parser_rejects_overlap_versions_resource_ops_and_unicode_splits"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F43",
+    "title": "Quick fixes",
+    "procedure": "Request missing-import quick fixes; select, cancel, invalidate, resolve and apply.",
+    "expected": "Server-supported fix is correctly previewed/applied; unsupported command-only actions remain unavailable.",
+    "test_prefixes": [
+      "lsp::tests::code_actions_",
+      "lsp::actions::tests::",
+      "lsp_ui::tests::action_picker",
+      "lsp::tests::real_rust_analyzer_extract"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "lsp::actions::tests::command_actions_are_unavailable_and_preferred_edits_come_first",
+      "lsp::tests::code_actions_pass_diagnostics_selection_and_resolve_import_preview",
+      "lsp::tests::real_rust_analyzer_extract_module_to_file",
+      "lsp_ui::tests::action_picker_click_enter_cancel_and_selection_invalidation"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F44",
+    "title": "Reviewed refactoring",
+    "procedure": "Extract a module to a file; review creates/renames/deletes and conflicts; apply and undo.",
+    "expected": "Only reviewed files change; conflicting/stale operations fail atomically where supported; undo works.",
+    "test_prefixes": [
+      "workspace_edit::tests::",
+      "lsp_ui::tests::action_picker",
+      "lsp::tests::real_rust_analyzer_extract"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "lsp::tests::real_rust_analyzer_extract_module_to_file",
+      "lsp_ui::tests::action_picker_click_enter_cancel_and_selection_invalidation",
+      "workspace_edit::tests::annotated_edits_are_reviewed_and_unknown_annotations_and_snippets_rejected",
+      "workspace_edit::tests::deleting_open_file_keeps_draft_and_undo_restores_file_and_path",
+      "workspace_edit::tests::disk_commit_failure_rolls_back_previous_files",
+      "workspace_edit::tests::disk_only_edit_still_has_an_undo_anchor_and_preview_is_non_mutating",
+      "workspace_edit::tests::extract_to_new_file_preserves_unsaved_source_and_has_atomic_undo_redo",
+      "workspace_edit::tests::moving_an_open_file_preserves_dirty_text_and_reverses_paths",
+      "workspace_edit::tests::preview_choices_work_with_mouse_enter_and_paging",
+      "workspace_edit::tests::rename_groups_two_unsaved_buffers_and_disk_with_undo_redo",
+      "workspace_edit::tests::resource_preview_refuses_collisions_and_stale_disk_without_partial_apply",
+      "workspace_edit::tests::resource_undo_waits_for_newer_edits_in_both_copies_of_an_open_buffer",
+      "workspace_edit::tests::stale_disk_buffer_and_readonly_fail_before_any_changes",
+      "workspace_edit::tests::undo_refuses_newer_edits_and_external_disk_changes_without_partial_undo",
+      "workspace_edit::tests::vim_insert_groups_cannot_swallow_a_workspace_undo_marker",
+      "workspace_edit::tests::workspace_parser_rejects_overlap_versions_resource_ops_and_unicode_splits"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F45",
+    "title": "Unity project discovery",
+    "procedure": "Use generated sln/slnx/csproj fixtures, BOM/CRLF and a missing server; then repeat on a real Unity project.",
+    "expected": "Correct solution chosen without Library scan; missing dependencies explain issues without quitting.",
+    "test_prefixes": [
+      "lsp::unity::tests::",
+      "renderer::terminal_selection_render_tests::unity_",
+      "lsp_ui::tests::unity_missing"
+    ],
+    "additional_gate": "Real Unity project on Windows/macOS remains a separate acceptance gate.",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "lsp::unity::tests::unity_root_and_solution_override",
+      "lsp::unity::tests::unity_solution_formats_and_missing_solution_diagnostics",
+      "lsp_ui::tests::unity_missing_language_server_keeps_the_document_editable",
+      "renderer::terminal_selection_render_tests::unity_csharp_bom_and_windows_line_endings_render_without_error"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F46",
+    "title": "Built-in indentation",
+    "procedure": "Format nested C-style/JSON, tabs/spaces, Unicode, CRLF, comments and raw strings; reject unsupported/huge input; undo.",
+    "expected": "Only intended indentation changes; literals/newlines preserved; errors leave text/history untouched.",
+    "test_prefixes": [
+      "formatting::builtin::tests::",
+      "tests::builtin_formatting"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "formatting::builtin::tests::json_quotes_blank_lines_and_final_newline_are_preserved",
+      "formatting::builtin::tests::nested_code_tabs_spaces_crlf_and_bom",
+      "formatting::builtin::tests::strings_comments_directives_and_raw_contents_are_preserved",
+      "formatting::builtin::tests::unsupported_and_ambiguous_input_is_rejected",
+      "tests::builtin_formatting_needs_no_provider_and_preserves_history_on_failure"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F47",
+    "title": "External language formatting",
+    "procedure": "Validate all eight presets; run installed tools; exercise missing executable, timeout, bad/empty/large output and undo.",
+    "expected": "Correct tool/arguments selected; failures preserve document; valid output becomes one undo step.",
+    "test_prefixes": [
+      "formatting::tests::",
+      "tests::formatting_"
+    ],
+    "additional_gate": "Live language examples for every external tool require those tools to be installed.",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "formatting::tests::cursor_mapping_does_not_depend_on_chunk_boundaries",
+      "formatting::tests::cursor_mapping_handles_unicode_crlf_and_shorter_documents",
+      "formatting::tests::embedded_providers_and_custom_configuration",
+      "formatting::tests::filepath_substitution_is_one_literal_argument",
+      "formatting::tests::process_failure_timeout_and_output_limits_preserve_document",
+      "formatting::tests::process_streams_unsaved_input_and_drains_both_pipes",
+      "formatting::tests::resource_probe",
+      "formatting::tests::rustfmt_smoke_test_formats_buffer_without_saving",
+      "formatting::tests::selection_uses_config_order_and_only_skips_unavailable_executables",
+      "formatting::tests::temporary_files_are_removed_on_drop",
+      "tests::formatting_noop_preserves_redo_dirty_and_cursor",
+      "tests::formatting_only_changes_the_target_pane_and_preserves_older_history",
+      "tests::formatting_preserves_selection_and_is_one_undo_step",
+      "tests::formatting_rejects_readonly_empty_and_invalid_output_without_changes"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F48",
+    "title": "Formatter discovery and selection",
+    "procedure": "Type :format with/without a name; filter/scroll/select/Tab; show missing status; execute :formatters.",
+    "expected": "Automatic Enter remains automatic; explicit choices run intended tool; listing command does not accidentally format.",
+    "test_prefixes": [
+      "command_bar::tests::format_",
+      "command_bar::tests::formatter_",
+      "command_bar::tests::formatting_"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "command_bar::tests::format_completion_preserves_automatic_enter_and_filters_provider_names",
+      "command_bar::tests::formatter_choices_beyond_first_page_can_run_with_enter",
+      "command_bar::tests::formatter_results_are_selectable_without_running_on_selection",
+      "command_bar::tests::formatting_commands_are_explicit_and_reject_extra_options"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F49",
+    "title": "Native desktop builds",
+    "procedure": "Build and launch native packages on Windows, Linux, macOS Intel and Apple Silicon; inspect icons.",
+    "expected": "Correct architecture starts, fonts/icons load and basic file operations work on each OS.",
+    "test_prefixes": [],
+    "additional_gate": "This machine can verify its local build only; Windows/Linux/Intel/ARM native packaging need separate hosts.",
+    "local_status": "PARTIAL: local executable only",
+    "executed_tests": [],
+    "failed_tests": []
+  },
+  {
+    "id": "F50",
+    "title": "File-backed document storage",
+    "procedure": "Open 1 MiB/100 MiB/1 GB fixtures, access initial lines, edit and undo; inspect backing stores/cache growth.",
+    "expected": "Correct content and lazy access; inserted/formatted text stays file-backed; no whole-file text copy required.",
+    "test_prefixes": [
+      "piece_table::tests::",
+      "piece_table::line_view::tests::",
+      "tests::undo_and_redo",
+      "benchmarks::editor_performance_probe"
+    ],
+    "additional_gate": "",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "benchmarks::editor_performance_probe",
+      "piece_table::line_view::tests::checkpoint_storage_is_bounded_across_lines_and_tab_settings",
+      "piece_table::line_view::tests::empty_lines_crlf_and_unterminated_cr_keep_display_and_byte_columns",
+      "piece_table::line_view::tests::repeated_far_right_viewport_reads_stay_bounded_and_edits_invalidate_points",
+      "piece_table::line_view::tests::up_down_and_selection_preserve_columns_on_long_lines",
+      "piece_table::line_view::tests::utf8_crossing_scan_blocks_preserves_lines_and_positions",
+      "piece_table::line_view::tests::viewport_matches_unicode_and_tab_reference_at_every_offset",
+      "piece_table::tests::captured_pieces_restore_text_without_appending_again",
+      "piece_table::tests::crlf_line_text_excludes_carriage_return",
+      "piece_table::tests::inserted_text_is_file_backed_and_store_is_removed_on_drop",
+      "piece_table::tests::replace_ranges_empty_iterator_is_no_op",
+      "piece_table::tests::replace_ranges_handles_mixed_sources_and_merges_neighbors",
+      "piece_table::tests::replace_ranges_reuses_one_add_copy_and_snapshot_swaps",
+      "piece_table::tests::replace_ranges_supports_adjacent_deletions",
+      "piece_table::tests::replace_ranges_supports_zero_width_ranges_in_empty_document",
+      "piece_table::tests::replace_ranges_uses_utf8_byte_ranges",
+      "piece_table::tests::replace_ranges_validation_failures_are_atomic",
+      "piece_table::tests::replace_runs_compacts_dense_output_and_snapshot_swaps",
+      "piece_table::tests::replace_runs_validation_failures_are_atomic",
+      "piece_table::tests::scroll_line_boundary_lookups_do_not_materialize_line_cache",
+      "piece_table::tests::streamed_formatting_is_file_backed_and_snapshot_undoable",
+      "piece_table::tests::streamed_formatting_read_failure_is_atomic",
+      "piece_table::tests::streamed_formatting_reclaims_identical_and_invalid_staging",
+      "piece_table::tests::timing_open_and_first_line",
+      "piece_table::tests::visit_chunks_preserves_mixed_fragment_order",
+      "tests::undo_and_redo_reuse_file_backed_text"
+    ],
+    "failed_tests": []
+  },
+  {
+    "id": "F51",
+    "title": "Bounded auxiliary storage and quiet idle behavior",
+    "procedure": "Measure native idle CPU/RSS, recovery on/off and terminal resource probes; overflow bounded caches.",
+    "expected": "Idle uses event waits; documented bounds hold; measurements and workload limits are recorded explicitly.",
+    "test_prefixes": [
+      "terminal::frame::tests::",
+      "terminal::tests::output_is_capped",
+      "terminal::completion::tests::cache_",
+      "piece_table::recovery::tests::recovery_uses",
+      "renderer::terminal_selection_render_tests::terminal_performance_probe",
+      "piece_table::recovery::tests::recovery_memory_probe"
+    ],
+    "additional_gate": "Measurements characterize this host; no universal performance threshold or cross-platform result is inferred.",
+    "local_status": "LOCAL CHECKS PASS",
+    "executed_tests": [
+      "piece_table::recovery::tests::recovery_memory_probe",
+      "piece_table::recovery::tests::recovery_uses_fixed_buffers_and_small_per_edit_records",
+      "renderer::terminal_selection_render_tests::terminal_performance_probe",
+      "terminal::completion::tests::cache_is_bounded_by_both_entry_count_and_path_bytes",
+      "terminal::frame::tests::idle_has_no_frame_timer_and_input_bypasses_output_throttle",
+      "terminal::tests::output_is_capped"
+    ],
+    "failed_tests": []
+  }
+]

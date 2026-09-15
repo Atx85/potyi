@@ -1,7 +1,8 @@
 // Pötyi - SPDX-License-Identifier: GPL-3.0-or-later
-//! Crash recovery uses file-backed text, a streamed original snapshot, and an
+//! Crash recovery uses file-backed text, an immutable original snapshot, and an
 //! append-only operation journal. No second in-memory document or piece list.
 mod format;
+mod snapshot;
 #[cfg(test)]
 mod tests;
 use super::{Piece, PieceTable, read_at};
@@ -126,11 +127,9 @@ impl Journal {
         let result = (|| {
             let lock = create_private(&directory.join("owner.lock"))?;
             lock.try_lock().map_err(io::Error::other)?;
-            let mut original = create_private(&directory.join("original"))?;
-            copy_range(
+            let original = snapshot::create(
                 &table.original,
-                &mut original,
-                0,
+                &directory.join("original"),
                 table.original_length as u64,
             )?;
             original.sync_all()?;

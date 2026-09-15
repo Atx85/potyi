@@ -1,0 +1,613 @@
+[
+  {
+    "id": "F01",
+    "title": "Create documents",
+    "procedure": "Create unnamed and named files; try an existing destination and a dirty current pane.",
+    "expected": "New files start empty; existing files and unsaved edits survive rejected requests.",
+    "test_prefixes": [
+      "tests::new_document",
+      "command_bar::tests::new_command"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F02",
+    "title": "Open files by path",
+    "procedure": "Open relative, absolute, quoted and missing paths; reopen a file already in the other pane.",
+    "expected": "Correct file opens once; missing files leave both documents intact.",
+    "test_prefixes": [
+      "startup::tests::",
+      "tests::open_file_detection",
+      "tests::terminal_failed_open",
+      "terminal::tests::standalone_text_paths"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F03",
+    "title": "Drag and drop files",
+    "procedure": "Drop a Unicode filename and a BOM/CRLF C# file onto a native window; also drop a missing path.",
+    "expected": "Correct file opens, malformed/missing input reports an error, and the app remains running.",
+    "test_prefixes": [
+      "renderer::terminal_selection_render_tests::unity_csharp",
+      "lsp_ui::tests::unity_missing"
+    ],
+    "additional_gate": "Native drag-and-drop event delivery is not covered by these component tests."
+  },
+  {
+    "id": "F04",
+    "title": "Save and Save As",
+    "procedure": "Save, Save As, overwrite rejection and explicit overwrite; repeat on read-only and dirty documents.",
+    "expected": "Exact bytes saved; original stays intact after Save As; failed saves retain edits/history.",
+    "test_prefixes": [
+      "tests::save_as",
+      "tests::new_document_creates",
+      "piece_table::recovery::tests::successful_saves"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F05",
+    "title": "Read-only viewing",
+    "procedure": "Open with view; attempt typing, deletion, formatting, replacement, cut and Save As.",
+    "expected": "Mutating commands leave file and document unchanged; selection and navigation still work.",
+    "test_prefixes": [
+      "tests::view_mode",
+      "tests::save_as_protects",
+      "vim::tests::read_only",
+      "multi_cursor::tests::occurrence_empty"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F06",
+    "title": "Folder workspaces",
+    "procedure": "Resolve dot, relative and quoted folders; change terminal directory afterward.",
+    "expected": "Launch root is correct; terminal directory changes persist without changing the window root.",
+    "test_prefixes": [
+      "startup::tests::folder_launches",
+      "startup::tests::existing_colon",
+      "terminal::tests::reopening"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F07",
+    "title": "Launch at a location",
+    "procedure": "Launch file:line:column with Unicode and colon-bearing filenames; try invalid paths.",
+    "expected": "File/location parses correctly; goto reaches a valid UTF-8 position and errors preserve the buffer.",
+    "test_prefixes": [
+      "startup::tests::file_launches",
+      "tests::terminal_locations"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F08",
+    "title": "Crash recovery",
+    "procedure": "Kill an editing process, restore, truncate the journal, change original on disk, and attempt failed saves.",
+    "expected": "Last complete text recovers separately; active sessions and externally modified originals are protected.",
+    "test_prefixes": [
+      "piece_table::recovery::tests::",
+      "tests::recovery_opens"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F09",
+    "title": "Unicode text editing and movement",
+    "procedure": "Edit Unicode at document/line boundaries; navigate short and long lines, tabs and pages.",
+    "expected": "No split UTF-8 code points; correct cursor/line state; original bytes remain valid.",
+    "test_prefixes": [
+      "tests::editor_",
+      "tests::cursor_",
+      "piece_table::line_view::tests::"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F10",
+    "title": "System clipboard editing",
+    "procedure": "Copy/cut forward and backward selections; paste Unicode and mixed newline styles; test empty/NUL input.",
+    "expected": "Clipboard operations preserve intended text; paste is one undo step; invalid data is handled.",
+    "test_prefixes": [
+      "clipboard::tests::"
+    ],
+    "additional_gate": "Native clipboard interoperability requires a separate desktop check."
+  },
+  {
+    "id": "F11",
+    "title": "Undo and redo",
+    "procedure": "Group typing, undo and redo; mix formatting, replacements and workspace edits; verify redo invalidation.",
+    "expected": "Expected text and selection restore; unchanged operations preserve history; storage is reused.",
+    "test_prefixes": [
+      "tests::undo_",
+      "tests::formatting_",
+      "tests::replace_",
+      "workspace_edit::tests::"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F12",
+    "title": "Text selection",
+    "procedure": "Select by word, line and page in both directions; click tabs, Unicode and empty lines.",
+    "expected": "Selection endpoints stay valid and agree with rendered hit targets.",
+    "test_prefixes": [
+      "renderer::cursor_hit_tests::",
+      "tests::selection_",
+      "tests::cursor_move_to_clicked",
+      "piece_table::line_view::tests::"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F13",
+    "title": "Multiple cursors and occurrences",
+    "procedure": "Add occurrences, edit/cut/paste at all cursors, move/extend them and merge overlaps; undo.",
+    "expected": "Every selected occurrence changes once; overlapping cursors merge; grouped undo restores text.",
+    "test_prefixes": [
+      "multi_cursor::tests::",
+      "renderer::terminal_selection_render_tests::occurrence_"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F14",
+    "title": "Vim-style editing",
+    "procedure": "Exercise modes, counts, motions, operators, insertion, visual selections, search, dot repeat and read-only.",
+    "expected": "Document/cursor/history match expected Vim subset; mode transitions render correctly.",
+    "test_prefixes": [
+      "vim::tests::",
+      "renderer::terminal_selection_render_tests::occurrence_"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F15",
+    "title": "Emacs-style editing",
+    "procedure": "Exercise marks, movement, prefix counts, kill coalescing, yank cycling, search and file/pane commands.",
+    "expected": "Correct Unicode movement and actions; kill ring obeys bounds; undo and cancellation work.",
+    "test_prefixes": [
+      "emacs::"
+    ],
+    "additional_gate": "Native keyboard event routing still needs a desktop walkthrough."
+  },
+  {
+    "id": "F16",
+    "title": "Incremental text search",
+    "procedure": "Type a live query; navigate forward/backward, change case sensitivity and cancel.",
+    "expected": "Matches update without editing document; expected direction/case behavior and cursor restoration.",
+    "test_prefixes": [
+      "search::tests::",
+      "tests::command_bar_drives_live_search_preview",
+      "vim::tests::cancelling_search"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F17",
+    "title": "Regular-expression search",
+    "procedure": "Search regex metacharacters, Unicode, zero-width and invalid patterns across buffer boundaries.",
+    "expected": "Correct match byte ranges; invalid patterns are reported; navigation terminates.",
+    "test_prefixes": [
+      "search::tests::regex",
+      "tests::regex",
+      "command_bar::tests::parses_quoted"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F18",
+    "title": "Find and replace",
+    "procedure": "Replace current/all, overlapping and dense matches, multiline/Unicode and empty replacement; undo.",
+    "expected": "Only intended matches change; replacement text is not reprocessed; one undo restores input.",
+    "test_prefixes": [
+      "tests::replace_",
+      "tests::dense_replace",
+      "tests::multiline_replacement",
+      "tests::no_op_replace"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F19",
+    "title": "Go to a location",
+    "procedure": "Goto absolute/relative/gutter labels with columns in all line-number modes; try ambiguous/out-of-range values.",
+    "expected": "Correct line and column render; invalid destinations preserve cursor/selection.",
+    "test_prefixes": [
+      "tests::goto_",
+      "command_bar::tests::goto_",
+      "line_numbers::tests::"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F20",
+    "title": "Discoverable command bar",
+    "procedure": "Browse every command over multiple pages; Tab, Enter, click, scroll, missing arguments and invalid options.",
+    "expected": "All entries reachable; completion and execution differ correctly; errors explain the next action.",
+    "test_prefixes": [
+      "command_bar::tests::"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F21",
+    "title": "Two-pane editing",
+    "procedure": "Show split, focus either pane, open an already loaded file, and follow links with both panes dirty.",
+    "expected": "Independent cursors/history; no duplicate document; no unsaved buffer is discarded by terminal links.",
+    "test_prefixes": [
+      "renderer::cursor_hit_tests::fixed_split",
+      "tests::terminal_file_click",
+      "tests::open_file_detection",
+      "tests::formatting_only"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F22",
+    "title": "Syntax highlighting",
+    "procedure": "Load representative source for all 18 definitions; override colors; test long/dense/Unicode lines.",
+    "expected": "Expected tokens receive colors, unrelated rules are not compiled, and limits preserve text.",
+    "test_prefixes": [
+      "syntax::tests::"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F23",
+    "title": "Live editor settings",
+    "procedure": "Change font size, line-number mode and keyboard mode; test valid and invalid values and small windows.",
+    "expected": "Settings parse and apply; cursor hit targets and layouts remain correct; invalid values are rejected.",
+    "test_prefixes": [
+      "config::tests::",
+      "command_bar::tests::font_",
+      "command_bar::tests::line_number",
+      "command_bar::tests::keybinding",
+      "dpi_text::tests::"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F24",
+    "title": "Custom keyboard shortcuts",
+    "procedure": "Load custom conventional bindings, repeat flags and modifier combinations; submit unknown names.",
+    "expected": "Correct command resolves; extra modifiers/repeats are rejected as configured; defaults still work.",
+    "test_prefixes": [
+      "keybindings::tests::"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F25",
+    "title": "Embedded defaults and configuration export",
+    "procedure": "Start with absent config, extract defaults twice, and retain an edited override.",
+    "expected": "Embedded settings work; export creates missing files and does not overwrite custom files.",
+    "test_prefixes": [
+      "embedded_config::tests::",
+      "config::tests::missing_config",
+      "keybindings::tests::missing_config",
+      "syntax::tests::"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F26",
+    "title": "Shell command execution",
+    "procedure": "Run echo, a grep pipeline, redirection and a failing command; change directory; stream large output.",
+    "expected": "Shell semantics, exit status and persistent directory are correct; output remains responsive and bounded.",
+    "test_prefixes": [
+      "terminal::tests::shell_",
+      "terminal::tests::commands_skip",
+      "terminal::tests::submit_runs",
+      "terminal::tests::output_"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F27",
+    "title": "Commands directly from the editor",
+    "procedure": "Run :term ls and shell pipelines directly; repeat while busy and inspect command history.",
+    "expected": "Same cwd/execution/history as prompt; busy submission leaves the current command/input intact.",
+    "test_prefixes": [
+      "terminal::tests::term_command_shortcut",
+      "command_bar::tests::parses_term"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F28",
+    "title": "Clickable directory browsing",
+    "procedure": "List empty, large and nested folders, text/binary files, Unicode and spaces; resize and use -1/-lh.",
+    "expected": "Column widths fit; links retain exact paths; parent entry works; streaming/cancellation remains correct.",
+    "test_prefixes": [
+      "terminal::tests::default_listing",
+      "terminal::tests::listing_",
+      "terminal::tests::ls_",
+      "terminal::tests::folder_click",
+      "terminal::tests::parent_link"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F29",
+    "title": "Filename completion",
+    "procedure": "Complete filenames at the cursor, cycle both directions, quote special names and change directory.",
+    "expected": "Correct cached candidates replace only the current argument; directory-only and cache bounds hold.",
+    "test_prefixes": [
+      "terminal::completion::tests::",
+      "terminal::tests::completion_refreshes"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F30",
+    "title": "Create or touch files",
+    "procedure": "Touch multiple quoted paths, existing files, -c and invalid destinations.",
+    "expected": "Expected files/timestamps change without content loss; invalid paths produce useful errors.",
+    "test_prefixes": [
+      "terminal::tests::touch_"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F31",
+    "title": "Clickable output locations",
+    "procedure": "Click grep/compiler locations with Unicode byte columns, spaces, wrapping and after cd.",
+    "expected": "Correct original file and location open; selection dragging does not activate links.",
+    "test_prefixes": [
+      "terminal::locations::tests::",
+      "tests::terminal_locations",
+      "terminal::tests::wrapped_compiler"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F32",
+    "title": "Command history",
+    "procedure": "Recall commands with arrows, submit duplicates and exceed history capacity.",
+    "expected": "Expected order and draft handling; duplicate suppression and capacity bounds hold.",
+    "test_prefixes": [
+      "terminal::tests::history_",
+      "terminal::tests::term_command_shortcut"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F33",
+    "title": "Selectable terminal output",
+    "procedure": "Select/copy wrapped output by mouse/keyboard and Vim keys; stream and trim during selection.",
+    "expected": "Selected bytes remain correct; links activate only on clicks; retained selections survive streaming.",
+    "test_prefixes": [
+      "terminal::selection::tests::",
+      "renderer::terminal_selection_render_tests::terminal_selection_"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F34",
+    "title": "Command controls",
+    "procedure": "Stop a directory scan/process, rerun and clear; dismiss while output is pending.",
+    "expected": "Cancelled/stale output cannot corrupt later sessions; controls preserve or clear the intended state.",
+    "test_prefixes": [
+      "terminal::tests::large_listing",
+      "terminal::tests::output_events",
+      "terminal::tests::term_command_shortcut",
+      "lsp_setup::tests::background_runner"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F35",
+    "title": "Git log and diff browsing",
+    "procedure": "Run Git log, click a commit, inspect colored diff and go Back while streaming.",
+    "expected": "Correct commit/repository; saved log, scroll and draft restore without rerunning; text copies unchanged.",
+    "test_prefixes": [
+      "terminal::git::tests::",
+      "terminal::colors::tests::",
+      "renderer::terminal_selection_render_tests::git_commit_"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F36",
+    "title": "Server installation",
+    "procedure": "Validate all recipes/platform mappings; install eligible real servers into temporary locations and initialize every profile.",
+    "expected": "Aliases and native methods resolve; installation/initialization works; failure/cancel preserves previous records.",
+    "test_prefixes": [
+      "lsp_setup::tests::catalogue_",
+      "lsp_setup::tests::downloads_",
+      "lsp_setup::tests::archives_",
+      "lsp_setup::tests::installation_",
+      "lsp_setup::tests::npm_",
+      "lsp_setup::tests::live_install"
+    ],
+    "additional_gate": "Live checks need relevant runtimes and network; OS-specific packages need native platforms."
+  },
+  {
+    "id": "F37",
+    "title": "Setup diagnostics",
+    "procedure": "Run doctor with missing tools/prerequisites and project files; dismiss progress while typing.",
+    "expected": "Useful diagnosis arrives in background; dismissed/stale panels stay closed; document stays editable.",
+    "test_prefixes": [
+      "lsp_ui::tests::setup_ui_doctor",
+      "lsp_setup::tests::setup_results",
+      "lsp_setup::tests::managed_configuration"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F38",
+    "title": "Server lifecycle controls",
+    "procedure": "Start/stop/restart, crash or hang a server, cancel initialization, and deliver stale responses.",
+    "expected": "Bounded waits and clear errors; healthy loaded sessions survive hover timeout; restart recovers.",
+    "test_prefixes": [
+      "lsp::tests::crashed_",
+      "lsp::tests::hover_timeout",
+      "lsp::tests::hung_",
+      "lsp::tests::a_feature_error",
+      "lsp_ui::tests::start_enables"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F39",
+    "title": "Member completion",
+    "procedure": "Trigger member completion, choose via keyboard/mouse, apply import edits, undo, and invalidate stale results.",
+    "expected": "Correct insertion and one undo; Unicode ranges valid; stale replies ignored; popup stays within pane.",
+    "test_prefixes": [
+      "lsp::completion::tests::",
+      "lsp_ui::tests::completion_",
+      "renderer::completion::tests::",
+      "lsp::tests::real_servers_complete"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F40",
+    "title": "Hover information",
+    "procedure": "Hover documented symbols, click another word, dismiss, and time out a request.",
+    "expected": "Correct information/style; latest target wins; timeout retains initialized server and ignores late reply.",
+    "test_prefixes": [
+      "lsp::tests::parses_hover",
+      "lsp::tests::hover_",
+      "lsp_ui::tests::hover_",
+      "lsp::tests::real_clangd",
+      "lsp::tests::real_rust_analyzer_hover"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F41",
+    "title": "Definition navigation",
+    "procedure": "Jump to a definition and back with unsaved panes, invalid destinations and Unicode locations.",
+    "expected": "Correct location; existing buffers/history preserved; failure cannot replace clean or dirty work.",
+    "test_prefixes": [
+      "lsp_ui::tests::navigation_",
+      "lsp_ui::tests::invalid_definition",
+      "lsp::tests::real_clangd",
+      "lsp::tests::real_rust_analyzer_hover"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F42",
+    "title": "Project-wide symbol rename",
+    "procedure": "Rename a symbol from a cold server; preview, apply and undo across open/unopened files.",
+    "expected": "Declaration and references change together; stale/overlapping edits rejected; undo restores files.",
+    "test_prefixes": [
+      "lsp_ui::tests::rename_",
+      "workspace_edit::tests::",
+      "lsp::tests::real_rust_analyzer_hover"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F43",
+    "title": "Quick fixes",
+    "procedure": "Request missing-import quick fixes; select, cancel, invalidate, resolve and apply.",
+    "expected": "Server-supported fix is correctly previewed/applied; unsupported command-only actions remain unavailable.",
+    "test_prefixes": [
+      "lsp::tests::code_actions_",
+      "lsp::actions::tests::",
+      "lsp_ui::tests::action_picker",
+      "lsp::tests::real_rust_analyzer_extract"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F44",
+    "title": "Reviewed refactoring",
+    "procedure": "Extract a module to a file; review creates/renames/deletes and conflicts; apply and undo.",
+    "expected": "Only reviewed files change; conflicting/stale operations fail atomically where supported; undo works.",
+    "test_prefixes": [
+      "workspace_edit::tests::",
+      "lsp_ui::tests::action_picker",
+      "lsp::tests::real_rust_analyzer_extract"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F45",
+    "title": "Unity project discovery",
+    "procedure": "Use generated sln/slnx/csproj fixtures, BOM/CRLF and a missing server; then repeat on a real Unity project.",
+    "expected": "Correct solution chosen without Library scan; missing dependencies explain issues without quitting.",
+    "test_prefixes": [
+      "lsp::unity::tests::",
+      "renderer::terminal_selection_render_tests::unity_",
+      "lsp_ui::tests::unity_missing"
+    ],
+    "additional_gate": "Real Unity project on Windows/macOS remains a separate acceptance gate."
+  },
+  {
+    "id": "F46",
+    "title": "Built-in indentation",
+    "procedure": "Format nested C-style/JSON, tabs/spaces, Unicode, CRLF, comments and raw strings; reject unsupported/huge input; undo.",
+    "expected": "Only intended indentation changes; literals/newlines preserved; errors leave text/history untouched.",
+    "test_prefixes": [
+      "formatting::builtin::tests::",
+      "tests::builtin_formatting"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F47",
+    "title": "External language formatting",
+    "procedure": "Validate all eight presets; run installed tools; exercise missing executable, timeout, bad/empty/large output and undo.",
+    "expected": "Correct tool/arguments selected; failures preserve document; valid output becomes one undo step.",
+    "test_prefixes": [
+      "formatting::tests::",
+      "tests::formatting_"
+    ],
+    "additional_gate": "Live language examples for every external tool require those tools to be installed."
+  },
+  {
+    "id": "F48",
+    "title": "Formatter discovery and selection",
+    "procedure": "Type :format with/without a name; filter/scroll/select/Tab; show missing status; execute :formatters.",
+    "expected": "Automatic Enter remains automatic; explicit choices run intended tool; listing command does not accidentally format.",
+    "test_prefixes": [
+      "command_bar::tests::format_",
+      "command_bar::tests::formatter_",
+      "command_bar::tests::formatting_"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F49",
+    "title": "Native desktop builds",
+    "procedure": "Build and launch native packages on Windows, Linux, macOS Intel and Apple Silicon; inspect icons.",
+    "expected": "Correct architecture starts, fonts/icons load and basic file operations work on each OS.",
+    "test_prefixes": [],
+    "additional_gate": "This machine can verify its local build only; Windows/Linux/Intel/ARM native packaging need separate hosts."
+  },
+  {
+    "id": "F50",
+    "title": "File-backed document storage",
+    "procedure": "Open 1 MiB/100 MiB/1 GB fixtures, access initial lines, edit and undo; inspect backing stores/cache growth.",
+    "expected": "Correct content and lazy access; inserted/formatted text stays file-backed; no whole-file text copy required.",
+    "test_prefixes": [
+      "piece_table::tests::",
+      "piece_table::line_view::tests::",
+      "tests::undo_and_redo",
+      "benchmarks::editor_performance_probe"
+    ],
+    "additional_gate": ""
+  },
+  {
+    "id": "F51",
+    "title": "Bounded auxiliary storage and quiet idle behavior",
+    "procedure": "Measure native idle CPU/RSS, recovery on/off and terminal resource probes; overflow bounded caches.",
+    "expected": "Idle uses event waits; documented bounds hold; measurements and workload limits are recorded explicitly.",
+    "test_prefixes": [
+      "terminal::frame::tests::",
+      "terminal::tests::output_is_capped",
+      "terminal::completion::tests::cache_",
+      "piece_table::recovery::tests::recovery_uses",
+      "renderer::terminal_selection_render_tests::terminal_performance_probe",
+      "piece_table::recovery::tests::recovery_memory_probe"
+    ],
+    "additional_gate": "Measurements characterize this host; no universal performance threshold or cross-platform result is inferred."
+  }
+]

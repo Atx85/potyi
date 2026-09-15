@@ -1,0 +1,21 @@
+
+running 1 test
+test lsp_setup::tests::live_install_and_initialize ... Checking Node.js
+Installing PHP · Intelephense
+Installing PHP · Intelephense
+
+added 127 packages in 5s
+npm warn allow-scripts 1 package has install scripts not yet covered by allowScripts:
+npm warn allow-scripts   protobufjs@8.3.0 (postinstall: node scripts/postinstall)
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+
+Checking the installed launcher
+Installed and configured PHP · Intelephense.
+Files: /var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi setup test 69861 1789479629254004000/php/server
+Existing project settings are preserved. Use :lsp doctor php for project requirements.
+php: initialize OK
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 7.68s
+

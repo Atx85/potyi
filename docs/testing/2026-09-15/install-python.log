@@ -1,0 +1,226 @@
+
+running 1 test
+test lsp_setup::tests::live_install_and_initialize ... Checking Python and venv
+Creating a Python environment for the server
+Installing python-lsp-server
+Installing python-lsp-server
+Collecting python-lsp-server
+  Using cached python_lsp_server-1.15.0-py3-none-any.whl.metadata (10 kB)
+
+Installing python-lsp-server
+Collecting python-lsp-server
+  Using cached python_lsp_server-1.15.0-py3-none-any.whl.metadata (10 kB)
+Collecting docstring-to-markdown (from python-lsp-server)
+  Using cached docstring_to_markdown-0.17-py3-none-any.whl.metadata (2.3 kB)
+Collecting jedi<0.21.0,>=0.17.2 (from python-lsp-server)
+  Using cached jedi-0.20.0-py2.py3-none-any.whl.metadata (23 kB)
+Collecting pluggy>=1.0.0 (from python-lsp-server)
+  Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+Collecting python-lsp-jsonrpc<2.0.0,>=1.1.0 (from python-lsp-server)
+  Using cached python_lsp_jsonrpc-1.1.2-py3-none-any.whl.metadata (1.5 kB)
+Collecting ujson>=3.0.0 (from python-lsp-server)
+  Using cached ujson-6.0.0-cp314-cp314-macosx_11_0_arm64.whl.metadata (10.0 kB)
+
+Installing python-lsp-server
+Collecting python-lsp-server
+  Using cached python_lsp_server-1.15.0-py3-none-any.whl.metadata (10 kB)
+Collecting docstring-to-markdown (from python-lsp-server)
+  Using cached docstring_to_markdown-0.17-py3-none-any.whl.metadata (2.3 kB)
+Collecting jedi<0.21.0,>=0.17.2 (from python-lsp-server)
+  Using cached jedi-0.20.0-py2.py3-none-any.whl.metadata (23 kB)
+Collecting pluggy>=1.0.0 (from python-lsp-server)
+  Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+Collecting python-lsp-jsonrpc<2.0.0,>=1.1.0 (from python-lsp-server)
+  Using cached python_lsp_jsonrpc-1.1.2-py3-none-any.whl.metadata (1.5 kB)
+Collecting ujson>=3.0.0 (from python-lsp-server)
+  Using cached ujson-6.0.0-cp314-cp314-macosx_11_0_arm64.whl.metadata (10.0 kB)
+Collecting black (from python-lsp-server)
+  Using cached black-26.5.1-cp314-cp314-macosx_11_0_arm64.whl.metadata (95 kB)
+Collecting parso<0.9.0,>=0.8.6 (from jedi<0.21.0,>=0.17.2->python-lsp-server)
+  Using cached parso-0.8.7-py2.py3-none-any.whl.metadata (8.2 kB)
+Collecting click>=8.0.0 (from black->python-lsp-server)
+  Using cached click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+Collecting mypy-extensions>=0.4.3 (from black->python-lsp-server)
+  Using cached mypy_extensions-1.1.0-py3-none-any.whl.metadata (1.1 kB)
+Collecting packaging>=22.0 (from black->python-lsp-server)
+  Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+
+Installing python-lsp-server
+Collecting python-lsp-server
+  Using cached python_lsp_server-1.15.0-py3-none-any.whl.metadata (10 kB)
+Collecting docstring-to-markdown (from python-lsp-server)
+  Using cached docstring_to_markdown-0.17-py3-none-any.whl.metadata (2.3 kB)
+Collecting jedi<0.21.0,>=0.17.2 (from python-lsp-server)
+  Using cached jedi-0.20.0-py2.py3-none-any.whl.metadata (23 kB)
+Collecting pluggy>=1.0.0 (from python-lsp-server)
+  Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+Collecting python-lsp-jsonrpc<2.0.0,>=1.1.0 (from python-lsp-server)
+  Using cached python_lsp_jsonrpc-1.1.2-py3-none-any.whl.metadata (1.5 kB)
+Collecting ujson>=3.0.0 (from python-lsp-server)
+  Using cached ujson-6.0.0-cp314-cp314-macosx_11_0_arm64.whl.metadata (10.0 kB)
+Collecting black (from python-lsp-server)
+  Using cached black-26.5.1-cp314-cp314-macosx_11_0_arm64.whl.metadata (95 kB)
+Collecting parso<0.9.0,>=0.8.6 (from jedi<0.21.0,>=0.17.2->python-lsp-server)
+  Using cached parso-0.8.7-py2.py3-none-any.whl.metadata (8.2 kB)
+Collecting click>=8.0.0 (from black->python-lsp-server)
+  Using cached click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+Collecting mypy-extensions>=0.4.3 (from black->python-lsp-server)
+  Using cached mypy_extensions-1.1.0-py3-none-any.whl.metadata (1.1 kB)
+Collecting packaging>=22.0 (from black->python-lsp-server)
+  Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pathspec>=1.0.0 (from black->python-lsp-server)
+  Using cached pathspec-1.1.1-py3-none-any.whl.metadata (14 kB)
+Collecting platformdirs>=2 (from black->python-lsp-server)
+  Using cached platformdirs-4.11.8-py3-none-any.whl.metadata (5.5 kB)
+Collecting pytokens~=0.4.0 (from black->python-lsp-server)
+  Using cached pytokens-0.4.1-cp314-cp314-macosx_11_0_arm64.whl.metadata (3.8 kB)
+Collecting importlib-metadata>=3.6 (from docstring-to-markdown->python-lsp-server)
+  Using cached importlib_metadata-9.0.1-py3-none-any.whl.metadata (4.5 kB)
+Collecting typing_extensions>=4.6 (from docstring-to-markdown->python-lsp-server)
+  Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+
+Installing python-lsp-server
+Collecting python-lsp-server
+  Using cached python_lsp_server-1.15.0-py3-none-any.whl.metadata (10 kB)
+Collecting docstring-to-markdown (from python-lsp-server)
+  Using cached docstring_to_markdown-0.17-py3-none-any.whl.metadata (2.3 kB)
+Collecting jedi<0.21.0,>=0.17.2 (from python-lsp-server)
+  Using cached jedi-0.20.0-py2.py3-none-any.whl.metadata (23 kB)
+Collecting pluggy>=1.0.0 (from python-lsp-server)
+  Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+Collecting python-lsp-jsonrpc<2.0.0,>=1.1.0 (from python-lsp-server)
+  Using cached python_lsp_jsonrpc-1.1.2-py3-none-any.whl.metadata (1.5 kB)
+Collecting ujson>=3.0.0 (from python-lsp-server)
+  Using cached ujson-6.0.0-cp314-cp314-macosx_11_0_arm64.whl.metadata (10.0 kB)
+Collecting black (from python-lsp-server)
+  Using cached black-26.5.1-cp314-cp314-macosx_11_0_arm64.whl.metadata (95 kB)
+Collecting parso<0.9.0,>=0.8.6 (from jedi<0.21.0,>=0.17.2->python-lsp-server)
+  Using cached parso-0.8.7-py2.py3-none-any.whl.metadata (8.2 kB)
+Collecting click>=8.0.0 (from black->python-lsp-server)
+  Using cached click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+Collecting mypy-extensions>=0.4.3 (from black->python-lsp-server)
+  Using cached mypy_extensions-1.1.0-py3-none-any.whl.metadata (1.1 kB)
+Collecting packaging>=22.0 (from black->python-lsp-server)
+  Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pathspec>=1.0.0 (from black->python-lsp-server)
+  Using cached pathspec-1.1.1-py3-none-any.whl.metadata (14 kB)
+Collecting platformdirs>=2 (from black->python-lsp-server)
+  Using cached platformdirs-4.11.8-py3-none-any.whl.metadata (5.5 kB)
+Collecting pytokens~=0.4.0 (from black->python-lsp-server)
+  Using cached pytokens-0.4.1-cp314-cp314-macosx_11_0_arm64.whl.metadata (3.8 kB)
+Collecting importlib-metadata>=3.6 (from docstring-to-markdown->python-lsp-server)
+  Using cached importlib_metadata-9.0.1-py3-none-any.whl.metadata (4.5 kB)
+Collecting typing_extensions>=4.6 (from docstring-to-markdown->python-lsp-server)
+  Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting zipp>=3.20 (from importlib-metadata>=3.6->docstring-to-markdown->python-lsp-server)
+  Using cached zipp-4.1.0-py3-none-any.whl.metadata (3.6 kB)
+Using cached python_lsp_server-1.15.0-py3-none-any.whl (77 kB)
+Using cached jedi-0.20.0-py2.py3-none-any.whl (4.9 MB)
+Using cached parso-0.8.7-py2.py3-none-any.whl (107 kB)
+Using cached python_lsp_jsonrpc-1.1.2-py3-none-any.whl (8.8 kB)
+Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+Using cached ujson-6.0.0-cp314-cp314-macosx_11_0_arm64.whl (54 kB)
+Using cached black-26.5.1-cp314-cp314-macosx_11_0_arm64.whl (1.8 MB)
+Using cached pytokens-0.4.1-cp314-cp314-macosx_11_0_arm64.whl (160 kB)
+Using cached click-8.5.0-py3-none-any.whl (125 kB)
+Using cached mypy_extensions-1.1.0-py3-none-any.whl (5.0 kB)
+Using cached packaging-26.3-py3-none-any.whl (129 kB)
+Using cached pathspec-1.1.1-py3-none-any.whl (57 kB)
+Using cached platformdirs-4.11.8-py3-none-any.whl (24 kB)
+Using cached docstring_to_markdown-0.17-py3-none-any.whl (23 kB)
+Using cached importlib_metadata-9.0.1-py3-none-any.whl (27 kB)
+Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Using cached zipp-4.1.0-py3-none-any.whl (10 kB)
+Installing collected packages: zipp, ujson, typing_extensions, pytokens, pluggy, platformdirs, pathspec, parso, packaging, mypy-extensions, click, python-lsp-jsonrpc, jedi, importlib-metadata, black, docstring-to-markdown, python-lsp-server
+
+Installing python-lsp-server
+Collecting python-lsp-server
+  Using cached python_lsp_server-1.15.0-py3-none-any.whl.metadata (10 kB)
+Collecting docstring-to-markdown (from python-lsp-server)
+  Using cached docstring_to_markdown-0.17-py3-none-any.whl.metadata (2.3 kB)
+Collecting jedi<0.21.0,>=0.17.2 (from python-lsp-server)
+  Using cached jedi-0.20.0-py2.py3-none-any.whl.metadata (23 kB)
+Collecting pluggy>=1.0.0 (from python-lsp-server)
+  Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+Collecting python-lsp-jsonrpc<2.0.0,>=1.1.0 (from python-lsp-server)
+  Using cached python_lsp_jsonrpc-1.1.2-py3-none-any.whl.metadata (1.5 kB)
+Collecting ujson>=3.0.0 (from python-lsp-server)
+  Using cached ujson-6.0.0-cp314-cp314-macosx_11_0_arm64.whl.metadata (10.0 kB)
+Collecting black (from python-lsp-server)
+  Using cached black-26.5.1-cp314-cp314-macosx_11_0_arm64.whl.metadata (95 kB)
+Collecting parso<0.9.0,>=0.8.6 (from jedi<0.21.0,>=0.17.2->python-lsp-server)
+  Using cached parso-0.8.7-py2.py3-none-any.whl.metadata (8.2 kB)
+Collecting click>=8.0.0 (from black->python-lsp-server)
+  Using cached click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+Collecting mypy-extensions>=0.4.3 (from black->python-lsp-server)
+  Using cached mypy_extensions-1.1.0-py3-none-any.whl.metadata (1.1 kB)
+Collecting packaging>=22.0 (from black->python-lsp-server)
+  Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pathspec>=1.0.0 (from black->python-lsp-server)
+  Using cached pathspec-1.1.1-py3-none-any.whl.metadata (14 kB)
+Collecting platformdirs>=2 (from black->python-lsp-server)
+  Using cached platformdirs-4.11.8-py3-none-any.whl.metadata (5.5 kB)
+Collecting pytokens~=0.4.0 (from black->python-lsp-server)
+  Using cached pytokens-0.4.1-cp314-cp314-macosx_11_0_arm64.whl.metadata (3.8 kB)
+Collecting importlib-metadata>=3.6 (from docstring-to-markdown->python-lsp-server)
+  Using cached importlib_metadata-9.0.1-py3-none-any.whl.metadata (4.5 kB)
+Collecting typing_extensions>=4.6 (from docstring-to-markdown->python-lsp-server)
+  Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting zipp>=3.20 (from importlib-metadata>=3.6->docstring-to-markdown->python-lsp-server)
+  Using cached zipp-4.1.0-py3-none-any.whl.metadata (3.6 kB)
+Using cached python_lsp_server-1.15.0-py3-none-any.whl (77 kB)
+Using cached jedi-0.20.0-py2.py3-none-any.whl (4.9 MB)
+Using cached parso-0.8.7-py2.py3-none-any.whl (107 kB)
+Using cached python_lsp_jsonrpc-1.1.2-py3-none-any.whl (8.8 kB)
+Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+Using cached ujson-6.0.0-cp314-cp314-macosx_11_0_arm64.whl (54 kB)
+Using cached black-26.5.1-cp314-cp314-macosx_11_0_arm64.whl (1.8 MB)
+Using cached pytokens-0.4.1-cp314-cp314-macosx_11_0_arm64.whl (160 kB)
+Using cached click-8.5.0-py3-none-any.whl (125 kB)
+Using cached mypy_extensions-1.1.0-py3-none-any.whl (5.0 kB)
+Using cached packaging-26.3-py3-none-any.whl (129 kB)
+Using cached pathspec-1.1.1-py3-none-any.whl (57 kB)
+Using cached platformdirs-4.11.8-py3-none-any.whl (24 kB)
+Using cached docstring_to_markdown-0.17-py3-none-any.whl (23 kB)
+Using cached importlib_metadata-9.0.1-py3-none-any.whl (27 kB)
+Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Using cached zipp-4.1.0-py3-none-any.whl (10 kB)
+Installing collected packages: zipp, ujson, typing_extensions, pytokens, pluggy, platformdirs, pathspec, parso, packaging, mypy-extensions, click, python-lsp-jsonrpc, jedi, importlib-metadata, black, docstring-to-markdown, python-lsp-server
+
+Successfully installed black-26.5.1 click-8.5.0 docstring-to-markdown-0.17 importlib-metadata-9.0.1 jedi-0.20.0 mypy-extensions-1.1.0 packaging-26.3 parso-0.8.7 pathspec-1.1.1 platformdirs-4.11.8 pluggy-1.6.0 python-lsp-jsonrpc-1.1.2 python-lsp-server-1.15.0 pytokens-0.4.1 typing_extensions-4.16.0 ujson-6.0.0 zipp-4.1.0
+
+Checking the installed launcher
+Checking the installed launcher
+usage: pylsp [-h] [--tcp] [--ws] [--host HOST] [--port PORT]
+             [--check-parent-process] [--log-config LOG_CONFIG |
+             --log-file LOG_FILE] [-v] [-V]
+
+Python Language Server
+
+options:
+  -h, --help            show this help message and exit
+  --tcp                 Use TCP server instead of stdio
+  --ws                  Use Web Sockets server instead of stdio
+  --host HOST           Bind to this address
+  --port PORT           Bind to this port
+  --check-parent-process
+                        Check whether parent process is still alive using
+                        os.kill(ppid, 0) and auto shut down language server
+                        process when parent process is not alive. Note that
+                        this may not work on a Windows machine.
+  --log-config LOG_CONFIG
+                        Path to a JSON file containing Python logging config.
+  --log-file LOG_FILE   Redirect logs to the given file instead of writing to
+                        stderr. Has no effect if used with --log-config.
+  -v, --verbose         Increase verbosity of log output, overrides log config
+                        file
+  -V, --version         show program's version number and exit
+
+Installed and configured Python · python-lsp-server.
+Files: /var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi setup test 69550 1789479617837313000/python/server
+Existing project settings are preserved. Use :lsp doctor python for project requirements.
+python: initialize OK
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 8.87s
+

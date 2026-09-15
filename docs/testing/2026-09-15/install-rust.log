@@ -1,0 +1,37 @@
+
+running 1 test
+test lsp_setup::tests::live_install_and_initialize ... Checking rustup
+Installing rust-analyzer and Rust standard-library sources
+Installing rust-analyzer and Rust standard-library sources
+info: syncing channel updates for stable-aarch64-apple-darwin
+
+Installing rust-analyzer and Rust standard-library sources
+info: syncing channel updates for stable-aarch64-apple-darwin
+info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+info: downloading 6 components
+
+Installing rust-analyzer and Rust standard-library sources
+info: syncing channel updates for stable-aarch64-apple-darwin
+info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+info: downloading 6 components
+info: downloading component rust-analyzer
+
+Installing rust-analyzer and Rust standard-library sources
+info: syncing channel updates for stable-aarch64-apple-darwin
+info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+info: downloading 6 components
+info: downloading component rust-analyzer
+info: downloading component rust-src
+
+Checking the installed launcher
+Checking the installed launcher
+rust-analyzer 1.98.1 (48a229ce 2026-09-01)
+
+Installed and configured Rust · rust-analyzer.
+Files: /var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi setup test 69529 1789479596923179000/rust/server
+Existing project settings are preserved. Use :lsp doctor rust for project requirements.
+rust: initialize OK
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 20.31s
+

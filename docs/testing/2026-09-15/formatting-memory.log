@@ -1,0 +1,25 @@
+
+running 1 test
+test formatting::tests::resource_probe ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-format-69143-0/source): 369.542µs
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.37s
+
+        0.40 real         0.20 user         0.03 sys
+             6819840  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                4633  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                  25  voluntary context switches
+                 378  involuntary context switches
+           329540461  instructions retired
+           123892420  cycles elapsed
+             4433280  peak memory footprint

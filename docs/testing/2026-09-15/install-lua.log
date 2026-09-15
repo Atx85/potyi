@@ -1,0 +1,18 @@
+
+running 1 test
+test lsp_setup::tests::live_install_and_initialize ... Checking downloader
+Downloading from the server's official distribution
+Downloading from the server's official distribution
+Unpacking the language server
+Checking the installed launcher
+Checking the installed launcher
+3.19.1
+
+Installed and configured Lua · Lua Language Server.
+Files: /var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi setup test 69947 1789479639720017000/lua/server
+Existing project settings are preserved. Use :lsp doctor lua for project requirements.
+lua: initialize OK
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 3.05s
+

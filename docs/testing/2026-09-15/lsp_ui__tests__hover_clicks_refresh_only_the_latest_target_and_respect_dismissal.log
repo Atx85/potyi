@@ -1,0 +1,8 @@
+
+running 1 test
+test lsp_ui::tests::hover_clicks_refresh_only_the_latest_target_and_respect_dismissal ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-lsp-ui-62586-1789478581038171000/main.rs): 389.125µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-lsp-ui-62586-1789478581038171000/main.rs): 413.75µs
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.07s
+

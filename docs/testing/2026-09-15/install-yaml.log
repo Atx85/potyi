@@ -1,0 +1,17 @@
+
+running 1 test
+test lsp_setup::tests::live_install_and_initialize ... Checking Node.js
+Installing YAML · YAML Language Server
+Installing YAML · YAML Language Server
+
+added 20 packages in 1s
+
+Checking the installed launcher
+Installed and configured YAML · YAML Language Server.
+Files: /var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi setup test 70282 1789479651953757000/yaml/server
+Existing project settings are preserved. Use :lsp doctor yaml for project requirements.
+yaml: initialize OK
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 2.17s
+

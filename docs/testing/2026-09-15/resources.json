@@ -1,0 +1,30 @@
+[
+  {
+    "name": "recovery-off",
+    "test": "piece_table::recovery::tests::recovery_memory_probe",
+    "status": "PASS",
+    "log": "recovery-off.log",
+    "profile": "release"
+  },
+  {
+    "name": "recovery-on",
+    "test": "piece_table::recovery::tests::recovery_memory_probe",
+    "status": "PASS",
+    "log": "recovery-on.log",
+    "profile": "release"
+  },
+  {
+    "name": "formatting-memory",
+    "test": "formatting::tests::resource_probe",
+    "status": "PASS",
+    "log": "formatting-memory.log",
+    "profile": "release"
+  },
+  {
+    "name": "long-lines",
+    "test": "renderer::terminal_selection_render_tests::long_line_navigation_probe",
+    "status": "PASS",
+    "log": "long-lines.log",
+    "profile": "release"
+  }
+]

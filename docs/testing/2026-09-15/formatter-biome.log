@@ -1,0 +1,6 @@
+command: ['/opt/homebrew/bin/biome', 'format', '--stdin-file-path=/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-formatter-acceptance-t5rq7353/example.json']
+exit: 0
+stdout:
+{ "name": "café", "items": [1, 2] }
+
+stderr:

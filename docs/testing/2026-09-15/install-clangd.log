@@ -1,0 +1,11 @@
+
+running 1 test
+test lsp_setup::tests::live_install_and_initialize ... Checking the installed launcher
+Found and configured your existing C and C++ · clangd installation.
+Project settings are preserved.
+clangd-c: initialize OK
+clangd-cpp: initialize OK
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.29s
+

@@ -1,0 +1,8 @@
+
+running 1 test
+test lsp_ui::tests::completion_popup_keys_undo_and_stale_results ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-lsp-ui-62572-1789478580047478000/Player.cs): 302.792µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-lsp-ui-62572-1789478580047478000/Player.cs): 330.625µs
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.82s
+

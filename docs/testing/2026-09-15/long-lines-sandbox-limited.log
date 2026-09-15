@@ -1,0 +1,12 @@
+
+running 1 test
+test renderer::terminal_selection_render_tests::long_line_navigation_probe ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-long-lines-68537.txt): 396.917µs
+LONG_LINE initial index: 11.513458ms
+LONG_LINE first text frame: 906.667µs
+LONG_LINE 10 moves and text frames: 1.934292ms
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.05s
+
+        0.07 real         0.04 user         0.01 sys
+time: sysctl kern.clockrate: Operation not permitted

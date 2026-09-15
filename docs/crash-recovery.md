@@ -26,11 +26,22 @@ Recovery keeps no second document or piece list in RAM and has no growing
 background queue. It adds a small per-document state and uses a 64 KiB copying
 buffer and an 8 KiB journal buffer. These buffers are used temporarily.
 
-On the first edit, Potyi streams an immutable backup of the original file to
-its recovery directory. This costs disk space proportional to the original
-file and may take time for large files. The live piece table then reads that
-same immutable backup. Inserted text remains in the existing file-backed edit
-store; recovery links to it when both directories are on the same filesystem.
+On the first edit, Potyi creates an immutable backup of the original file in
+its recovery directory. On macOS and Linux it first tries a filesystem
+copy-on-write clone using the already-open original file handle. Supported
+filesystems can share the original data blocks while keeping later writes to
+either file independent. This avoids streaming the whole original during the
+first edit and adds no document-sized allocation or background queue.
+
+Windows, unsupported filesystems and cross-volume copies retain the 64 KiB
+streaming fallback. That path still costs disk space and time proportional to
+the original file. The optimization does not defer recovery writes or move the
+copying delay to file opening. The completed backup is synchronized before the
+first recovery checkpoint becomes available, using the same ordering as before.
+
+The live piece table then reads that same immutable backup. Inserted text
+remains in the existing file-backed edit store; recovery links to it when both
+directories are on the same filesystem.
 Across filesystems, newly appended text is copied in bounded chunks.
 
 Normal insertions and deletions append small records describing their
@@ -78,6 +89,12 @@ Automated tests cover a forcibly killed process, live-process exclusion,
 truncated journal tails, checksum damage, unavailable storage, cross-filesystem
 copying, Unicode, deletions, undo/redo, formatting, Save As and outside changes.
 They run in the native Windows, macOS and Linux build workflow.
+
+Snapshot checks also cover the native clone when available, forced streaming
+fallback, source-path replacement, outside appends/truncation, read-only source
+permissions and preserving an existing destination. Native clone semantics are
+documented by [Apple](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/clonefile.2)
+and the [Linux man-pages project](https://man7.org/linux/man-pages/man2/FICLONE.2const.html).
 
 An isolated piece-table memory check on macOS ARM64 used a 256 MiB original file
 and 1,000 insertions. Peak resident memory was 6,213,632 bytes without recovery

@@ -1,0 +1,28 @@
+
+running 1 test
+test renderer::terminal_selection_render_tests::long_line_navigation_probe ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-long-lines-69161.txt): 515.209µs
+LONG_LINE initial index: 11.03025ms
+LONG_LINE first text frame: 1.086458ms
+LONG_LINE 10 moves and text frames: 9.647959ms
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 567 filtered out; finished in 0.10s
+
+        0.13 real         0.04 user         0.01 sys
+            17973248  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                4808  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                 270  involuntary context switches
+           607175979  instructions retired
+           205939182  cycles elapsed
+            13457344  peak memory footprint

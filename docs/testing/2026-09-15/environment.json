@@ -1,0 +1,27 @@
+{
+  "utc": "2026-09-15T13:41:39.692503+00:00",
+  "host": "macOS-15.7.3-arm64-arm-64bit-Mach-O",
+  "rust": {
+    "exit_code": 0,
+    "output": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6"
+  },
+  "release_binary": {
+    "exit_code": 0,
+    "output": "target/release/potyi: Mach-O 64-bit executable x86_64"
+  },
+  "git_commit": {
+    "exit_code": 0,
+    "output": "290a677411a767d7e0d723d5a59e8878404f3367"
+  },
+  "dirty_source": true,
+  "release_binary_sha256": "5f542eb484827c4998abdc18d1a5fc1e97812e53c5d0ab206f52c97222bfa7cb",
+  "jdk": {
+    "exit_code": 1,
+    "output": "The operation couldn\u2019t be completed. Unable to locate a Java Runtime.\nPlease visit http://www.java.com for information on installing Java."
+  },
+  "native_ui": {
+    "status": "UNVERIFIED",
+    "reason": "Computer Use returned: Computer Use permissions are not granted. No native app interactions executed. User was given temporary permission instructions.",
+    "fixture_manifest": "/private/tmp/potyi-feature-native.json"
+  }
+}
