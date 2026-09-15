@@ -31,8 +31,24 @@ fn create_with(
         }
     }
     let mut output = create_private(path)?;
-    copy_range(input, &mut output, 0, length)?;
+    if cfg!(windows) && length != 0 {
+        // Windows seek_read changes the file cursor, unlike Unix read_at.
+        // Preserve it once for the whole copy, even if reading/writing fails.
+        // Empty originals may be null devices, which cannot be sought.
+        preserving_source_cursor(input, || copy_range(input, &mut output, 0, length))?;
+    } else {
+        copy_range(input, &mut output, 0, length)?;
+    }
     Ok(output)
+}
+
+fn preserving_source_cursor(mut input: &File, copy: impl FnOnce() -> io::Result<()>) -> io::Result<()> {
+    use std::io::{Seek, SeekFrom};
+    let position = input.stream_position()?;
+    let result = copy();
+    // Attempt restoration before propagating a copy error.
+    let restored = input.seek(SeekFrom::Start(position)).map(|_| ());
+    result.and(restored)
 }
 
 #[cfg(target_os = "macos")]

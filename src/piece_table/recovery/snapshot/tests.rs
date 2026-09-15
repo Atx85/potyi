@@ -27,6 +27,35 @@ fn recovery_snapshot_fallback_copies_exact_range_without_moving_source_cursor() 
 }
 
 #[test]
+fn recovery_snapshot_restores_source_cursor_after_copy_success_and_failure() {
+    let temp = Temp::new();
+    let source = temp.0.join("source");
+    fs::write(&source, b"0123456789").unwrap();
+    let mut input = File::open(&source).unwrap();
+    for fail in [false, true] {
+        input.seek(SeekFrom::Start(3)).unwrap();
+        let result = preserving_source_cursor(&input, || {
+            // Exercise a read that changes the shared cursor on every OS,
+            // matching the Windows seek_read behavior used by copy_range.
+            let mut reader = &input;
+            reader.seek(SeekFrom::Start(7))?;
+            let mut bytes = [0; 2];
+            reader.read_exact(&mut bytes)?;
+            assert_eq!(&bytes, b"78");
+            if fail { Err(io::Error::other("copy failed")) } else { Ok(()) }
+        });
+        if fail {
+            assert_eq!(result.unwrap_err().to_string(), "copy failed");
+        } else {
+            result.unwrap();
+        }
+        let mut next = [0; 2];
+        input.read_exact(&mut next).unwrap();
+        assert_eq!(&next, b"34");
+    }
+}
+
+#[test]
 fn recovery_snapshot_never_overwrites_an_existing_destination() {
     let temp = Temp::new();
     let source = temp.0.join("source");
@@ -43,7 +72,8 @@ fn recovery_snapshot_rejects_shortened_sources_in_both_paths() {
     let temp = Temp::new();
     let source = temp.0.join("source");
     fs::write(&source, "short").unwrap();
-    let input = File::open(&source).unwrap();
+    let mut input = File::open(&source).unwrap();
+    input.seek(SeekFrom::Start(2)).unwrap();
     for native in [false, true] {
         let destination = temp.0.join(format!("snapshot-{native}"));
         let result = if native {
@@ -52,6 +82,7 @@ fn recovery_snapshot_rejects_shortened_sources_in_both_paths() {
             create_with(&input, &destination, 100, |_, _| Ok(None))
         };
         assert_eq!(result.unwrap_err().kind(), io::ErrorKind::UnexpectedEof);
+        assert_eq!(input.stream_position().unwrap(), 2);
     }
 }
 
