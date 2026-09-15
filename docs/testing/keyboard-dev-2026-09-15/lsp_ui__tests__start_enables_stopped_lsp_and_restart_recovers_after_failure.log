@@ -1,0 +1,8 @@
+
+running 1 test
+test lsp_ui::tests::start_enables_stopped_lsp_and_restart_recovers_after_failure ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-lsp-ui-12815-1789486285635887000/main.rs): 314.042µs
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-lsp-ui-12815-1789486285635887000/main.rs): 345.542µs
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 581 filtered out; finished in 0.08s
+

@@ -1,0 +1,6 @@
+
+running 1 test
+test app::input::tests::conventional_events_keep_command_and_terminal_input_out_of_the_document ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 580 filtered out; finished in 0.24s
+

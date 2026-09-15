@@ -15,10 +15,12 @@ Results and raw probe logs go to ignored `temp/benchmarks/latest.json` and `.log
 python3 tools/benchmarks/run.py --samples 3 --idle-samples 1
 # Skip app-level idle sampling where a native display or process metrics are unavailable.
 python3 tools/benchmarks/run.py --idle-samples 0
-# Regenerate static website results and homepage cards from reviewed data.
+# Generate a standalone local HTML report from reviewed data.
 python3 tools/benchmarks/publish.py temp/benchmarks/latest.json
-# Verify the checked-in pages against their source data.
-python3 tools/benchmarks/publish.py docs/benchmarks/results.json --check
+# Render the recorded baseline (output defaults to temp/benchmarks/report.html).
+python3 tools/benchmarks/publish.py tools/benchmarks/results.json
+# Verify that local report against its source data.
+python3 tools/benchmarks/publish.py tools/benchmarks/results.json --check
 ```
 
 Compare the same workloads, shell, compiler target, display driver, build profile and machine. For a before/after comparison, keep both raw reports. Do not compare these core timings with another editor's complete startup time.
@@ -27,16 +29,11 @@ Fixtures are real, non-sparse 1 MiB, 100 MiB, and 1 GB (1,000,000,000 bytes) fil
 
 Idle sampling opens a small temporary document in the actual release binary with default settings, LSP off, and SDL's native display driver. After three seconds of settling, `ps` samples resident memory and cumulative CPU time at the start and end of a five-second interval. RSS is not peak memory. CPU is a percentage of one logical core and has OS-dependent time quantization; 0% means below measurement resolution. These measurements do not establish large-file memory use, other display drivers, complete application startup time, or LSP server costs.
 
-The generated page includes raw data and limits beside the numbers. Never replace missing results with estimates, use one fastest run as the headline, or present headless measurements as a comparison against another editor. Benchmark scripts do not publish or push to GitHub.
+The generated report includes timings and measurement limits; raw samples remain in the input JSON. Never replace missing results with estimates, use one fastest run as the headline, or present headless measurements as a comparison against another editor. Benchmark scripts do not publish or push to GitHub.
 
-## GitHub homepage and indexing
+## Recorded results
 
-The static website is served from `docs/`; its benchmark page and homepage cards come from `publish.py`. Include the new `docs/benchmarks/` files when publishing the site. Keep GitHub Pages pointed at the repository's intended Pages deployment; these scripts do not change hosting settings.
-
-Suggested GitHub About description:
-
-> Pötyi (Potyi): a lightweight, open-source text and code editor built in Rust. Vim controls, split panes, a command terminal and optional LSP. macOS, Windows and Linux.
-
-Set the repository website to `https://atx85.github.io/potyi/` and use relevant topics such as `text-editor`, `code-editor`, `rust`, `sdl3`, `vim`, and `lsp`. These repository settings require GitHub write access and are separate from README edits.
-
-After the pages are live, submit `https://atx85.github.io/potyi/sitemap.xml` in Google Search Console if you manage the property. Descriptive titles, visible headings, and consistent naming help search engines identify the software, but do not guarantee a ranking or instant indexing. See [Google's title-link guidance](https://developers.google.com/search/docs/appearance/title-link). Structured data describes the real application; no reviews or ratings are invented.
+`results.json` preserves the reviewed 11 September 2026 baseline. The public
+website does not include a benchmark page. Despite its historical name,
+`publish.py` only writes a standalone local report; it does not update `docs/`
+or publish anything. Use `--output path/to/report.html` to choose its location.

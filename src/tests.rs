@@ -15,6 +15,14 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
+use std::io;
+use sdl3::keyboard::{Keycode, Mod};
+use crate::{
+    app::{commands::*, navigation::*, search::*},
+    command_bar::{quote_argument, CommandBar, GotoMode, ParsedCommand},
+    keybindings::Command, renderer::Renderer, search::SearchResult,
+    search_ui::SearchUi, terminal::Terminal,
+};
 
 #[test]
 fn builtin_formatting_needs_no_provider_and_preserves_history_on_failure() {

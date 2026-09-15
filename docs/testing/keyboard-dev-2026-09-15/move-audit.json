@@ -1,0 +1,14 @@
+{
+  "unchanged_moved_logic_blocks": [
+    "shortcuts::terminal_toggle",
+    "shortcuts::open_command",
+    "terminal::handle",
+    "emacs_mode::handle",
+    "command_bar::handle",
+    "history::handle",
+    "vim_mode::handle",
+    "conventional::escape",
+    "conventional::handle"
+  ],
+  "normalization": "Whitespace/comments/formatting commas and wrapping consumed EventFlow results in Some ignored. The dispatcher order and terminal fallback were reviewed separately."
+}

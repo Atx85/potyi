@@ -2,7 +2,7 @@
 
 A free, open-source text and code editor for **macOS, Windows, and Linux**, built with **Rust and SDL3**. Pötyi focuses on low memory use, quiet idle behavior, and practical editing tools.
 
-[Download Pötyi](https://github.com/Atx85/potyi/releases/latest) · [Editor homepage](https://atx85.github.io/potyi/) · [Reproducible benchmarks](https://atx85.github.io/potyi/benchmarks/) · [Language server setup](docs/lsp.md)
+[Download Pötyi](https://github.com/Atx85/potyi/releases/latest) · [Editor homepage](https://atx85.github.io/potyi/) · [Features](https://atx85.github.io/potyi/features/) · [Language server setup](docs/lsp.md)
 
 - Conventional shortcuts and optional Vim-style Normal, Insert, and Visual modes.
 - Split panes, incremental search, regular expressions, and multi-cursor occurrence editing.
@@ -439,6 +439,30 @@ This is deliberately a command buffer rather than a full terminal emulator. Full
 
 SDL3, SDL3_ttf, and their font dependencies are built from source and
 statically linked by Cargo. They do not need to be installed separately.
+
+---
+
+## Local development
+
+With the build requirements above and Python 3 installed, run these from the
+project folder (on Windows, replace `python3` with `py -3`):
+
+```sh
+python3 tools/dev.py run     # Build and open the project in Potyi
+python3 tools/dev.py test    # Regular tests, no GUI interaction
+python3 tools/dev.py check   # Regular tests plus isolated headless UI checks
+```
+
+`run` accepts a file/folder and `--release`, for example
+`python3 tools/dev.py run --release "path with spaces/example.rs"`.
+`test` accepts a test-name filter, such as `python3 tools/dev.py test recovery`.
+`check` saves evidence under `target/qa/` and prints its location; use
+`--output "path/to/results"` to choose another directory. It skips live
+external-server tests and installation probes. Each command returns a nonzero
+exit status if its build or checks fail.
+
+See [Application structure](docs/architecture.md) for where code belongs and
+[Feature verification](tools/qa/README.md) for the additional opt-in checks.
 
 ---
 

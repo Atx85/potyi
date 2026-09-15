@@ -1,0 +1,15 @@
+
+running 1 test
+test app::input::tests::keyboard_priorities_keep_terminal_toggle_and_search_modes_consistent ... 
+thread 'app::input::tests::keyboard_priorities_keep_terminal_toggle_and_search_modes_consistent' (34919311) panicked at src/app/input/tests.rs:213:9:
+assertion failed: matches!(app.command_bar.parse(), Ok(ParsedCommand::Find { .. }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    app::input::tests::keyboard_priorities_keep_terminal_toggle_and_search_modes_consistent
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 581 filtered out; finished in 0.21s
+

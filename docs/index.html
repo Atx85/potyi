@@ -3,16 +3,16 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Pötyi (Potyi) is a free, open-source text and code editor for macOS, Windows and Linux. Built in Rust with Vim controls, split panes, a terminal and LSP.">
+    <meta name="description" content="Pötyi is an open-source desktop text editor for macOS, Windows and Linux. Downloads, features and documentation.">
     <link rel="canonical" href="https://atx85.github.io/potyi/">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Pötyi text editor">
-    <meta property="og:title" content="Pötyi (Potyi) — Lightweight Rust Text &amp; Code Editor">
-    <meta property="og:description" content="A free native text editor for macOS, Windows and Linux, with Vim controls, split panes, a command terminal and optional language servers.">
+    <meta property="og:title" content="Pötyi · Text editor">
+    <meta property="og:description" content="A desktop text editor with two editing panes, a command bar and optional language tools.">
     <meta property="og:url" content="https://atx85.github.io/potyi/">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Pötyi (Potyi) — Lightweight Rust Text &amp; Code Editor">
-    <meta name="twitter:description" content="Free, open-source editing in Rust. Explore the features, downloads and reproducible benchmarks.">
+    <meta name="twitter:title" content="Pötyi · Text editor">
+    <meta name="twitter:description" content="A text editor for macOS, Windows and Linux. Downloads, features and documentation.">
     <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -20,7 +20,7 @@
   "@id": "https://atx85.github.io/potyi/#editor",
   "name": "Pötyi",
   "alternateName": "Potyi",
-  "description": "A lightweight, open-source text and code editor built in Rust and SDL3, with Vim controls, split panes, a command terminal and optional language servers.",
+  "description": "An open-source desktop text editor built in Rust and SDL3, with two editing panes, a command bar and optional language servers.",
   "url": "https://atx85.github.io/potyi/",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "macOS, Windows, Linux",
@@ -38,11 +38,12 @@
 }
     </script>
     <meta name="theme-color" content="#161817">
-    <title>Pötyi (Potyi) — Lightweight Rust Text &amp; Code Editor</title>
+    <title>Pötyi · Text editor</title>
     <link rel="icon" href="favicon.svg?v=2" type="image/svg+xml">
-    <link rel="stylesheet" href="styles.css?v=benchmarks-1">
+    <link rel="stylesheet" href="styles.css?v=features-1">
+    <link rel="stylesheet" href="pages.css?v=1">
   </head>
-  <body>
+  <body class="plain-page">
     <a class="skip-link" href="#main">Skip to content</a>
 
     <header class="site-header">
@@ -51,8 +52,7 @@
         <span>Pötyi</span>
       </a>
       <nav aria-label="Main navigation">
-        <a href="#features">Features</a>
-        <a href="benchmarks/">Benchmarks</a>
+        <a href="features/">Features</a>
         <a href="lsp/">LSP guide</a>
         <a href="designer/">Syntax designer</a>
         <a href="https://github.com/Atx85/potyi">Source</a>
@@ -60,23 +60,15 @@
     </header>
 
     <main id="main">
-      <section class="hero" id="top">
-        <div class="hero-copy">
-          <p class="eyebrow">A native editor for the files in front of you</p>
-          <h1>Pötyi text editor.<br><span>Light on your system.</span></h1>
-          <p class="intro">Pötyi (also written Potyi) is a free, open-source text and code editor for macOS, Windows, and Linux, built in Rust and SDL3. It keeps memory and CPU use low while putting search, navigation, split editing, and a practical command terminal close at hand.</p>
-
-          <div class="pronunciation" aria-label="Pronunciation guide">
-            <span class="pronunciation-name">Say it like</span>
-            <strong class="pronunciation-english">“PUR-chee”</strong>
-            <span class="pronunciation-hint">— leave out the <em>r</em> sound</span>
-            <details>
-              <summary>Closer Hungarian pronunciation</summary>
-              <p>Start as if saying “purr,” but stop before the <em>r</em>. Keep that vowel short and round your lips. Finish with a soft “chee,” with the stress on the first part. <span class="ipa">Exact IPA: /ˈpøci/</span></p>
-            </details>
-          </div>
+      <section class="home-intro" id="top" aria-labelledby="home-title">
+        <div>
+          <p class="eyebrow">Text and code editor</p>
+          <h1 id="home-title">Pötyi</h1>
+          <p class="intro">A desktop editor for macOS, Windows and Linux, built for writing code with less on screen.</p>
+          <p>It started as a personal project: a place to edit files without a busy interface. It has two editing panes, a command bar, and a terminal for running commands.</p>
+          <p>Free and open source, written in Rust and SDL3. Still in development.</p>
+          <p class="inline-links"><a href="features/">Browse the features →</a><a href="https://github.com/Atx85/potyi#readme">Read the manual</a></p>
         </div>
-
         <aside class="download-panel" aria-labelledby="download-title">
           <div class="panel-heading">
             <p class="panel-kicker" id="release-label">Downloads</p>
@@ -118,109 +110,33 @@
         </aside>
       </section>
 
-      <section class="command-strip" aria-label="Example Pötyi command">
-        <span class="command-label">command bar</span>
-        <code><span>:</span>find "the important bit" --ignore-case</code>
-        <span class="command-key">Enter</span>
-      </section>
-
-      <section class="feature-intro" id="features">
-        <p class="eyebrow">What it does</p>
-        <h2>Code editing, with the tools close at hand.</h2>
-      </section>
-
-      <section class="feature-grid" aria-label="Pötyi features">
-        <article class="feature-card feature-card-wide">
-          <div class="feature-number">01</div>
-          <div>
-            <h3>One command bar</h3>
-            <p>Search, replace, navigate, open files, adjust settings, save, and quit from one discoverable place. Press <kbd>Ctrl</kbd> + <kbd>P</kbd> or type <kbd>:</kbd> on an empty line.</p>
-          </div>
-          <code>:goto 12 --rel</code>
-        </article>
-
-        <article class="feature-card">
-          <div class="feature-number">02</div>
-          <h3>Split editing</h3>
-          <p>Open two documents side by side. Each pane keeps its own cursor, selection, scroll position, and undo history.</p>
-        </article>
-
-        <article class="feature-card">
-          <div class="feature-number">03</div>
-          <h3>Practical Vim mode</h3>
-          <p>Optional Normal, Insert, and Visual modes cover everyday motions, operators, search, paste, undo, redo, and repeat.</p>
-        </article>
-
-        <article class="feature-card">
-          <div class="feature-number">04</div>
-          <h3>Command terminal</h3>
-          <p>Run ordinary, non-interactive shell commands without leaving the editor. Printed file locations are clickable.</p>
-        </article>
-
-        <article class="feature-card">
-          <div class="feature-number">05</div>
-          <h3>Search that stays live</h3>
-          <p>Preview results as you type, search forward or backward, use regular expressions, and replace one match or all of them.</p>
-        </article>
-
-        <article class="feature-card feature-card-wide">
-          <div class="feature-number">06</div>
-          <div>
-            <h3>File-backed by design</h3>
-            <p>A piece table keeps large files editable without making a complete in-memory copy. Pötyi sleeps while idle to keep resource use predictable.</p>
-          </div>
-          <code>low memory · low CPU</code>
-        </article>
-        <article class="feature-card">
-          <div class="feature-number">07</div>
-          <h3>Language servers and rename</h3>
-          <p>Inspect types and documentation, jump to definitions, and preview function or variable renames across files. Language servers are optional and start when requested. <a href="lsp/">Set up LSP</a>.</p>
-        </article>
-        <article class="feature-card">
-          <div class="feature-number">08</div>
-          <h3>Edit repeated text together</h3>
-          <p>Use Cmd+D or Ctrl+D in conventional mode to select matching occurrences. Move, select, type, and paste at multiple cursors, with grouped undo.</p>
-        </article>
-      </section>
-      <p class="development-note">Features describe the current source tree. Packaged releases may lag behind development.</p>
-
-      <!-- BENCHMARK_SUMMARY_START -->
-      <section class="benchmark-summary" id="benchmarks" aria-labelledby="benchmark-title">
-        <p class="eyebrow">Measured, with the method included</p>
-        <h2 id="benchmark-title">Pötyi performance benchmarks</h2>
-        <p class="benchmark-context">7-sample medians from a local optimized build. Warm filesystem cache and headless SDL; opening a file is lazy, not a full parse or displayed window.</p>
-        <div class="benchmark-grid"><div class="benchmark-stat"><strong>2.201 ms</strong><span>Open 1 GB + read first 40 lines</span></div><div class="benchmark-stat"><strong>86.441 ms</strong><span>Scan 100 MiB for a missing literal</span></div><div class="benchmark-stat"><strong>19.247 ms</strong><span>First terminal printf frame</span></div><div class="benchmark-stat"><strong>48.0 MiB</strong><span>Native app idle RSS, small file</span></div></div>
-        <p class="benchmark-context">2026-09-11 · Apple M1 Max · macOS-15.7.3-arm64-arm-64bit-Mach-O · Rust target x86_64-apple-darwin This run uses an Intel (x86_64) build on an arm64 host; it does not measure the Apple Silicon build.</p>
-        <a class="source-link" href="benchmarks/">Read all results, raw samples, and limitations →</a>
-      </section>
-      <!-- BENCHMARK_SUMMARY_END -->
-
-      <section class="editor-faq" aria-labelledby="questions-title">
-        <h2 id="questions-title">About the Pötyi code editor</h2>
-        <details><summary>Are Pötyi and Potyi the same editor?</summary><p>Yes. Pötyi is the Hungarian name; Potyi is its spelling without accents and the name used in the GitHub repository and downloads.</p></details>
-        <details><summary>Which platforms does it support?</summary><p>Pötyi builds for macOS on Apple Silicon and Intel, Windows, and Linux. Choose a platform download above, or build the Rust source yourself.</p></details>
-        <details><summary>Do I need to install a language server?</summary><p>Only for features such as hover, go-to-definition, and symbol rename. Editing, search, split panes, and the command terminal work without one.</p></details>
-      </section>
-
-      <section class="closing">
-        <div>
-          <p class="eyebrow">Open source</p>
-          <h2>Small enough to understand.<br>Useful enough to keep open.</h2>
+      <section class="home-basics" id="features" aria-labelledby="basics-title">
+        <h2 id="basics-title">Working in Pötyi</h2>
+        <div class="basics-grid">
+          <div><h3>Open a file or folder</h3><p>Drop a file onto the window, or use <code>potyi .</code> from a shell to open the current folder.</p></div>
+          <div><h3>Choose your shortcuts</h3><p>Use conventional shortcuts, or switch to the supported Vim-style or Emacs-style bindings.</p></div>
+          <div><h3>Add language tools as needed</h3><p>Editing works on its own. Optional language servers add completion, navigation and refactoring. <a href="lsp/">LSP setup guide</a>.</p></div>
         </div>
-        <a class="source-link" href="https://github.com/Atx85/potyi">
-          <span>Explore the source</span>
-          <span aria-hidden="true">↗</span>
-        </a>
+        <p><a href="features/">See the feature list and current limits →</a></p>
+      </section>
+
+      <section class="storage-note" aria-labelledby="storage-title">
+        <h2 id="storage-title">File-backed storage</h2>
+        <p>Pötyi reads file content as needed instead of copying the whole document into memory when it opens. Edit history still grows as you work, and optional language tools use their own resources.</p>
+      </section>
+
+      <section class="home-about" aria-labelledby="about-title">
+        <h2 id="about-title">About the name</h2>
+        <p>Pötyi is a playful nod to the Hungarian word <em lang="hu">pötyögni</em>—to tap away on a keyboard. A fitting name for a little text editor. Potyi is the spelling without accents used in commands and downloads.</p>
       </section>
     </main>
 
     <footer>
       <div class="footer-inner">
         <p>© 2026 Attila Banko</p>
-        <p>Pötyi is free software under the <a href="https://github.com/Atx85/potyi/blob/main/LICENSE">GPLv3</a>.</p>
+        <p>Free software under the <a href="https://github.com/Atx85/potyi/blob/main/LICENSE">GPLv3</a>.</p>
       </div>
     </footer>
-
     <script src="script.js"></script>
   </body>
 </html>

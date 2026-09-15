@@ -1,0 +1,6 @@
+
+running 1 test
+test renderer::terminal_selection_render_tests::editor_viewport_preserves_scrolled_unicode_tabs_and_clicks ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 581 filtered out; finished in 0.22s
+

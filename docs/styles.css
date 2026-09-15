@@ -534,10 +534,6 @@ footer {
     gap: 1rem;
   }
 
-  nav a:first-child {
-    display: none;
-  }
-
   .hero {
     padding: 4.5rem 0 3rem;
   }

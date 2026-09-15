@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Features · Pötyi</title>
+    <meta name="description" content="Pötyi’s features by task: files, editing, search, layout, terminal, language servers and formatting, with current limits and links to the manuals.">
+    <link rel="canonical" href="https://atx85.github.io/potyi/features/">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Features · Pötyi">
+    <meta property="og:description" content="An overview of what the editor supports, what needs extra tools, and its current limits.">
+    <meta property="og:url" content="https://atx85.github.io/potyi/features/">
+    <meta name="theme-color" content="#161817">
+    <link rel="icon" href="../favicon.svg?v=2" type="image/svg+xml">
+    <link rel="stylesheet" href="../styles.css?v=features-1">
+    <link rel="stylesheet" href="../pages.css?v=1">
+  </head>
+  <body class="plain-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="wordmark" href="../" aria-label="Pötyi home">
+        <img class="wordmark-mark" src="../favicon.svg?v=2" alt="" width="35" height="35">
+        <span>Pötyi</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="../">Home</a>
+        <a href="./" aria-current="page">Features</a>
+        <a href="../lsp/">LSP guide</a>
+        <a href="../designer/">Syntax designer</a>
+        <a href="https://github.com/Atx85/potyi">Source</a>
+      </nav>
+    </header>
+    <main id="main" class="feature-page">
+      <header class="page-intro">
+        <h1>Features</h1>
+        <p class="intro">What you can do in Pötyi, grouped by task.</p>
+        <p class="scope-note">This describes the current source as of 15 September 2026. Downloads may not include every feature yet.</p>
+      </header>
+      <nav class="feature-index" aria-label="Feature categories">
+        <a href="#files">Files</a><a href="#editing">Editing</a><a href="#search">Search</a><a href="#layout">Layout &amp; settings</a><a href="#terminal">Terminal &amp; Git</a><a href="#language-tools">Language tools</a><a href="#formatting">Formatting</a><a href="#platforms">Platforms &amp; storage</a>
+      </nav>
+
+      <div class="feature-sections">
+        <section class="feature-group" id="files" aria-labelledby="files-title">
+          <h2 id="files-title">Files &amp; folders</h2>
+          <ul>
+            <li>Create, open and save files, or save under a new name.</li>
+            <li>Drag files onto the window, or open a folder with <code>potyi .</code>.</li>
+            <li>Open a file at a specific line and column.</li>
+            <li>Recover unsaved text after a crash with <code>:recover</code>.</li>
+          </ul>
+          <details><summary>Details &amp; limits</summary><p>The terminal’s <code>view</code> command opens a read-only view. Crash recovery restores text into a separate copy, through the last complete saved journal record. It does not restore undo history or the window layout.</p><p><a href="https://github.com/Atx85/potyi/blob/main/docs/crash-recovery.md">Recovery guide</a></p></details>
+        </section>
+
+        <section class="feature-group" id="editing" aria-labelledby="editing-title">
+          <h2 id="editing-title">Editing &amp; shortcuts</h2>
+          <ul>
+            <li>Unicode text editing, mouse and keyboard selection, and system clipboard support.</li>
+            <li>Undo and redo, including grouped typing and bulk changes.</li>
+            <li>Select matching occurrences and edit with multiple cursors.</li>
+            <li>Conventional shortcuts, Vim-style modes, or Emacs-style bindings.</li>
+          </ul>
+          <details><summary>Keyboard modes &amp; limits</summary><p>Vim mode includes Normal, Insert and Visual modes, motions, operators, counts and dot repeat. Emacs bindings include movement, marks, kill/yank history, search and file/pane prefixes.</p><p>Both are subsets of those editors, without their extension languages or macro systems. Occurrence-based multiple cursors are available in conventional mode.</p><p><a href="https://github.com/Atx85/potyi#navigation-and-selection">Editing reference</a> · <a href="https://github.com/Atx85/potyi/blob/main/docs/emacs.md">Emacs bindings</a></p></details>
+        </section>
+
+        <section class="feature-group" id="search" aria-labelledby="search-title">
+          <h2 id="search-title">Search &amp; navigation</h2>
+          <ul>
+            <li>Preview matches while typing, then move forward or backward.</li>
+            <li>Search for literal text or regular expressions, with case controls.</li>
+            <li>Replace one match or every match, with undo.</li>
+            <li>Jump to a line or column, including relative line numbers.</li>
+          </ul>
+          <details><summary>Searching across files</summary><p>Built-in search works in the current document. For project searches, run an installed tool such as grep or ripgrep in the command terminal, then click a result to open its location.</p></details>
+        </section>
+
+        <section class="feature-group" id="layout" aria-labelledby="layout-title">
+          <h2 id="layout-title">Layout &amp; settings</h2>
+          <ul>
+            <li>Two side-by-side editing panes, each with its own cursor and undo history.</li>
+            <li>A command bar with suggestions and Tab completion.</li>
+            <li>Syntax highlighting and adjustable font size and line numbers.</li>
+            <li>Editable settings, shortcut bindings and syntax definitions.</li>
+          </ul>
+          <details><summary>Languages &amp; customization</summary><p>18 bundled syntax definitions cover C, C++, C#, Python, PHP, Rust, JavaScript, TypeScript, Go, Java, shell, Lua, JSON, TOML, YAML, HTML, CSS and SQL, plus related extensions such as JSX, TSX and Luau.</p><p>Defaults are built in; <code>:extract-config</code> creates editable configuration files. The <a href="../designer/">browser syntax designer</a> lets you preview and export highlighting rules.</p><p>Highlighting is line-based. The layout is a fixed vertical split; there are no document tabs or persistent graphical project tree.</p></details>
+        </section>
+
+        <section class="feature-group" id="terminal" aria-labelledby="terminal-title">
+          <h2 id="terminal-title">Terminal &amp; Git</h2>
+          <ul>
+            <li>Run commands, pipelines and redirects with streaming output.</li>
+            <li>Start directly from the command bar: <code>:term ls</code>.</li>
+            <li>Browse files in columns, complete filenames, and click output locations.</li>
+            <li>Browse Git logs and click commits to read their diffs.</li>
+          </ul>
+          <details><summary>Command controls &amp; limits</summary><p>Built-in commands include <code>ls</code>, <code>cd</code>, <code>pwd</code> and <code>touch</code>. Recall command history, select and copy output, stop a running command, rerun it or clear the output.</p><p>This terminal runs non-interactive commands. Full-screen terminal apps and interactive debuggers are not supported. Git and other external tools must be installed separately; retained output is capped at 8 MB.</p><p><a href="https://github.com/Atx85/potyi#command-terminal">Terminal reference</a></p></details>
+        </section>
+
+        <section class="feature-group" id="language-tools" aria-labelledby="language-title">
+          <h2 id="language-title">Language tools <span class="feature-tag">Optional setup</span></h2>
+          <ul>
+            <li>Member completion, hover documentation and go-to-definition.</li>
+            <li>Preview project-wide symbol renames before applying them.</li>
+            <li>Review server-provided quick fixes and refactorings.</li>
+            <li>Install a supported server with <code>:lsp install</code>; check setup with <code>:lsp doctor</code>.</li>
+          </ul>
+          <p class="group-note">Requires a language server and its prerequisites. Available actions depend on the server and project.</p>
+          <details><summary>Coverage &amp; limits</summary><p>Installation recipes cover 15 server packages and 22 language profiles. Start, stop, restart and inspect servers from the command bar. Unity setup recognizes generated <code>.sln</code> and <code>.slnx</code> solutions; real Unity projects still need broader testing.</p><p>LSP is disabled by default. Requests support saved UTF-8 documents up to 2 MiB. Completion is triggered by member-access operators; general completion while typing and a Problems panel are not implemented.</p><p><a href="../lsp/">Language-server guide</a> · <a href="https://github.com/Atx85/potyi/blob/main/docs/lsp-setup.md">Installation help</a></p></details>
+        </section>
+
+        <section class="feature-group" id="formatting" aria-labelledby="formatting-title">
+          <h2 id="formatting-title">Formatting</h2>
+          <ul>
+            <li><code>:format</code> chooses an installed formatter or supported built-in indentation.</li>
+            <li>Indent supported C-style code, JSON and untitled code without an extra tool.</li>
+            <li>See available providers with <code>:formatters</code>, or choose one explicitly.</li>
+            <li>Undo a formatting change in one step; saving is separate.</li>
+          </ul>
+          <details><summary>Providers &amp; limits</summary><p>Bundled presets cover rustfmt, Ruff, gofmt, clang-format, shfmt, StyLua, Taplo and Biome. External formatters require manual installation, and custom providers can be configured.</p><p>Built-in formatting adjusts indentation with limited syntax support. It is not a full language formatter. Unsupported file types, including Python, need an external formatter.</p><p><a href="https://github.com/Atx85/potyi/blob/main/docs/formatters.md">Formatting guide</a></p></details>
+        </section>
+
+        <section class="feature-group" id="platforms" aria-labelledby="platforms-title">
+          <h2 id="platforms-title">Platforms &amp; storage</h2>
+          <ul>
+            <li>Desktop builds for Windows, Linux, and macOS on Intel and Apple Silicon.</li>
+            <li>File-backed editing and undo, without a full in-memory copy on opening.</li>
+            <li>Lazy line loading and limited caches.</li>
+            <li>An event-driven interface that waits when idle.</li>
+          </ul>
+          <details><summary>Resource use &amp; limits</summary><p>Edit history and piece metadata still grow with work. Language servers and external commands use their own resources. Large-file editing has different limits from formatting and LSP; not every operation has constant memory use or latency.</p></details>
+        </section>
+      </div>
+      <p class="feature-reference">For individual commands and safeguards, see the <a href="https://github.com/Atx85/potyi/blob/main/docs/features.md">detailed feature inventory</a> or <a href="https://github.com/Atx85/potyi#readme">manual</a>.</p>
+    </main>
+    <footer><div class="footer-inner"><p>© 2026 Attila Banko</p><p>Free software under the <a href="https://github.com/Atx85/potyi/blob/main/LICENSE">GPLv3</a>.</p></div></footer>
+  </body>
+</html>

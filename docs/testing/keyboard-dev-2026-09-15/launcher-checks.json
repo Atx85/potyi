@@ -1,0 +1,9 @@
+{
+  "passed": [
+    "Run commands preserve path arguments and build from the repository root without a shell.",
+    "Filtered regular tests preserve a failing child exit code.",
+    "Headless checks use the current Python, skip live tools and support custom evidence paths.",
+    "Missing commands and interruption return nonzero status."
+  ],
+  "note": "Subprocess launch-boundary checks use mocks; real test/check commands are verified separately."
+}

@@ -1,0 +1,685 @@
+warning: variable does not need to be mutable
+   --> src/tests.rs:754:9
+    |
+754 |     let mut table = PieceTable::open(
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:841:9
+    |
+841 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:853:9
+    |
+853 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:864:9
+    |
+864 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:880:9
+    |
+880 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/tests.rs:1246:9
+     |
+1246 |     let mut table =
+     |         ----^^^^^
+     |         |
+     |         help: remove this `mut`
+
+warning: method `line_text_from_start` is never used
+    --> src/piece_table.rs:1337:12
+     |
+ 355 | impl PieceTable {
+     | --------------- method in this implementation
+...
+1337 |     pub fn line_text_from_start(
+     |            ^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated function `search_bar_reserved_height` is never used
+    --> src/renderer.rs:1596:8
+     |
+ 179 | impl<'a> Renderer<'a> {
+     | --------------------- associated function in this implementation
+...
+1596 |     fn search_bar_reserved_height(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `search_origin` is never read
+  --> src/search.rs:68:5
+   |
+65 | pub struct Searcher {
+   |            -------- field in this struct
+...
+68 |     search_origin: usize,
+   |     ^^^^^^^^^^^^^
+
+warning: field `pattern` is never read
+  --> src/syntax.rs:49:9
+   |
+47 | pub struct SyntaxRule {
+   |            ---------- field in this struct
+48 |     pub name: String,
+49 |     pub pattern: String,
+   |         ^^^^^^^
+   |
+   = note: `SyntaxRule` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `test_file` is never used
+   --> src/tests.rs:139:4
+    |
+139 | fn test_file(contents: &[u8]) -> PathBuf {
+    |    ^^^^^^^^^
+
+warning: `potyi` (bin "potyi" test) generated 11 warnings (run `cargo fix --bin "potyi" -p potyi --tests` to apply 6 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.37s
+     Running unittests src/main.rs (target/debug/deps/potyi-40ec68d80e9c704e)
+
+running 581 tests
+test app::input::tests::conventional_events_keep_command_and_terminal_input_out_of_the_document ... ignored, Headless SDL event routing; run with SDL_VIDEODRIVER=dummy in a separate process
+test app::input::tests::emacs_events_preserve_prefixes_text_suppression_and_cancellation ... ignored, Headless SDL event routing; run with SDL_VIDEODRIVER=dummy in a separate process
+test app::input::tests::mouse_and_drop_events_preserve_panes_and_report_open_failures ... ignored, Headless SDL event routing; run with SDL_VIDEODRIVER=dummy in a separate process
+test app::input::tests::vim_events_preserve_insert_suppression_and_undo_groups ... ignored, Headless SDL event routing; run with SDL_VIDEODRIVER=dummy in a separate process
+test benchmarks::editor_performance_probe ... ignored, Opt-in benchmark; run tools/benchmarks/run.py
+test benchmarks::recovery_latency::typing_latency_probe ... ignored, Opt-in recovery typing probe; run tools/qa/recovery_latency.py
+test clipboard::tests::copy_preserves_backward_selection ... ok
+test clipboard::tests::copy_preserves_forward_utf8_selection ... ok
+test clipboard::tests::copy_rejects_embedded_nul_without_panicking ... ok
+test clipboard::tests::copy_without_selection_leaves_clipboard_unchanged ... ok
+test clipboard::tests::cut_copies_and_removes_selection ... ok
+test clipboard::tests::empty_paste_does_not_create_history ... ok
+test clipboard::tests::newline_normalization_reuses_the_clipboard_allocation ... ok
+test clipboard::tests::paste_replaces_selection_as_one_undo_step ... ok
+test clipboard::tests::read_text_keeps_lf_and_utf8_content ... ok
+test clipboard::tests::read_text_normalizes_windows_and_classic_line_endings ... ok
+test command_bar::tests::all_commands_are_reachable_by_arrows_and_clicks_across_pages ... ok
+test command_bar::tests::command_and_option_clicks_are_actionable ... ok
+test command_bar::tests::enter_accepts_highlighted_commands_settings_and_options ... ok
+test command_bar::tests::font_size_setting_is_discoverable_and_clickable ... ok
+test command_bar::tests::font_size_setting_rejects_unsafe_sizes ... ok
+test command_bar::tests::format_completion_preserves_automatic_enter_and_filters_provider_names ... ok
+test command_bar::tests::formatter_choices_beyond_first_page_can_run_with_enter ... ok
+test command_bar::tests::formatter_results_are_selectable_without_running_on_selection ... ok
+test command_bar::tests::formatting_commands_are_explicit_and_reject_extra_options ... ok
+test command_bar::tests::goto_options_are_discoverable_and_exclusive ... ok
+test command_bar::tests::goto_parses_line_number_overrides ... ok
+test command_bar::tests::goto_preserves_direction_and_explicit_overrides ... ok
+test command_bar::tests::grouped_lsp_commands_match_aliases_and_validate_arguments ... ok
+test command_bar::tests::hover_and_definition_results_can_be_repeated_with_enter ... ok
+test command_bar::tests::hover_documentation_color_survives_wrapping_and_scrolling ... ok
+test command_bar::tests::hover_spacing_collapses_blank_lines_and_keeps_hit_targets_aligned ... ok
+test command_bar::tests::hover_spacing_keeps_indentation_and_scrolled_layout_consistent ... ok
+test command_bar::tests::informational_results_scroll_and_clear_on_input ... ok
+test command_bar::tests::keybinding_setting_is_discoverable_and_parses_all_modes ... ok
+test command_bar::tests::line_number_setting_is_discoverable_and_clickable ... ok
+test command_bar::tests::line_number_setting_parses_all_types ... ok
+test command_bar::tests::lsp_commands_are_explicit_and_reject_extra_arguments ... ok
+test command_bar::tests::lsp_group_supports_prefixes_clicks_and_rename_arguments ... ok
+test command_bar::tests::lsp_setup_commands_validate_arguments_and_complete_all_servers ... ok
+test command_bar::tests::new_command_accepts_optional_quoted_path ... ok
+test command_bar::tests::parses_extract_config_without_arguments ... ok
+test command_bar::tests::parses_quoted_find_and_visible_options ... ok
+test command_bar::tests::parses_replace_all_and_goto ... ok
+test command_bar::tests::parses_split_without_arguments ... ok
+test command_bar::tests::parses_term_without_arguments ... ok
+test command_bar::tests::pasted_controls_stay_single_line_and_parse_as_text ... ok
+test command_bar::tests::quote_argument_round_trips ... ok
+test command_bar::tests::quoted_option_name_is_search_text ... ok
+test command_bar::tests::recovery_commands_require_a_positive_session_number ... ok
+test command_bar::tests::save_as_commands_parse_paths_and_overwrite_intent ... ok
+test command_bar::tests::utf8_cursor_editing_stays_on_boundaries ... ok
+test command_bar::tests::wheel_reaches_lsp_and_editing_resets_the_page ... ok
+test command_bar::tests::windows_paths_and_empty_replacements_round_trip ... ok
+test config::tests::all_line_number_modes_parse ... ok
+test config::tests::emacs_keybinding_mode_parses ... ok
+test config::tests::font_size_defaults_to_eighteen ... ok
+test config::tests::font_size_validation_has_safe_bounds ... ok
+test config::tests::missing_config_uses_embedded_editor_defaults ... ok
+test config::tests::vim_keybinding_mode_parses ... ok
+test dpi_text::tests::fractional_scale_adjusts_font_size ... ok
+test dpi_text::tests::invalid_scales_fall_back_to_one_x ... ok
+test dpi_text::tests::one_x_keeps_font_and_surface_dimensions ... ok
+test dpi_text::tests::two_x_uses_high_resolution_raster_dimensions ... ok
+test dpi_text::tests::update_check_ignores_tiny_scale_jitter ... ok
+test dpi_text::tests::update_check_normalizes_invalid_new_scale ... ok
+test emacs::edge_tests::emacs_empty_edges_prefix_actions_and_modifier_keys ... ok
+test emacs::tests::emacs_kills_coalesce_yanks_cycle_and_undo ... ok
+test emacs::tests::emacs_line_page_and_whole_document_selection ... ok
+test emacs::tests::emacs_prefixes_counts_and_text_suppression ... ok
+test emacs::tests::emacs_ring_is_shared_bounded_and_readonly_kills_do_nothing ... ok
+test emacs::tests::emacs_unicode_words_marks_and_exchange ... ok
+test embedded_config::tests::extraction_creates_defaults_without_overwriting ... ok
+test formatting::builtin::tests::json_quotes_blank_lines_and_final_newline_are_preserved ... ok
+test formatting::builtin::tests::nested_code_tabs_spaces_crlf_and_bom ... ok
+test formatting::builtin::tests::strings_comments_directives_and_raw_contents_are_preserved ... ok
+test formatting::builtin::tests::unsupported_and_ambiguous_input_is_rejected ... ok
+test formatting::tests::cursor_mapping_does_not_depend_on_chunk_boundaries ... ok
+test formatting::tests::cursor_mapping_handles_unicode_crlf_and_shorter_documents ... ok
+test formatting::tests::embedded_providers_and_custom_configuration ... ok
+test formatting::tests::filepath_substitution_is_one_literal_argument ... ok
+test formatting::tests::process_failure_timeout_and_output_limits_preserve_document ... ok
+test formatting::tests::process_streams_unsaved_input_and_drains_both_pipes ... ok
+test formatting::tests::resource_probe ... ignored, Manual resource probe: run alone under /usr/bin/time -l
+test formatting::tests::rustfmt_smoke_test_formats_buffer_without_saving ... ignored, Requires a locally installed rustfmt
+test formatting::tests::selection_uses_config_order_and_only_skips_unavailable_executables ... ok
+test formatting::tests::temporary_files_are_removed_on_drop ... ok
+test keybindings::tests::accepts_snake_case_commands ... ok
+test keybindings::tests::clipboard_shortcuts_work_with_ctrl_and_command ... ok
+test keybindings::tests::default_bindings_work ... ok
+test keybindings::tests::default_navigation_bindings_and_selection_variants ... ok
+test keybindings::tests::extra_modifier_does_not_match ... ok
+test keybindings::tests::formatting_shortcut_requires_modifiers_and_never_repeats ... ok
+test keybindings::tests::missing_config_uses_embedded_bindings ... ok
+test keybindings::tests::missing_modifiers_defaults_to_no_modifiers ... ok
+test keybindings::tests::new_file_shortcuts_accept_ctrl_and_command_without_repeat ... ok
+test keybindings::tests::non_repeatable_binding_rejects_repeat ... ok
+test keybindings::tests::parses_basic_binding ... ok
+test keybindings::tests::parses_custom_page_and_word_selection_commands ... ok
+test keybindings::tests::parses_modifier_binding ... ok
+test keybindings::tests::parses_multiple_bindings ... ok
+test keybindings::tests::rejects_unknown_command ... ok
+test keybindings::tests::rejects_unknown_key ... ok
+test keybindings::tests::rejects_unknown_modifier ... ok
+test keybindings::tests::repeatable_binding_accepts_repeat ... ok
+test keybindings::tests::right_ctrl_matches_left_ctrl_binding ... ok
+test keybindings::tests::save_as_shortcuts_are_distinct_and_do_not_repeat ... ok
+test keybindings::tests::shift_binding_works ... ok
+test keybindings::tests::terminal_clipboard_supports_command_and_preserves_ctrl_c_for_stop ... ok
+test line_numbers::tests::dynamic_numbers_keep_cursor_line_absolute ... ok
+test line_numbers::tests::normal_numbers_are_absolute ... ok
+test line_numbers::tests::relative_numbers_are_cursor_distances ... ok
+test lsp::actions::tests::command_actions_are_unavailable_and_preferred_edits_come_first ... ok
+test lsp::completion::tests::insertion_range_preserves_suffix_and_unicode_boundaries ... ok
+test lsp::completion::tests::lists_are_sorted_bounded_and_exclude_snippets ... ok
+test lsp::completion::tests::unicode_completion_and_import_are_one_prepared_change ... ok
+test lsp::tests::a_feature_error_keeps_the_initialized_session_alive ... ok
+test lsp::tests::code_actions_pass_diagnostics_selection_and_resolve_import_preview ... ok
+test lsp::tests::completion_cancels_without_breaking_the_session_and_resolves_items ... ok
+test lsp::tests::configuration_is_opt_in_and_validated ... ok
+test lsp::tests::crashed_hover_still_marks_the_transport_failed ... ok
+test lsp::tests::crashed_server_reports_failure_and_transport_times_out ... ok
+test lsp::tests::documented_server_recipes_parse_and_select_each_language ... ok
+test lsp::tests::hover_documentation_spans_preserve_code_and_plaintext_signatures ... ok
+test lsp::tests::hover_timeout_keeps_loaded_documents_and_ignores_late_responses ... ok
+test lsp::tests::hung_initialization_can_be_cancelled_without_blocking_the_caller ... ok
+test lsp::tests::incremental_changes_reconstruct_unicode_and_multiline_documents ... ok
+test lsp::tests::parses_hover_variants_and_definition_links ... ok
+test lsp::tests::readiness_wait_is_bounded_cancellable_and_does_not_break_a_healthy_session ... ok
+test lsp::tests::real_clangd_hover_and_definition ... ignored, requires an installed clangd; set POTYI_TEST_CLANGD to its executable
+test lsp::tests::real_rust_analyzer_extract_module_to_file ... ignored, requires installed rust-analyzer and rust-src
+test lsp::tests::real_rust_analyzer_hover_and_definition ... ignored, requires installed rust-analyzer and rust-src; set POTYI_TEST_RUST_ANALYZER to its executable
+test lsp::tests::real_servers_complete_member_access_and_prepare_insertion ... ignored, requires installed rust-analyzer and clangd
+test lsp::tests::server_roundtrip_syncs_unsaved_text_and_closes_documents ... ok
+test lsp::tests::unicode_positions_and_incremental_changes ... ok
+test lsp::tests::uri_roundtrip_escapes_spaces_unicode_and_reserved_characters ... ok
+test lsp::transport::tests::framed_unicode_messages_and_multiple_frames ... ok
+test lsp::transport::tests::rejects_bad_or_unbounded_messages ... ok
+test lsp::unity::tests::unity_root_and_solution_override ... ok
+test lsp::unity::tests::unity_solution_formats_and_missing_solution_diagnostics ... ok
+test lsp_setup::tests::archives_extract_and_check_integrity_and_reject_traversal_and_links ... ok
+test lsp_setup::tests::background_runner_reports_failure_timeout_cancellation_and_literal_arguments ... ok
+test lsp_setup::tests::catalogue_covers_every_documented_profile_and_alias ... ok
+test lsp_setup::tests::downloads_match_platform_and_architecture_without_ambiguous_tools ... ok
+test lsp_setup::tests::installation_reuse_releases_windows_lock_and_cancel_keeps_previous_record ... ok
+test lsp_setup::tests::java_configuration_uses_distinct_workspaces_and_keeps_explicit_arguments ... ok
+test lsp_setup::tests::live_install_and_initialize ... ignored, downloads real servers to a temporary directory; set POTYI_LSP_SMOKE to comma-separated recipe names
+test lsp_setup::tests::live_java_distribution ... ignored, downloads the current Eclipse archive to verify milestone discovery and extraction
+test lsp_setup::tests::managed_configuration_preserves_custom_commands_arguments_and_precedence ... ok
+test lsp_setup::tests::npm_bin_scripts_accept_spaces_and_reject_package_escape ... ok
+test lsp_setup::tests::process_fixture ... ignored, child process fixture; invoked only by runner tests
+test lsp_setup::tests::setup_results_respect_dismissed_panels_and_other_documents ... ok
+test lsp_ui::completion::tests::language_member_operators_exclude_comparisons_and_type_annotations ... ok
+test lsp_ui::tests::action_picker_click_enter_cancel_and_selection_invalidation ... ignored, requires SDL; run with SDL_VIDEODRIVER=dummy and --test-threads=1
+test lsp_ui::tests::batch_formatting_and_replacing_a_document_invalidate_pending_results ... ok
+test lsp_ui::tests::completion_popup_keys_undo_and_stale_results ... ignored, SDL integration with a temporary working directory; run with --test-threads=1
+test lsp_ui::tests::hover_clicks_refresh_only_the_latest_target_and_respect_dismissal ... ignored, SDL integration with a temporary working directory; run with --ignored --test-threads=1
+test lsp_ui::tests::invalid_definition_does_not_replace_a_clean_document ... ok
+test lsp_ui::tests::navigation_preserves_both_dirty_panes_and_existing_undo_history ... ok
+test lsp_ui::tests::pending_results_are_invalid_after_edits_reopens_cursor_moves_or_dismissal ... ok
+test lsp_ui::tests::rename_reply_preview_click_enter_apply_and_dismissal ... ignored, requires SDL; run with SDL_VIDEODRIVER=dummy and --test-threads=1
+test lsp_ui::tests::setup_ui_doctor_keeps_editing_and_delivers_background_result ... ignored, SDL setup integration; run with SDL_VIDEODRIVER=dummy and --test-threads=1
+test lsp_ui::tests::start_enables_stopped_lsp_and_restart_recovers_after_failure ... ignored, SDL integration with temporary config; run with --test-threads=1
+test lsp_ui::tests::unity_missing_language_server_keeps_the_document_editable ... ignored, SDL integration with temporary cwd; run with SDL_VIDEODRIVER=dummy --ignored --test-threads=1
+test multi_cursor::tests::occurrence_arrows_move_inside_unicode_words_without_losing_cursors ... ok
+test multi_cursor::tests::occurrence_arrows_select_and_replace_only_a_suffix ... ok
+test multi_cursor::tests::occurrence_converging_carets_and_overlapping_selections_merge ... ok
+test multi_cursor::tests::occurrence_empty_whitespace_and_read_only_are_safe ... ok
+test multi_cursor::tests::occurrence_fifty_matches_share_inserted_storage_and_undo ... ok
+test multi_cursor::tests::occurrence_home_end_and_word_selection_edit_each_line ... ok
+test multi_cursor::tests::occurrence_navigation_preserves_cursors_and_vim_return_ends_them ... ok
+test multi_cursor::tests::occurrence_overlaps_and_adjacent_deletions_do_not_duplicate_cursors ... ok
+test multi_cursor::tests::occurrence_page_movement_and_selection_keep_all_cursors ... ok
+test multi_cursor::tests::occurrence_paste_cut_newline_tab_and_noop_history ... ok
+test multi_cursor::tests::occurrence_selection_accepts_backward_and_multiline_text ... ok
+test multi_cursor::tests::occurrence_selection_wraps_skips_duplicates_and_is_literal ... ok
+test multi_cursor::tests::occurrence_shift_vertical_arrows_select_at_each_cursor ... ok
+test multi_cursor::tests::occurrence_shortcuts_require_an_explicit_press ... ok
+test multi_cursor::tests::occurrence_typing_is_one_group_and_restores_all_selections ... ok
+test multi_cursor::tests::occurrence_vertical_arrows_keep_each_preferred_column ... ok
+test multi_cursor::tests::occurrence_word_selection_uses_unicode_boundaries ... ok
+test piece_table::line_view::tests::checkpoint_storage_is_bounded_across_lines_and_tab_settings ... ok
+test piece_table::line_view::tests::empty_lines_crlf_and_unterminated_cr_keep_display_and_byte_columns ... ok
+test piece_table::line_view::tests::repeated_far_right_viewport_reads_stay_bounded_and_edits_invalidate_points ... ok
+test piece_table::line_view::tests::up_down_and_selection_preserve_columns_on_long_lines ... ok
+test piece_table::line_view::tests::utf8_crossing_scan_blocks_preserves_lines_and_positions ... ok
+test piece_table::line_view::tests::viewport_matches_unicode_and_tab_reference_at_every_offset ... ok
+test piece_table::recovery::snapshot::tests::recovery_native_clone_is_independent_when_supported ... ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_empty_original_skips_clone_and_does_not_copy_appends ... ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_fallback_copies_exact_range_without_moving_source_cursor ... ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_never_overwrites_an_existing_destination ... ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_of_read_only_file_is_private_and_writable ... ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_rejects_shortened_sources_in_both_paths ... ok
+test piece_table::recovery::snapshot::tests::recovery_snapshot_trims_appends_and_keeps_both_files_independent ... ok
+test piece_table::recovery::tests::crash_fixture ... ignored, child fixture for a real process-kill recovery test
+test piece_table::recovery::tests::cross_filesystem_add_copy_and_failed_format_keep_journal_consistent ... ok
+test piece_table::recovery::tests::damaged_metadata_does_not_hide_other_recovery_sessions ... ok
+test piece_table::recovery::tests::recovery_failure_keeps_edits_and_reports_a_warning ... ok
+test piece_table::recovery::tests::recovery_handles_format_undo_redo_and_empty_documents ... ok
+test piece_table::recovery::tests::recovery_ignores_every_truncated_tail_and_checksum_damage ... ok
+test piece_table::recovery::tests::recovery_memory_probe ... ignored, memory probe; run separately with /usr/bin/time and POTYI_RECOVERY_MEMORY=on or off
+test piece_table::recovery::tests::recovery_rejects_missing_sources_and_unbounded_frame_lengths ... ok
+test piece_table::recovery::tests::recovery_replays_unicode_deletions_piece_undo_and_batches ... ok
+test piece_table::recovery::tests::recovery_snapshots_the_open_handle_after_source_path_is_replaced ... ok
+test piece_table::recovery::tests::recovery_survives_process_kill_and_skips_live_processes ... ok
+test piece_table::recovery::tests::recovery_untitled_save_then_undo_keeps_immutable_original ... ok
+test piece_table::recovery::tests::recovery_uses_fixed_buffers_and_small_per_edit_records ... ok
+test piece_table::recovery::tests::saving_after_a_journal_failure_restarts_from_the_complete_current_state ... ok
+test piece_table::recovery::tests::successful_saves_clear_recovery_but_failed_saves_do_not ... ok
+test piece_table::tests::captured_pieces_restore_text_without_appending_again ... ok
+test piece_table::tests::crlf_line_text_excludes_carriage_return ... ok
+test piece_table::tests::inserted_text_is_file_backed_and_store_is_removed_on_drop ... ok
+test piece_table::tests::replace_ranges_empty_iterator_is_no_op ... ok
+test piece_table::tests::replace_ranges_handles_mixed_sources_and_merges_neighbors ... ok
+test piece_table::tests::replace_ranges_reuses_one_add_copy_and_snapshot_swaps ... ok
+test piece_table::tests::replace_ranges_supports_adjacent_deletions ... ok
+test piece_table::tests::replace_ranges_supports_zero_width_ranges_in_empty_document ... ok
+test piece_table::tests::replace_ranges_uses_utf8_byte_ranges ... ok
+test piece_table::tests::replace_ranges_validation_failures_are_atomic ... ok
+test piece_table::tests::replace_runs_compacts_dense_output_and_snapshot_swaps ... ok
+test piece_table::tests::replace_runs_validation_failures_are_atomic ... ok
+test piece_table::tests::scroll_line_boundary_lookups_do_not_materialize_line_cache ... ok
+test piece_table::tests::streamed_formatting_is_file_backed_and_snapshot_undoable ... ok
+test piece_table::tests::streamed_formatting_read_failure_is_atomic ... ok
+test piece_table::tests::streamed_formatting_reclaims_identical_and_invalid_staging ... ok
+test piece_table::tests::timing_open_and_first_line ... ok
+test piece_table::tests::visit_chunks_preserves_mixed_fragment_order ... ok
+test renderer::completion::tests::completion_mouse_rows_stay_inside_each_pane ... ignored, requires SDL; run with SDL_VIDEODRIVER=dummy and --test-threads=1
+test renderer::cursor_hit_tests::ascii_clicks_snap_to_nearest_caret ... ok
+test renderer::cursor_hit_tests::click_on_empty_middle_line_stays_on_that_line ... ok
+test renderer::cursor_hit_tests::click_past_non_final_line_stops_before_newline ... ok
+test renderer::cursor_hit_tests::collapsed_search_field_still_keeps_the_caret_in_bounds ... ok
+test renderer::cursor_hit_tests::extremely_narrow_search_bar_hides_trailing_labels ... ok
+test renderer::cursor_hit_tests::fixed_split_assigns_every_horizontal_pixel ... ok
+test renderer::cursor_hit_tests::hit_test_applies_horizontal_and_vertical_scroll ... ok
+test renderer::cursor_hit_tests::hit_test_clamps_rows_below_document_to_eof ... ok
+test renderer::cursor_hit_tests::hit_test_rejects_gutter_title_and_outside_edges ... ok
+test renderer::cursor_hit_tests::narrow_search_bar_prioritizes_status ... ok
+test renderer::cursor_hit_tests::odd_width_characters_snap_at_the_true_midpoint ... ok
+test renderer::cursor_hit_tests::search_bar_shows_mode_and_status_when_both_fit ... ok
+test renderer::cursor_hit_tests::search_scroll_keeps_end_caret_inside_the_field ... ok
+test renderer::cursor_hit_tests::short_search_query_does_not_scroll ... ok
+test renderer::cursor_hit_tests::split_text_chunks_keep_line_relative_tab_stops ... ok
+test renderer::cursor_hit_tests::tab_clicks_honor_non_default_width ... ok
+test renderer::cursor_hit_tests::tab_clicks_snap_to_reachable_carets ... ok
+test renderer::cursor_hit_tests::unicode_clicks_use_character_columns ... ok
+test renderer::cursor_hit_tests::unicode_hit_target_becomes_a_valid_byte_position ... ok
+test renderer::cursor_hit_tests::vertical_clicks_only_map_to_complete_visible_rows ... ok
+test renderer::terminal_selection_render_tests::compact_hover_panel_renders_with_small_paragraph_gaps ... ignored, Run with SDL_VIDEODRIVER=dummy and --ignored --test-threads=1
+test renderer::terminal_selection_render_tests::editor_viewport_preserves_scrolled_unicode_tabs_and_clicks ... ignored, Pixel regression; SDL_VIDEODRIVER=dummy, --ignored --test-threads=1
+test renderer::terminal_selection_render_tests::git_commit_mouse_target_and_back_restore_terminal_layout ... ignored, requires SDL and a Git checkout; run with SDL_VIDEODRIVER=dummy and --test-threads=1
+test renderer::terminal_selection_render_tests::long_line_navigation_probe ... ignored, Long-line benchmark; SDL_VIDEODRIVER=dummy, --ignored --test-threads=1
+test renderer::terminal_selection_render_tests::occurrence_selections_carets_and_vim_transition_render_correctly ... ignored, Run with SDL_VIDEODRIVER=dummy and --ignored --test-threads=1
+test renderer::terminal_selection_render_tests::terminal_command_latency_probe ... ignored, Latency probe; run with SDL_VIDEODRIVER=dummy --ignored --nocapture --test-threads=1
+test renderer::terminal_selection_render_tests::terminal_performance_probe ... ignored, Performance probe; run with SDL_VIDEODRIVER=dummy --ignored --nocapture --test-threads=1
+test renderer::terminal_selection_render_tests::terminal_selection_handles_wrapping_unicode_and_streaming ... ignored, Run with SDL_VIDEODRIVER=dummy and --ignored --test-threads=1
+test renderer::terminal_selection_render_tests::unity_csharp_bom_and_windows_line_endings_render_without_error ... ignored, SDL rendering regression; run with SDL_VIDEODRIVER=dummy --ignored --test-threads=1
+test renderer::terminal_status_tests::status_handles_empty_text_newlines_and_tiny_windows ... ok
+test renderer::terminal_status_tests::wraps_long_errors_without_losing_unicode_text ... ok
+test search::tests::backward_finds_match_across_buffer_boundary ... ok
+test search::tests::backward_search_at_zero_finds_match ... ok
+test search::tests::backward_search_cursor_at_match_start ... ok
+test search::tests::backward_search_from_end_finds_last_match ... ok
+test search::tests::backward_search_from_exact_match_includes_match ... ok
+test search::tests::backward_search_includes_match_at_start ... ok
+test search::tests::case_insensitive_backward_search_finds_overlapping_match ... ok
+test search::tests::case_insensitive_mode_matches_unicode_case ... ok
+test search::tests::case_insensitive_mode_treats_regex_syntax_literally ... ok
+test search::tests::case_sensitive_mode_preserves_literal_search ... ok
+test search::tests::does_not_match_inside_utf8_character ... ok
+test search::tests::empty_query_never_matches ... ok
+test search::tests::failure_table_for_empty_query ... ok
+test search::tests::failure_table_for_mixed_query ... ok
+test search::tests::failure_table_for_repeated_query ... ok
+test search::tests::failure_table_for_simple_query ... ok
+test search::tests::finds_backward ... ok
+test search::tests::finds_forward ... ok
+test search::tests::finds_large_query_without_large_memory_usage ... ok
+test search::tests::finds_later_repeated_match_backward ... ok
+test search::tests::finds_match_across_search_buffer_boundary ... ok
+test search::tests::finds_match_starting_before_buffer_boundary ... ok
+test search::tests::finds_query_much_larger_than_search_buffer ... ok
+test search::tests::finds_world_backward_from_end ... ok
+test search::tests::forward_search_at_end_returns_none ... ok
+test search::tests::forward_search_at_exact_match_position ... ok
+test search::tests::forward_search_beyond_end_returns_none ... ok
+test search::tests::handles_empty_document ... ok
+test search::tests::handles_highly_repetitive_query ... ok
+test search::tests::handles_query_larger_than_document ... ok
+test search::tests::handles_repeated_pattern ... ok
+test search::tests::large_query_not_found ... ok
+test search::tests::legacy_start_only_api_honours_selected_mode ... ok
+test search::tests::literal_replacement_visitor_short_circuits_identical_query ... ok
+test search::tests::query_equal_to_document_matches ... ok
+test search::tests::regex_backward_search_finds_overlapping_match ... ok
+test search::tests::regex_mode_reports_invalid_patterns ... ok
+test search::tests::regex_mode_returns_variable_length_match_ranges ... ok
+test search::tests::regex_search_keeps_context_before_start ... ok
+test search::tests::regex_zero_width_matches_have_exact_ranges ... ok
+test search::tests::replacement_visitor_skips_byte_identical_matches ... ok
+test search::tests::reports_empty_query ... ok
+test search::tests::reports_non_empty_query ... ok
+test search::tests::reports_query_length_in_bytes ... ok
+test search::tests::returns_none_when_not_found ... ok
+test search::tests::search_after_start_position ... ok
+test search::tests::search_can_find_across_lines ... ok
+test search::tests::search_can_find_across_multiple_lines ... ok
+test search::tests::search_finds_match_after_delete ... ok
+test search::tests::search_finds_match_created_by_edit ... ok
+test search::tests::search_finds_text_across_pieces ... ok
+test search::tests::unicode_ascii_mixed_search ... ok
+test search::tests::unicode_search_finds_multibyte_query ... ok
+test search::tests::unicode_search_is_safe ... ok
+test search::tests::visitor_does_not_call_callback_for_empty_query ... ok
+test search::tests::visitor_finds_literal_match_across_piece_boundaries ... ok
+test search::tests::visitor_iterates_case_insensitive_matches ... ok
+test search::tests::visitor_iterates_multiline_zero_width_regex_matches ... ok
+test search::tests::visitor_keeps_kmp_state_across_search_buffer_boundary ... ok
+test search::tests::visitor_reports_leftmost_non_overlapping_literal_matches ... ok
+test search::tests::visitor_reports_unicode_byte_ranges ... ok
+test search_ui::tests::case_insensitive_mode_finds_mixed_case_text ... ok
+test search_ui::tests::close_retains_query_replacement_and_modes ... ok
+test search_ui::tests::command_search_can_preview_backward_from_a_stable_origin ... ok
+test search_ui::tests::command_search_preview_restarts_from_its_origin ... ok
+test search_ui::tests::delete_removes_the_next_unicode_query_character ... ok
+test search_ui::tests::field_edits_and_mode_changes_clear_replace_count ... ok
+test search_ui::tests::focus_cycles_only_when_replace_panel_is_open ... ok
+test search_ui::tests::initial_search_fails_when_query_does_not_exist ... ok
+test search_ui::tests::initial_search_finds_match_at_cursor ... ok
+test search_ui::tests::initial_search_finds_next_match_after_cursor ... ok
+test search_ui::tests::initial_search_finds_previous_match_when_cursor_is_at_end ... ok
+test search_ui::tests::initial_search_from_end_finds_last_of_multiple_matches ... ok
+test search_ui::tests::invalid_regex_is_recoverable ... ok
+test search_ui::tests::new_search_ui_is_closed ... ok
+test search_ui::tests::next_advances_past_zero_width_regex_matches ... ok
+test search_ui::tests::next_after_initial_match_wraps_to_first_match ... ok
+test search_ui::tests::next_boundary_handles_ascii ... ok
+test search_ui::tests::next_does_not_move_cursor_when_query_has_no_match ... ok
+test search_ui::tests::next_moves_cursor_to_next_match ... ok
+test search_ui::tests::previous_boundary_handles_ascii ... ok
+test search_ui::tests::previous_can_find_a_match_after_an_initial_failure ... ok
+test search_ui::tests::previous_from_first_match_wraps_to_last_match ... ok
+test search_ui::tests::previous_moves_cursor_to_previous_match ... ok
+test search_ui::tests::regex_mode_uses_the_actual_match_length ... ok
+test search_ui::tests::replace_panel_transitions_set_expected_focus ... ok
+test search_ui::tests::replacement_cursor_editing_is_utf8_safe ... ok
+test search_ui::tests::replacement_edits_do_not_move_match_or_document_cursor ... ok
+test search_ui::tests::search_cursor_moves_to_utf8_match_boundary ... ok
+test search_ui::tests::search_modes_cycle_in_both_directions ... ok
+test search_ui::tests::utf8_boundaries_are_correct ... ok
+test startup::tests::existing_colon_names_and_symlinked_folders_are_supported ... ok
+test startup::tests::file_launches_preserve_location_arguments_and_reject_missing_paths ... ok
+test startup::tests::folder_launches_resolve_against_the_calling_directory ... ok
+test syntax::tests::browser_download_loads_in_desktop_with_custom_colors ... ok
+test syntax::tests::bundled_languages_highlight_representative_source ... ok
+test syntax::tests::color_parser_accepts_hex_color ... ok
+test syntax::tests::color_parser_accepts_hex_without_hash ... ok
+test syntax::tests::color_parser_falls_back_for_invalid_color ... ok
+test syntax::tests::common_languages_keep_strings_and_comments_distinct ... ok
+test syntax::tests::embedded_extensions_are_unique_and_case_insensitive ... ok
+test syntax::tests::embedded_syntax_definitions_are_valid ... ok
+test syntax::tests::highlighting_caps_dense_match_output ... ok
+test syntax::tests::highlighting_caps_long_lines_at_utf8_boundaries ... ok
+test syntax::tests::non_overlapping_matches_are_preserved ... ok
+test syntax::tests::overlap_resolution_removes_overlapping_matches ... ok
+test syntax::tests::unrelated_language_regexes_are_not_compiled ... ok
+test terminal::colors::tests::fragmented_diff_matches_whole_output_and_keeps_history ... ok
+test terminal::colors::tests::huge_lines_and_history_have_fixed_bounds ... ok
+test terminal::colors::tests::normal_diff_and_git_status_colors ... ok
+test terminal::colors::tests::oneline_logs_and_graphs_keep_color_across_stream_chunks_and_wrapping ... ok
+test terminal::completion::tests::cache_is_bounded_by_both_entry_count_and_path_bytes ... ok
+test terminal::completion::tests::completes_a_bare_filename_for_direct_open ... ok
+test terminal::completion::tests::completes_quoted_unicode_argument_at_cursor_and_preserves_other_arguments ... ok
+test terminal::completion::tests::cycles_both_directions_using_cached_paths_without_filesystem_access ... ok
+test terminal::completion::tests::directory_and_nested_path_completion_preserve_the_typed_path_style ... ok
+test terminal::completion::tests::no_match_and_command_names_in_pipelines_are_left_unchanged ... ok
+test terminal::completion::tests::shell_quotes_keep_metacharacters_and_quotes_literal ... ok
+test terminal::frame::tests::idle_has_no_frame_timer_and_input_bypasses_output_throttle ... ok
+test terminal::git::tests::commit_diff_streams_and_back_restores_log_without_rerunning_it ... ignored, requires SDL and git; run with SDL_VIDEODRIVER=dummy and --test-threads=1
+test terminal::git::tests::commit_link_storage_is_bounded_and_trim_rebases_clicks ... ok
+test terminal::git::tests::links_cover_only_hashes_and_keep_the_original_repository ... ok
+test terminal::locations::tests::does_not_guess_files_for_stdin_pipelines_or_ambiguous_arguments ... ok
+test terminal::locations::tests::filename_results_support_spaces_colons_unicode_and_column_output ... ok
+test terminal::locations::tests::links_remain_clickable_after_cd_wrapping_and_trimming ... ok
+test terminal::locations::tests::scanner_bounds_unfinished_lines_and_recovers_at_next_newline ... ok
+test terminal::locations::tests::single_file_grep_remembers_quoted_filename_and_does_not_invent_columns ... ok
+test terminal::selection::tests::conventional_selection_copies_unicode_in_both_directions ... ok
+test terminal::selection::tests::dragging_a_link_selects_without_opening_but_click_still_opens ... ok
+test terminal::selection::tests::empty_selection_does_not_overwrite_clipboard ... ok
+test terminal::selection::tests::streaming_preserves_selection_and_clear_resets_focus ... ok
+test terminal::selection::tests::trimming_preserves_retained_selection_and_discards_old_selection ... ok
+test terminal::selection::tests::vim_visual_is_inclusive_and_yank_returns_to_output_navigation ... ok
+test terminal::selection::tests::vim_words_and_line_end_leave_output_unchanged ... ok
+test terminal::selection::tests::visual_line_selects_whole_lines_in_both_directions ... ok
+test terminal::tests::ansi_and_split_utf8_are_cleaned_incrementally ... ok
+test terminal::tests::commands_skip_login_profiles_but_keep_environment_and_shell_syntax ... ok
+test terminal::tests::completed_editor_paths_preserve_literal_quotes_and_edge_spaces ... ok
+test terminal::tests::completion_refreshes_after_ls_cd_and_user_edits ... ok
+test terminal::tests::default_listing_columns_fit_width_and_keep_click_targets_across_batches ... ok
+test terminal::tests::executable_scripts_and_installed_commands_keep_shell_behavior ... ok
+test terminal::tests::folder_click_lists_contents_and_preserves_old_targets ... ok
+test terminal::tests::git_colors_preserve_clean_output_bytes_and_reset_on_clear ... ok
+test terminal::tests::history_is_bounded_and_skips_duplicates ... ok
+test terminal::tests::input_editing_is_utf8_safe ... ok
+test terminal::tests::large_listing_streams_in_batches_and_can_be_cancelled_without_stale_output ... ok
+test terminal::tests::listing_offsets_survive_trimming_and_clear ... ok
+test terminal::tests::listing_types_and_links_use_content_and_exact_paths ... ok
+test terminal::tests::ls_supports_common_options_and_relative_paths ... ok
+test terminal::tests::output_events_wake_without_work_and_batches_are_bounded ... ok
+test terminal::tests::output_is_capped ... ok
+test terminal::tests::parent_link_in_empty_folder_navigates_up_and_refreshes_listing ... ok
+test terminal::tests::relative_paths_resolve_from_terminal_directory ... ok
+test terminal::tests::reopening_preserves_terminal_directory ... ok
+test terminal::tests::shell_operators_bypass_standalone_builtins ... ok
+test terminal::tests::shell_preserves_grep_options_patterns_and_exit_codes ... ok
+test terminal::tests::shell_runs_noninteractive_commands ... ok
+test terminal::tests::standalone_text_paths_open_relative_absolute_and_quoted_files ... ok
+test terminal::tests::submit_runs_grep_pipeline_and_preserves_navigation_builtins ... ignored, Uses SDL events; run with --ignored --test-threads=1
+test terminal::tests::term_command_shortcut_shares_execution_history_and_busy_guard ... ignored, Uses SDL events; run with --ignored --test-threads=1
+test terminal::tests::text_sample_allows_utf8_split_at_sample_boundary ... ok
+test terminal::tests::touch_creates_multiple_files_and_preserves_existing_contents ... ok
+test terminal::tests::touch_quote_parser_preserves_paths ... ok
+test terminal::tests::touch_reports_invalid_paths_and_keeps_processing_valid_files ... ok
+test terminal::tests::unix_shell_operators_respect_quotes_and_escapes ... ok
+test terminal::tests::windows_display_paths_remove_only_verbatim_disk_and_unc_prefixes ... ok
+test terminal::tests::wrapped_compiler_location_resolves_the_entire_original_token ... ok
+test terminal::tests::wrapped_listing_fragments_keep_exact_click_targets ... ok
+test terminal_layout::tests::appended_partial_lines_reflow_like_a_fresh_layout ... ok
+test terminal_layout::tests::empty_lines_and_trailing_newline_have_visible_rows ... ok
+test terminal_layout::tests::every_small_append_matches_full_reflow ... ok
+test terminal_layout::tests::resize_font_change_and_clear_rebuild_rows ... ok
+test terminal_layout::tests::scrolling_uses_wrapped_rows_and_stays_in_bounds ... ok
+test terminal_layout::tests::separators_at_the_right_edge_do_not_create_blank_rows ... ok
+test terminal_layout::tests::tiny_window_and_oversized_glyph_always_make_progress ... ok
+test terminal_layout::tests::trimming_completed_lines_reuses_retained_rows ... ok
+test terminal_layout::tests::wraps_at_word_boundaries_and_retains_original_bytes ... ok
+test terminal_layout::tests::wraps_unicode_tabs_and_long_words_without_truncation ... ok
+test tests::builtin_formatting_needs_no_provider_and_preserves_history_on_failure ... ok
+test tests::byte_at_reads_inserted_document ... ok
+test tests::byte_at_reads_original_document ... ok
+test tests::command_bar_drives_live_search_preview ... ok
+test tests::cursor_cannot_move_after_end ... ok
+test tests::cursor_cannot_move_before_beginning ... ok
+test tests::cursor_does_not_enter_middle_of_utf8_character ... ok
+test tests::cursor_end_moves_to_current_line ... ok
+test tests::cursor_home_and_end ... ok
+test tests::cursor_home_moves_to_current_line ... ok
+test tests::cursor_line_and_column ... ok
+test tests::cursor_move_to_clicked_column_is_utf8_safe_and_clears_selection ... ok
+test tests::cursor_move_to_clicked_position_clamps_to_document_end ... ok
+test tests::cursor_moves_left_and_right ... ok
+test tests::cursor_moves_over_multibyte_character ... ok
+test tests::cursor_starts_at_zero ... ok
+test tests::delete_across_pieces ... ok
+test tests::delete_at_beginning ... ok
+test tests::delete_at_end ... ok
+test tests::delete_entire_document ... ok
+test tests::delete_in_middle ... ok
+test tests::delete_removes_entire_utf8_character ... ok
+test tests::dense_replace_all_keeps_metadata_compact_and_maps_selection ... ok
+test tests::document_length_is_byte_length ... ok
+test tests::editor_backspace_deletes_previous_character ... ok
+test tests::editor_backspace_removes_utf8_character ... ok
+test tests::editor_delete_deletes_next_character ... ok
+test tests::editor_delete_removes_utf8_character ... ok
+test tests::editor_insert_replaces_selection ... ok
+test tests::editor_newline_inserts_newline ... ok
+test tests::editor_typing_hello_then_space ... ok
+test tests::empty_document ... ok
+test tests::formatting_noop_preserves_redo_dirty_and_cursor ... ok
+test tests::formatting_only_changes_the_target_pane_and_preserves_older_history ... ok
+test tests::formatting_preserves_selection_and_is_one_undo_step ... ok
+test tests::formatting_rejects_readonly_empty_and_invalid_output_without_changes ... ok
+test tests::goto_dynamic_commands_move_to_expected_document_lines ... ok
+test tests::goto_executes_command_and_renders_destination ... ignored, Run with SDL_VIDEODRIVER=dummy and --ignored --test-threads=1
+test tests::goto_rejects_invalid_absolute_and_relative_lines ... ok
+test tests::goto_respects_line_number_mode_and_overrides ... ok
+test tests::insert_at_beginning ... ok
+test tests::insert_at_end ... ok
+test tests::insert_at_middle ... ok
+test tests::insert_creates_three_pieces ... ok
+test tests::insert_delete_insert ... ok
+test tests::insert_hello ... ok
+test tests::insert_space_after_hello ... ok
+test tests::insert_then_delete ... ok
+test tests::insert_utf8_then_space ... ok
+test tests::line_count_for_multiple_lines ... ok
+test tests::line_count_for_single_line ... ok
+test tests::line_lengths_are_correct ... ok
+test tests::line_starts_are_correct ... ok
+test tests::multiline_replacement_updates_line_and_cursor_state ... ok
+test tests::multiple_inserts ... ok
+test tests::navigation_home_end_keep_the_original_selection_anchor ... ok
+test tests::navigation_is_safe_for_empty_and_single_line_documents ... ok
+test tests::navigation_pages_preserve_column_anchor_and_clamp_to_document ... ok
+test tests::navigation_select_all_replaces_and_undo_restores_utf8_selection ... ok
+test tests::navigation_words_cross_unicode_punctuation_whitespace_and_piece_boundaries ... ok
+test tests::new_document_contains_original_text ... ok
+test tests::new_document_creates_named_file_and_saves_edits_to_it ... ok
+test tests::new_document_preserves_unsaved_edits_and_existing_destinations ... ok
+test tests::no_op_replace_all_preserves_history_and_redo ... ok
+test tests::non_search_command_closes_live_preview ... ok
+test tests::normal_cursor_movement_clears_selection ... ok
+test tests::open_file_detection_prevents_duplicate_pane_documents ... ok
+test tests::read_range_from_inserted_piece ... ok
+test tests::read_range_spans_multiple_pieces ... ok
+test tests::recovery_opens_separate_work_and_save_as_acknowledges_without_clobbering ... ok
+test tests::regex_zero_width_replace_all_terminates_with_exact_output ... ok
+test tests::repeated_tab_does_not_cycle_search_mode_again ... ok
+test tests::replace_all_can_delete_every_match ... ok
+test tests::replace_all_does_not_reprocess_replacement_text ... ok
+test tests::replace_all_is_one_history_step_and_restores_selection ... ok
+test tests::replace_all_uses_leftmost_non_overlapping_matches ... ok
+test tests::replace_current_advances_without_wrapping_or_repeating ... ok
+test tests::replace_current_longer_unicode_undoes_and_redoes ... ok
+test tests::replace_current_shorter_unicode_undoes_and_redoes ... ok
+test tests::replace_current_uses_case_insensitive_match_byte_range ... ok
+test tests::replacement_without_a_following_match_refreshes_the_editor_cursor ... ok
+test tests::save_as_failure_preserves_document_and_requires_explicit_overwrite ... ok
+test tests::save_as_preserves_original_cursor_history_and_uses_new_path_for_later_saves ... ok
+test tests::save_as_protects_other_pane_and_read_only_documents ... ok
+test tests::search_delete_edits_the_query_not_the_document ... ok
+test tests::selection_can_go_backwards ... ok
+test tests::selection_left_and_right ... ok
+test tests::terminal_failed_open_preserves_both_documents ... ok
+test tests::terminal_file_click_cannot_discard_two_unsaved_documents ... ok
+test tests::terminal_file_click_preserves_unsaved_document_in_other_pane ... ok
+test tests::terminal_file_click_reuses_open_files_even_when_both_are_dirty ... ok
+test tests::terminal_locations_jump_to_reported_lines_and_unicode_byte_columns ... ok
+test tests::terminal_locations_support_unix_and_windows_paths ... ok
+test tests::typing_hello_then_space ... ok
+test tests::undo_and_redo_reuse_file_backed_text ... ok
+test tests::view_mode_keeps_document_unchanged ... ok
+test vim::tests::cancelling_search_restores_the_original_cursor ... ok
+test vim::tests::counted_motion_moves_by_words ... ok
+test vim::tests::cw_preserves_space_and_dot_changes_next_word ... ok
+test vim::tests::dd_and_dot_delete_complete_lines ... ok
+test vim::tests::deleting_the_last_line_removes_its_leading_newline ... ok
+test vim::tests::dw_is_semantic_and_dot_repeats_it ... ok
+test vim::tests::formatting_separates_surrounding_insert_sessions_in_undo_history ... ok
+test vim::tests::insert_and_dot_share_the_semantic_edit_path ... ok
+test vim::tests::insert_newline_is_grouped_and_repeated ... ok
+test vim::tests::insert_session_is_one_undo_step ... ok
+test vim::tests::line_end_and_append_stay_before_the_newline ... ok
+test vim::tests::open_above_types_on_the_new_line_and_repeats ... ok
+test vim::tests::operator_document_motions_are_linewise ... ok
+test vim::tests::read_only_editor_allows_motion_but_not_changes ... ok
+test vim::tests::save_as_shortcut_passes_through_in_every_vim_mode ... ok
+test vim::tests::search_keys_return_actions_without_editing ... ok
+test vim::tests::shifted_d_deletes_to_end_of_line ... ok
+test vim::tests::vim_gg_upper_v_upper_g_selects_every_byte_and_yanks_linewise ... ok
+test vim::tests::vim_line_selection_change_preserves_line_break_and_delete_repeats_by_line ... ok
+test vim::tests::vim_line_selection_pages_from_logical_cursor_and_reverses ... ok
+test vim::tests::vim_pages_half_pages_counts_and_visual_selection ... ok
+test vim::tests::vim_shift_page_starts_selection_and_insert_mode_falls_through ... ok
+test vim::tests::vim_word_motions_work_in_visual_mode_with_unicode ... ok
+test vim::tests::visual_delete_removes_selected_characters ... ok
+test vim::tests::yy_and_p_use_linewise_clipboard_semantics ... ok
+test window::tests::embedded_window_icon_has_rgba_pixel_data ... ok
+test window::tests::fractional_metrics_are_rounded ... ok
+test window::tests::hit_test_coordinates_use_density_and_display_scale ... ok
+test window::tests::invalid_metrics_fall_back_to_one_x ... ok
+test window::tests::one_x_display_keeps_requested_size ... ok
+test window::tests::retina_backing_size_maps_to_logical_size ... ok
+test window::tests::retina_density_does_not_shrink_window ... ok
+test window::tests::windows_content_scale_preserves_logical_size ... ok
+test workspace_edit::resources::tests::a_late_collision_rolls_back_earlier_committed_files ... ok
+test workspace_edit::tests::annotated_edits_are_reviewed_and_unknown_annotations_and_snippets_rejected ... ok
+test workspace_edit::tests::deleting_open_file_keeps_draft_and_undo_restores_file_and_path ... ok
+test workspace_edit::tests::disk_commit_failure_rolls_back_previous_files ... ok
+test workspace_edit::tests::disk_only_edit_still_has_an_undo_anchor_and_preview_is_non_mutating ... ok
+test workspace_edit::tests::extract_to_new_file_preserves_unsaved_source_and_has_atomic_undo_redo ... ok
+test workspace_edit::tests::moving_an_open_file_preserves_dirty_text_and_reverses_paths ... ok
+test workspace_edit::tests::preview_choices_work_with_mouse_enter_and_paging ... ok
+test workspace_edit::tests::rename_groups_two_unsaved_buffers_and_disk_with_undo_redo ... ok
+test workspace_edit::tests::resource_preview_refuses_collisions_and_stale_disk_without_partial_apply ... ok
+test workspace_edit::tests::resource_undo_waits_for_newer_edits_in_both_copies_of_an_open_buffer ... ok
+test workspace_edit::tests::stale_disk_buffer_and_readonly_fail_before_any_changes ... ok
+test workspace_edit::tests::undo_refuses_newer_edits_and_external_disk_changes_without_partial_undo ... ok
+test workspace_edit::tests::vim_insert_groups_cannot_swallow_a_workspace_undo_marker ... ok
+test workspace_edit::tests::workspace_parser_rejects_overlap_versions_resource_ops_and_unicode_splits ... ok
+
+test result: ok. 543 passed; 0 failed; 38 ignored; 0 measured; 0 filtered out; finished in 10.27s
+
