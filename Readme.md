@@ -363,6 +363,12 @@ help
 exit
 ```
 
+On Windows, enter `C:` (or another drive letter) to switch the terminal to that
+drive's root and list its contents. `cd C:` is accepted too; `cd C:\work` opens
+a specific folder. Drive letters are case-insensitive. This shortcut opens the
+root rather than remembering a separate working directory for each drive.
+An unavailable drive reports an error and leaves the current directory intact.
+
 `touch` creates empty files or updates existing files' access and modification
 times without changing their contents. It works on Windows, macOS, and Linux.
 Quote filenames containing spaces; multiple paths are supported. Use `touch -c`

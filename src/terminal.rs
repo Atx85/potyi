@@ -603,6 +603,12 @@ ls links: green = edit file, blue = enter folder; amber = binary\n"
             return Ok(TerminalAction::None);
         }
 
+        // A drive change in a child cmd.exe cannot update this terminal's cwd.
+        if cfg!(windows) && let Some(root) = windows_drive_root(&command) {
+            self.enter_directory(&root)?;
+            return Ok(TerminalAction::None);
+        }
+
         let (name, arguments) =
             split_command(&command);
 
@@ -659,6 +665,8 @@ grep [OPTIONS] PATTERN [FILE...]  run installed grep with its supported flags\n\
 grep -nH PATTERN FILE  clickable results jump to the reported line\n\
 Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
                 )?;
+                #[cfg(windows)]
+                self.append_text("C: or cd C:    switch to the drive root (C:\\); cd C:\\PATH opens a folder\n")?;
                 Ok(TerminalAction::None)
             }
 
@@ -898,6 +906,10 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
     ) -> io::Result<()> {
         let value =
             unquote_argument(arguments.trim())?;
+
+        if cfg!(windows) && let Some(root) = windows_drive_root(&value) {
+            return self.enter_directory(&root);
+        }
 
         let target =
             if value.is_empty() {
@@ -1813,6 +1825,17 @@ fn touch_files(arguments: &str, cwd: &Path) -> io::Result<()> {
     if errors.is_empty() { Ok(()) } else { Err(io::Error::other(errors.join("\n"))) }
 }
 
+// Deliberately recognize only a bare ASCII drive letter. Drive-relative paths
+// (C:folder), quoted filenames, and shell command lists are not drive switches.
+fn windows_drive_root(value: &str) -> Option<PathBuf> {
+    let bytes = value.as_bytes();
+    if bytes.len() == 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+        Some(PathBuf::from(format!("{}:\\", bytes[0].to_ascii_uppercase() as char)))
+    } else {
+        None
+    }
+}
+
 fn split_command(
     command: &str,
 ) -> (&str, &str) {
@@ -2540,6 +2563,81 @@ mod tests {
 
         for command in ["ls -la", "cd src", "edit \"a|b & c.txt\"", "ls \"a>b\""] {
             assert!(!has_shell_operators(command), "{command}");
+        }
+    }
+
+    #[test]
+    fn drive_switches_require_one_ascii_letter_and_a_colon() {
+        for letter in b'A'..=b'Z' {
+            let expected = PathBuf::from(format!("{}:\\", letter as char));
+            for spelling in [letter, letter.to_ascii_lowercase()] {
+                assert_eq!(windows_drive_root(&format!("{}:", spelling as char)), Some(expected.clone()));
+            }
+        }
+        for value in ["", "C", ":", "1:", "é:", "Ｃ:", "C::", "C:folder", "C:\\", "C:/", "C: extra", "\"C:\"", "C: && pwd", "C:|more", "C:\npwd"] {
+            assert_eq!(windows_drive_root(value), None, "{value:?}");
+        }
+    }
+
+    #[test]
+    fn failed_directory_changes_preserve_the_terminal_directory() {
+        let root = Fixture::new();
+        fs::write(root.0.join("file.txt"), "text").unwrap();
+        let mut terminal = Terminal::new(root.0.clone()).unwrap();
+        let initial = terminal.cwd.clone();
+        for value in ["missing-folder", "file.txt"] {
+            terminal.change_directory(value).unwrap();
+            finish_listing(&mut terminal);
+            assert_eq!(terminal.cwd, initial);
+            assert!(terminal.status().is_some());
+            assert!(terminal.running.is_none());
+        }
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn unix_directory_names_with_colons_are_not_drive_switches() {
+        let root = Fixture::new();
+        fs::create_dir(root.0.join("c:")).unwrap();
+        let mut terminal = Terminal::new(root.0.clone()).unwrap();
+        terminal.change_directory("c:").unwrap();
+        finish_listing(&mut terminal);
+        assert_eq!(terminal.cwd, root.0.join("c:").canonicalize().unwrap());
+    }
+
+    #[test]
+    #[cfg(windows)]
+    #[ignore = "Uses SDL events and a Windows drive; run with --ignored --test-threads=1"]
+    fn windows_drive_commands_persist_in_the_terminal() {
+        use std::path::{Component, Prefix};
+        let sdl = sdl3::init().unwrap();
+        let events = sdl.event().unwrap();
+        register_test_events(&events);
+        let root = Fixture::new();
+        let initial = root.0.canonicalize().unwrap();
+        let drive = match initial.components().next().unwrap() {
+            Component::Prefix(prefix) => match prefix.kind() {
+                Prefix::Disk(drive) | Prefix::VerbatimDisk(drive) => drive,
+                _ => panic!("Drive test needs a fixture on a local Windows drive"),
+            },
+            _ => panic!("Expected an absolute Windows fixture path"),
+        };
+        let expected = windows_drive_root(&format!("{}:", drive as char)).unwrap().canonicalize().unwrap();
+        let mut terminal = Terminal::new(initial.clone()).unwrap();
+        terminal.set_events(events);
+        for command in [format!("{}:", drive as char), format!("{}:", drive.to_ascii_lowercase() as char), format!("cd {}:", drive as char), format!("cd \"{}:\"", drive as char)] {
+            terminal.enter_directory(&initial).unwrap();
+            finish_listing(&mut terminal);
+            terminal.run_command(&command).unwrap();
+            assert!(terminal.running.is_none(), "Drive changes must not spawn a shell");
+            finish_listing(&mut terminal);
+            assert_eq!(terminal.cwd, expected, "{command}");
+            assert_eq!(terminal.history.back(), Some(&command));
+            terminal.run_command("pwd").unwrap();
+            assert!(terminal.output_text().unwrap().ends_with(&format!("{}\n", display_path(&expected))));
+            terminal.run_command(&format!("cd \"{}\"", display_path(&initial))).unwrap();
+            finish_listing(&mut terminal);
+            assert_eq!(terminal.cwd, initial);
         }
     }
 
