@@ -31,7 +31,13 @@ impl LaunchTarget {
                     location: None,
                 });
             }
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            // Windows rejects a colon followed by a location suffix as an
+            // invalid filename before we get a chance to parse `file:line`.
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::NotFound | io::ErrorKind::InvalidFilename
+                ) => {}
             Err(error) => return Err(error),
         }
         let (path, location) = match crate::parse_location(argument) {

@@ -14,7 +14,7 @@ insert_spaces = false
 line_numbers = "dynamic"
 
 # Editor font size in points (8 through 72).
-font_size = 18
+font_size = 13
 
 # Keyboard behavior: "conventional" or "vim".
 # conventional, vim, or emacs

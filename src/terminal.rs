@@ -231,11 +231,11 @@ impl Terminal {
         };
 
         terminal.append_text(
-            "Pötyi command terminal\n\
-Built-ins: cd, pwd, ls, touch, edit, view, clear, help, exit\n\
-Ctrl+` switches between terminal and editor\n\
-Tab / Shift+Tab completes filenames from the latest ls\n\
-ls links: green = edit file, blue = enter folder; amber = binary\n"
+            "--- Pötyi terminal --------------------------------------------------\n\
+  Commands  cd, pwd, ls, touch, edit, view, clear, help, exit\n\
+  Ctrl+`  return to editor    Tab / Shift+Tab  complete paths\n\
+  Links   green: edit file    blue: folder    amber: binary\n\
+----------------------------------------------------------------------\n"
         )?;
 
         Ok(terminal)
@@ -820,11 +820,11 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
             expand_home(value)
         );
 
-        if path.is_absolute() {
-            Ok(path)
+        Ok(if path.is_absolute() {
+            path
         } else {
-            Ok(self.cwd.join(path))
-        }
+            self.cwd.join(path)
+        })
     }
 
     fn direct_file_action(&self, command: &str) -> io::Result<Option<TerminalAction>> {
@@ -1945,6 +1945,8 @@ fn windows_display_path(path: &str) -> String {
 fn normalize_initial_directory(
     path: PathBuf,
 ) -> PathBuf {
+    #[cfg(windows)]
+    let input_is_verbatim = path.to_string_lossy().starts_with(r"\\?\");
     let directory =
         if path.is_dir() {
             path
@@ -1954,8 +1956,13 @@ fn normalize_initial_directory(
                 .unwrap_or(path)
         };
 
-    directory.canonicalize()
-        .unwrap_or(directory)
+    let canonical = directory.canonicalize()
+        .unwrap_or(directory);
+    #[cfg(windows)]
+    if !input_is_verbatim {
+        return PathBuf::from(windows_display_path(&canonical.to_string_lossy()));
+    }
+    canonical
 }
 
 fn home_directory() -> Option<PathBuf> {

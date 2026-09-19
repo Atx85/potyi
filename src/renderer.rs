@@ -64,6 +64,8 @@ const SEARCH_ROW_HEIGHT: i32 = 42;
 const MAX_TEXT_TEXTURE_WIDTH: i32 = 8192;
 const TEXT_TEXTURE_SAFETY_MARGIN: i32 = 64;
 const TERMINAL_BAR_HEIGHT: i32 = 46;
+const TERMINAL_LINE_HEIGHT_SCALE_NUMERATOR: i32 = 7;
+const TERMINAL_LINE_HEIGHT_SCALE_DENOMINATOR: i32 = 5;
 const TERMINAL_BAR_MARGIN: i32 = 8;
 const TERMINAL_ACTION_WIDTH: i32 = 84;
 const TERMINAL_CLEAR_WIDTH: i32 = 72;
@@ -1556,6 +1558,23 @@ impl<'a> Renderer<'a> {
         )
     }
 
+    fn terminal_line_height(&self) -> i32 {
+        let font_height = self.font.height().max(1);
+        // Round up so terminal rows remain at least 1.4× the glyph height.
+        (font_height * TERMINAL_LINE_HEIGHT_SCALE_NUMERATOR
+            + TERMINAL_LINE_HEIGHT_SCALE_DENOMINATOR - 1)
+            / TERMINAL_LINE_HEIGHT_SCALE_DENOMINATOR
+    }
+
+    fn visible_terminal_line_count(&self) -> usize {
+        let top_margin = TITLE_BAR_HEIGHT + 8;
+        let content_bottom = self.window_height.saturating_sub(self.bottom_inset.max(0));
+        if content_bottom <= top_margin {
+            return 1;
+        }
+        ((content_bottom - top_margin) / self.terminal_line_height()).max(1) as usize
+    }
+
     fn visible_line_count_with_inset(
         &self,
         bottom_inset: i32,
@@ -1727,6 +1746,63 @@ impl<'a> Renderer<'a> {
         Ok(())
     }
 
+    /// Draw one terminal over a split pane. The terminal keeps its own layout
+    /// and history; only the focused pane is replaced by terminal output.
+    pub fn render_split_terminal(
+        &mut self,
+        active_table: &mut PieceTable,
+        inactive_table: &mut PieceTable,
+        terminal: &mut Terminal,
+        terminal_pane: usize,
+        search_ui: &SearchUi,
+        command_bar: &CommandBar,
+    ) -> Result<(), String> {
+        self.terminal_text_cache.clear();
+        self.bottom_inset = command_bar.reserved_height();
+        self.canvas.set_draw_color(Color::RGB(30, 30, 30));
+        self.canvas.clear();
+        self.render_title_bar()?;
+
+        let active_bounds = self.pane_bounds(self.active_pane);
+        let inactive_pane = 1usize.saturating_sub(self.active_pane);
+        let inactive_bounds = self.pane_bounds(inactive_pane);
+        self.render_document_pane(active_table, Some(search_ui), terminal_pane != self.active_pane, active_bounds)?;
+        self.swap_view();
+        let inactive_result = self.render_document_pane(inactive_table, None, terminal_pane != inactive_pane, inactive_bounds);
+        self.swap_view();
+        inactive_result?;
+        self.render_terminal_pane(terminal, self.pane_bounds(terminal_pane))?;
+
+        self.canvas.set_draw_color(Color::RGB(74, 74, 74));
+        let divider = self.window_width / 2;
+        self.canvas.fill_rect(Rect::new(divider, TITLE_BAR_HEIGHT, 1,
+            self.window_height.saturating_sub(TITLE_BAR_HEIGHT).max(1) as u32,
+        )).map_err(|error| error.to_string())?;
+        let (active_left, active_width) = self.pane_bounds(self.active_pane);
+        self.canvas.set_draw_color(Color::RGB(85, 145, 220));
+        self.canvas.fill_rect(Rect::new(active_left, TITLE_BAR_HEIGHT, active_width.max(1) as u32, 2))
+            .map_err(|error| error.to_string())?;
+        self.render_command_bar(command_bar, search_ui)?;
+        if terminal_pane != self.active_pane {
+            self.render_completion(active_table)?;
+        }
+        self.canvas.present();
+        Ok(())
+    }
+
+    fn render_terminal_pane(&mut self, terminal: &mut Terminal, (left, width): (i32, i32)) -> Result<(), String> {
+        let full_width = self.window_width;
+        self.canvas.set_viewport(Rect::new(left, 0, width.max(1) as u32, self.window_height.max(1) as u32));
+        self.window_width = width.max(1);
+        self.cache_terminal_text = true;
+        let result = self.render_terminal_contents(terminal, false);
+        self.cache_terminal_text = false;
+        self.canvas.set_clip_rect(None);
+        self.canvas.set_viewport(None);
+        self.window_width = full_width;
+        result
+    }
+
     fn render_document_pane(
         &mut self,
         table: &mut PieceTable,
@@ -1824,12 +1900,12 @@ impl<'a> Renderer<'a> {
         terminal: &mut Terminal,
     ) -> Result<(), String> {
         self.cache_terminal_text = true;
-        let result = self.render_terminal_contents(terminal);
+        let result = self.render_terminal_contents(terminal, true);
         self.cache_terminal_text = false;
         result
     }
 
-    fn render_terminal_contents(&mut self, terminal: &mut Terminal) -> Result<(), String> {
+    fn render_terminal_contents(&mut self, terminal: &mut Terminal, full_view: bool) -> Result<(), String> {
         let mut status_lines = terminal.status()
             .map(|status| self.terminal_status_lines(status))
             .unwrap_or_default();
@@ -1844,14 +1920,18 @@ impl<'a> Renderer<'a> {
                 + TERMINAL_BAR_MARGIN
                 + status_height;
 
-        self.canvas.set_draw_color(
-            Color::RGB(30, 30, 30),
-        );
-        self.canvas.clear();
-        self.render_title_bar()?;
+        self.canvas.set_draw_color(Color::RGB(30, 30, 30));
+        if full_view {
+            self.canvas.clear();
+            self.render_title_bar()?;
+        } else {
+            self.canvas.fill_rect(Rect::new(0, TITLE_BAR_HEIGHT, self.window_width.max(1) as u32,
+                self.window_height.saturating_sub(TITLE_BAR_HEIGHT).max(1) as u32,
+            )).map_err(|error| error.to_string())?;
+        }
 
         self.update_terminal_layout(terminal)?;
-        let visible = self.visible_line_count();
+        let visible = self.visible_terminal_line_count();
         let rows = self.terminal_layout.visible_rows(visible, terminal.scroll_back());
 
         let clip = Rect::new(
@@ -1872,8 +1952,7 @@ impl<'a> Renderer<'a> {
             Some(clip)
         );
 
-        let line_height =
-            self.font.height().max(1);
+        let line_height = self.terminal_line_height();
 
         let selection = terminal.output_selection();
         let cursor = terminal.output_cursor();
@@ -1909,7 +1988,7 @@ impl<'a> Renderer<'a> {
             for entry in terminal.entries_in(start..start + text.len()) {
                 let from = entry.range.start.saturating_sub(start);
                 let to = (entry.range.end - start).min(text.len());
-                self.render_text_chunk(
+                self.render_terminal_text_chunk(
                     &text[rendered_to..from],
                     12 + self.terminal_text_width(&text[..rendered_to]),
                     Self::visual_column_after_text(&text[..rendered_to], 0, self.tab_width),
@@ -1924,7 +2003,7 @@ impl<'a> Renderer<'a> {
                     EntryKind::Unreadable => Color::RGB(155, 160, 155),
                     EntryKind::Commit => Color::RGB(225, 195, 120),
                 });
-                self.render_text_chunk(
+                self.render_terminal_text_chunk(
                     &text[from..to], 12 + left,
                     Self::visual_column_after_text(&text[..from], 0, self.tab_width), y, color,
                 )?;
@@ -1932,12 +2011,12 @@ impl<'a> Renderer<'a> {
                 if matches!(entry.kind, EntryKind::Text | EntryKind::Directory | EntryKind::Commit) {
                     self.canvas.set_draw_color(color);
                     self.canvas.fill_rect(Rect::new(
-                        12 + left, y + line_height - 2,
+                        12 + left, y + self.font.height().max(1) - 2,
                         (right - left).max(1) as u32, 1,
                     )).map_err(|error| error.to_string())?;
                 }
             }
-            self.render_text_chunk(
+            self.render_terminal_text_chunk(
                 &text[rendered_to..],
                 12 + self.terminal_text_width(&text[..rendered_to]),
                 Self::visual_column_after_text(&text[..rendered_to], 0, self.tab_width),
@@ -1947,7 +2026,9 @@ impl<'a> Renderer<'a> {
 
         self.canvas.set_clip_rect(None);
         self.render_terminal_bar(terminal, &status_lines)?;
-        self.canvas.present();
+        if full_view {
+            self.canvas.present();
+        }
         Ok(())
     }
 
@@ -2089,13 +2170,13 @@ impl<'a> Renderer<'a> {
         }
 
         self.update_terminal_layout(terminal)?;
-        let rows = self.terminal_layout.visible_rows(self.visible_line_count(), terminal.scroll_back());
+        let rows = self.terminal_layout.visible_rows(self.visible_terminal_line_count(), terminal.scroll_back());
         let row_y = y - TITLE_BAR_HEIGHT - 8;
         let target_x = x - 12;
         if row_y < 0 || target_x < 0 {
             return Ok(None);
         }
-        let row = rows.start + row_y as usize / self.font.height().max(1) as usize;
+        let row = rows.start + row_y as usize / self.terminal_line_height() as usize;
         if row >= rows.end {
             return Ok(None);
         }
@@ -2116,8 +2197,8 @@ impl<'a> Renderer<'a> {
     /// Clamp pointer selection to visible output, including empty lines and row ends.
     pub(crate) fn terminal_output_offset_at(&mut self, terminal: &mut Terminal, x: i32, y: i32) -> Result<usize, String> {
         self.update_terminal_layout(terminal)?;
-        let rows = self.terminal_layout.visible_rows(self.visible_line_count(), terminal.scroll_back());
-        let row = (rows.start + (y - TITLE_BAR_HEIGHT - 8).max(0) as usize / self.font.height().max(1) as usize)
+        let rows = self.terminal_layout.visible_rows(self.visible_terminal_line_count(), terminal.scroll_back());
+        let row = (rows.start + (y - TITLE_BAR_HEIGHT - 8).max(0) as usize / self.terminal_line_height() as usize)
             .min(rows.end.saturating_sub(1));
         self.terminal_offset_on_row(terminal, row, x - 12)
     }
@@ -2168,7 +2249,7 @@ impl<'a> Renderer<'a> {
         }
         if terminal.output_focused() {
             let row = self.terminal_layout.row_at(terminal.output_cursor());
-            let visible = self.visible_line_count().max(1);
+            let visible = self.visible_terminal_line_count();
             let rows = self.terminal_layout.visible_rows(visible, terminal.scroll_back());
             let start = if row < rows.start { row } else if row >= rows.end {
                 row.saturating_add(1).saturating_sub(visible)
@@ -2205,7 +2286,7 @@ impl<'a> Renderer<'a> {
         let scroll_back = terminal.scroll_back();
         let scroll_back = if scroll_back > 0 || terminal.output_focused() { scroll_back.saturating_add(added_rows) } else { 0 };
         terminal.set_scroll_back(scroll_back.min(
-            self.terminal_layout.len().saturating_sub(self.visible_line_count())
+            self.terminal_layout.len().saturating_sub(self.visible_terminal_line_count())
         ));
         Ok(())
     }
@@ -2557,6 +2638,43 @@ impl<'a> Renderer<'a> {
         y: i32,
         color: Color,
     ) -> Result<usize, String> {
+        self.render_text_chunk_with_right(
+            text,
+            start_x,
+            start_visual_column,
+            y,
+            color,
+            self.active_content_width(),
+        )
+    }
+
+    fn render_terminal_text_chunk(
+        &mut self,
+        text: &str,
+        start_x: i32,
+        start_visual_column: usize,
+        y: i32,
+        color: Color,
+    ) -> Result<usize, String> {
+        self.render_text_chunk_with_right(
+            text,
+            start_x,
+            start_visual_column,
+            y,
+            color,
+            self.window_width,
+        )
+    }
+
+    fn render_text_chunk_with_right(
+        &mut self,
+        text: &str,
+        start_x: i32,
+        start_visual_column: usize,
+        y: i32,
+        color: Color,
+        visible_right: i32,
+    ) -> Result<usize, String> {
         if text.is_empty() {
             return Ok(start_visual_column);
         }
@@ -2588,7 +2706,7 @@ impl<'a> Renderer<'a> {
                     y,
                     color,
                     MAX_TEXT_TEXTURE_WIDTH,
-                    Some((0.0, self.active_content_width() as f32)),
+                    Some((0.0, visible_right as f32)),
                 )?;
 
                 let segment_width =
@@ -2666,7 +2784,7 @@ impl<'a> Renderer<'a> {
                 y,
                 color,
                 MAX_TEXT_TEXTURE_WIDTH,
-                Some((0.0, self.active_content_width() as f32)),
+                Some((0.0, visible_right as f32)),
             )?;
 
             visual_column =

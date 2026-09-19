@@ -229,6 +229,17 @@ pub(super) fn safe_path(path: &Path) -> bool {
         && !path.to_string_lossy().contains(['\\', ':'])
 }
 
+/// ZIP entry names always use `/` as their separator. Validate that original
+/// spelling before converting it to a platform path: on Windows a valid
+/// `bin/server` becomes `bin\\server`, which `safe_path` intentionally rejects
+/// for archive input.
+fn safe_zip_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.contains(['\\', ':'])
+        && name.split('/').all(|component| !component.is_empty()
+            && component != "..")
+}
+
 fn copy_limited(
     input: &mut impl Read,
     output: &mut impl Write,
@@ -268,11 +279,14 @@ pub(super) fn extract(runner: &Runner, archive: &Path, destination: &Path) -> Re
         for i in 0..zip.len() {
             runner.check()?;
             let mut entry = zip.by_index(i).map_err(|e| e.to_string())?;
+            if !safe_zip_name(entry.name()) {
+                return Err("Unsafe archive path or symbolic link".into());
+            }
             let path = entry
                 .enclosed_name()
                 .ok_or("Unsafe archive path")?
                 .to_path_buf();
-            if !safe_path(&path) || entry.is_symlink() {
+            if entry.is_symlink() {
                 return Err("Unsafe archive path or symbolic link".into());
             }
             total = total

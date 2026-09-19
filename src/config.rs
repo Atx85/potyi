@@ -92,7 +92,7 @@ pub(crate) const MIN_FONT_SIZE: u16 = 8;
 pub(crate) const MAX_FONT_SIZE: u16 = 72;
 
 fn default_font_size() -> u16 {
-    18
+    13
 }
 
 // ==========================================================================
@@ -192,12 +192,12 @@ mod tests {
     }
 
     #[test]
-    fn font_size_defaults_to_eighteen() {
+    fn font_size_defaults_to_thirteen() {
         let config = parse_editor(
             "[editor]\n"
         );
 
-        assert_eq!(config.font_size, 18);
+        assert_eq!(config.font_size, 13);
         assert_eq!(
             config.keybinding_mode,
             KeybindingMode::Conventional,
@@ -274,6 +274,6 @@ mod tests {
 
         assert_eq!(config.tab_width, 2);
         assert!(!config.insert_spaces);
-        assert_eq!(config.font_size, 18);
+        assert_eq!(config.font_size, 13);
     }
 }
