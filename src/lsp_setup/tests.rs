@@ -31,16 +31,34 @@ impl Drop for Temp {
     }
 }
 
-#[test]
-fn catalogue_covers_every_documented_profile_and_alias() {
-    let guide = include_str!("../../docs/lsp.md");
+fn documented_profiles(guide: &str) -> crate::lsp::Config {
+    // Windows checkouts can use CRLF, including in include_str! input.
+    let guide = guide.replace("\r\n", "\n");
     let entries = guide
         .split("```toml\n")
         .skip(1)
         .map(|p| p.split_once("```").unwrap().0)
         .collect::<Vec<_>>()
         .join("\n");
-    let documented: crate::lsp::Config = toml::from_str(&entries).unwrap();
+    toml::from_str(&entries).unwrap()
+}
+
+#[test]
+fn documented_profiles_accept_lf_and_windows_crlf() {
+    let lf = include_str!("../../docs/lsp.md").replace("\r\n", "\n");
+    let documented = documented_profiles(&lf);
+    assert_eq!(documented.servers.len(), 22);
+    let crlf = lf.replace('\n', "\r\n");
+    assert_eq!(
+        format!("{:?}", documented_profiles(&crlf)),
+        format!("{documented:?}"),
+        "line endings must not change the documented server configuration"
+    );
+}
+
+#[test]
+fn catalogue_covers_every_documented_profile_and_alias() {
+    let documented = documented_profiles(include_str!("../../docs/lsp.md"));
     let profiles = catalog::profiles();
     assert_eq!(profiles.len(), 22);
     assert_eq!(catalog::RECIPES.len(), 15);
