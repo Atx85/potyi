@@ -23,6 +23,7 @@ pub(crate) struct CursorState {
     pub(crate) anchor_column: usize,
 }
 
+#[derive(Clone)]
 pub(crate) struct TextChange {
     pub(crate) position: usize,
     pub(crate) deleted: Vec<Piece>,
@@ -30,6 +31,7 @@ pub(crate) struct TextChange {
     pub(crate) inserted: Option<Piece>,
 }
 
+#[derive(Clone)]
 pub(crate) enum HistoryKind {
     Changes(Vec<TextChange>),
     Snapshot(PieceTableSnapshot),
@@ -37,6 +39,7 @@ pub(crate) enum HistoryKind {
     Sequence(Vec<HistoryKind>),
 }
 
+#[derive(Clone)]
 pub(crate) struct HistoryEntry {
     pub(crate) kind: HistoryKind,
     pub(crate) before: CursorState,
@@ -85,6 +88,53 @@ impl Editor {
             dirty: false,
             read_only: false,
         })
+    }
+
+    /// Make another view of the live buffer, including unsaved edits and history.
+    pub(crate) fn duplicate_view(&self) -> Self {
+        Self {
+            document: self.document.duplicate_view(),
+            emacs: emacs::State::default(),
+            path: self.path.clone(),
+            config: self.config.clone(),
+            undo_stack: self.undo_stack.clone(),
+            redo_stack: self.redo_stack.clone(),
+            multi_edit_group: None,
+            applying_history: false,
+            dirty: self.dirty,
+            read_only: self.read_only,
+        }
+    }
+
+    pub(crate) fn shares_document_with(&self, other: &Self) -> bool {
+        self.document.shares_storage_with(&other.document)
+    }
+
+    /// Called at input/async-event boundaries: views have independent cursors,
+    /// but the newest buffer revision, history and saved state must agree.
+    pub(crate) fn synchronize_views(active: &mut Self, other: &mut Self) -> io::Result<()> {
+        if !active.shares_document_with(other) { return Ok(()); }
+        if other.document.revision() > active.document.revision() {
+            active.refresh_view_from(other)
+        } else {
+            other.refresh_view_from(active)
+        }
+    }
+
+    fn refresh_view_from(&mut self, source: &Self) -> io::Result<()> {
+        if self.document.revision() != source.document.revision()
+            || self.undo_stack.len() != source.undo_stack.len()
+            || self.redo_stack.len() != source.redo_stack.len()
+        {
+            self.document.refresh_view_from(&source.document)?;
+            self.undo_stack.clone_from(&source.undo_stack);
+            self.redo_stack.clone_from(&source.redo_stack);
+            self.multi_edit_group = None;
+        }
+        self.path.clone_from(&source.path);
+        self.dirty = source.dirty;
+        self.read_only = source.read_only;
+        Ok(())
     }
 
     pub(crate) fn insert_tab(&mut self) -> io::Result<()> {
@@ -1184,3 +1234,6 @@ pub(crate) fn file_is_open_in(path: &str, editor: &Editor) -> bool {
         _ => requested == open_path,
     }
 }
+
+#[cfg(test)]
+mod shared_view_tests;

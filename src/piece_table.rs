@@ -27,9 +27,11 @@ use std::sync::atomic::{
     Ordering,
 };
 use std::time::Instant;
+use std::sync::{Arc, Mutex};
 
 pub(crate) mod recovery;
 mod line_view;
+mod shared_view;
 use line_view::LineViewCache;
 
 
@@ -127,7 +129,7 @@ fn write_all_at(
 struct EditStore {
     file: Option<File>,
     path: PathBuf,
-    length: usize,
+    length: Mutex<usize>,
     remove_on_drop: bool,
 }
 
@@ -167,7 +169,7 @@ impl EditStore {
                     return Ok(Self {
                         file: Some(file),
                         path,
-                        length: 0,
+                        length: Mutex::new(0),
                         remove_on_drop: true,
                     });
                 }
@@ -195,14 +197,15 @@ impl EditStore {
     }
 
     fn len(&self) -> usize {
-        self.length
+        *self.length.lock().unwrap()
     }
 
     fn append(
-        &mut self,
+        &self,
         bytes: &[u8],
     ) -> io::Result<usize> {
-        let start = self.length;
+        let mut length = self.length.lock().unwrap();
+        let start = *length;
 
         let new_length =
             start.checked_add(bytes.len())
@@ -219,7 +222,7 @@ impl EditStore {
             start as u64,
         )?;
 
-        self.length = new_length;
+        *length = new_length;
 
         Ok(start)
     }
@@ -238,7 +241,7 @@ impl EditStore {
                     )
                 })?;
 
-        if end > self.length {
+        if end > self.len() {
             return Err(
                 io::Error::new(
                     io::ErrorKind::UnexpectedEof,
@@ -292,6 +295,7 @@ pub struct Piece {
 ///
 /// The add buffer is append-only, so retaining only the previous pieces and
 /// logical length is enough to make replace-all undo and redo constant-time.
+#[derive(Clone)]
 pub(crate) struct PieceTableSnapshot {
     pieces: Vec<Piece>,
     length: usize,
@@ -331,10 +335,10 @@ struct LineInfo {
 pub struct PieceTable {
     revision: u64,
     line_views: std::cell::RefCell<LineViewCache>,
-    original: File,
+    original: Arc<File>,
     original_length: usize,
 
-    add: EditStore,
+    add: Arc<EditStore>,
     pub pieces: Vec<Piece>,
     pub length: usize,
 
@@ -344,7 +348,7 @@ pub struct PieceTable {
     pub(crate) cursor: Cursor,
     pub(crate) secondary_cursors: Vec<Cursor>,
     // Drop recovery last, after its backing file handles (important on Windows).
-    recovery: recovery::State,
+    recovery: Arc<Mutex<recovery::State>>,
 }
 
 fn next_document_revision() -> u64 {
@@ -419,10 +423,10 @@ impl PieceTable {
             recovery: Default::default(),
             revision: next_document_revision(),
             line_views: Default::default(),
-            original,
+            original: Arc::new(original),
             original_length,
 
-            add: EditStore::create()?,
+            add: Arc::new(EditStore::create()?),
             pieces,
             length: original_length,
 
@@ -478,10 +482,10 @@ all_lines_cached: original_length == 0,
             recovery: Default::default(),
             revision: next_document_revision(),
             line_views: Default::default(),
-            original,
+            original: Arc::new(original),
             original_length: 0,
 
-            add: EditStore::create()?,
+            add: Arc::new(EditStore::create()?),
             pieces: Vec::new(),
             length: 0,
 
@@ -3383,7 +3387,7 @@ all_lines_cached: original_length == 0,
             Ok((_, true)) | Err(_) => {
                 // Appends are not visible in the document until the swap below.
                 self.add.file().set_len(add_start as u64)?;
-                self.add.length = add_start;
+                *self.add.length.lock().unwrap() = add_start;
                 staged.map(|_| None)
             }
             Ok((length, false)) => {

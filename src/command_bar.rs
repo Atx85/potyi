@@ -77,6 +77,7 @@ pub(crate) enum ParsedCommand {
 
     Term { command: Option<String> },
     Split,
+    ExitPane,
     ExtractConfig,
     Format { provider: Option<String> },
     Formatters,
@@ -225,6 +226,11 @@ const COMMANDS: &[CommandSpec] = &[
         name: "extract-config",
         description: "Create editable copies of built-in defaults",
         usage: ":extract-config",
+    },
+    CommandSpec {
+        name: "exit",
+        description: "Close the focused split pane (keeps unsaved work)",
+        usage: ":exit",
     },
     CommandSpec {
         name: "quit",
@@ -1803,6 +1809,11 @@ fn parse_command(
             Ok(ParsedCommand::Save)
         }
 
+        "exit" => {
+            reject_no_arguments(command, &arguments, search_option_used, backward, all)?;
+            Ok(ParsedCommand::ExitPane)
+        }
+
         "quit" => {
             reject_no_arguments(
                 command,
@@ -3032,6 +3043,15 @@ mod tests {
         }
         assert_eq!(parse_command(":term   ").unwrap(), ParsedCommand::Term { command: None });
         assert!(parse_command(":terminal ls").is_err());
+    }
+
+    #[test]
+    fn exit_only_closes_panes_and_accepts_no_arguments() {
+        assert_eq!(parse_command(":exit").unwrap(), ParsedCommand::ExitPane);
+        assert_eq!(parse_command(":quit").unwrap(), ParsedCommand::Quit);
+        for command in [":exit now", ":exit --all", ":exit --case-sensitive"] {
+            assert!(parse_command(command).is_err());
+        }
     }
 
     #[test]

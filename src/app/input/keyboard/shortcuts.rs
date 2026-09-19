@@ -10,6 +10,7 @@ pub(super) fn terminal_toggle(
     let InputContext {
         editor,
         terminal,
+        renderer,
         search_ui,
         command_bar,
         dirty,
@@ -19,7 +20,12 @@ pub(super) fn terminal_toggle(
         editor.clear_secondary_cursors();
         command_bar.close();
         search_ui.close();
-        terminal.toggle(editor.path.as_deref());
+        if renderer.terminal_focused(terminal) {
+            terminal.toggle(editor.path.as_deref());
+        } else {
+            renderer.place_terminal_in_active_pane();
+            terminal.open(editor.path.as_deref());
+        }
         *dirty = true;
         return Ok(Some(EventFlow::Continue));
     }

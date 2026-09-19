@@ -111,6 +111,7 @@ struct StoredViewState {
     scroll_start_byte: usize,
     scroll_start_line: usize,
     scroll_start_valid: bool,
+    scroll_revision: u64,
     syntax: Option<SyntaxDefinition>,
 }
 
@@ -124,6 +125,7 @@ impl StoredViewState {
             scroll_start_byte: 0,
             scroll_start_line: 0,
             scroll_start_valid: true,
+            scroll_revision: 0,
             syntax: None,
         }
     }
@@ -156,6 +158,11 @@ pub struct Renderer<'a> {
     window_width: i32,
     window_height: i32,
     bottom_inset: i32,
+    terminal_pane: usize,
+    terminal_bottom_inset: i32,
+    terminal_reserved_height: i32,
+    rendering_terminal_pane: bool,
+    rendering_document_pane: bool,
     terminal_layout: TerminalLayout,
     terminal_layout_origin: (u64, usize),
 
@@ -168,6 +175,7 @@ pub struct Renderer<'a> {
     scroll_start_byte: usize,
     scroll_start_line: usize,
     scroll_start_valid: bool,
+    scroll_revision: u64,
 
     window_hit_test: WindowHitTestState,
     syntax: Option<SyntaxDefinition>,
@@ -259,6 +267,11 @@ impl<'a> Renderer<'a> {
             window_width: window_width as i32,
             window_height: window_height as i32,
             bottom_inset: 0,
+            terminal_pane: 0,
+            terminal_bottom_inset: 0,
+            terminal_reserved_height: 0,
+            rendering_terminal_pane: false,
+            rendering_document_pane: false,
             terminal_layout: TerminalLayout::default(),
             terminal_layout_origin: (0, 0),
 
@@ -272,6 +285,7 @@ impl<'a> Renderer<'a> {
             scroll_start_byte: 0,
             scroll_start_line: 0,
             scroll_start_valid: true,
+            scroll_revision: 0,
 
             window_hit_test,
             syntax: None,
@@ -290,11 +304,52 @@ impl<'a> Renderer<'a> {
         self.mode_label = label;
     }
 
+    pub(crate) fn is_split(&self) -> bool {
+        self.split_mode
+    }
+
     pub fn set_split_mode(
         &mut self,
         split_mode: bool,
     ) {
         self.split_mode = split_mode;
+    }
+
+    pub(crate) fn place_terminal_in_active_pane(&mut self) {
+        self.terminal_pane = self.active_pane;
+    }
+
+    pub(crate) fn terminal_focused(&self, terminal: &Terminal) -> bool {
+        terminal.is_active() && self.terminal_pane == self.active_pane
+    }
+
+    pub(crate) fn terminal_visible(&self, terminal: &Terminal) -> bool {
+        terminal.is_active() && (self.split_mode || self.terminal_pane == self.active_pane)
+    }
+
+    pub(crate) fn terminal_is_split(&self, terminal: &Terminal) -> bool {
+        self.split_mode && self.terminal_focused(terminal)
+    }
+
+    pub(crate) fn terminal_pane(&self) -> usize {
+        self.terminal_pane
+    }
+
+    fn terminal_bounds(&self) -> (i32, i32) {
+        if self.rendering_terminal_pane {
+            (0, self.window_width)
+        } else {
+            self.pane_bounds(self.terminal_pane)
+        }
+    }
+
+    fn terminal_height(&self) -> i32 {
+        self.window_height
+            - if self.rendering_terminal_pane {
+                0
+            } else {
+                self.terminal_reserved_height
+            }
     }
 
     pub fn set_active_pane(
@@ -349,7 +404,13 @@ impl<'a> Renderer<'a> {
     }
 
     fn active_content_width(&self) -> i32 {
-        self.pane_bounds(self.active_pane).1
+        // During a pane render, window_width is already local to that pane.
+        // Splitting it again clips text halfway across the editor viewport.
+        if self.rendering_document_pane {
+            self.window_width
+        } else {
+            self.pane_bounds(self.active_pane).1
+        }
     }
 
     fn active_local_x(&self, x: i32) -> i32 {
@@ -388,6 +449,7 @@ impl<'a> Renderer<'a> {
             &mut self.scroll_start_valid,
             &mut self.inactive_view.scroll_start_valid,
         );
+        std::mem::swap(&mut self.scroll_revision, &mut self.inactive_view.scroll_revision);
         std::mem::swap(
             &mut self.syntax,
             &mut self.inactive_view.syntax,
@@ -1308,6 +1370,10 @@ impl<'a> Renderer<'a> {
         table: &mut PieceTable,
         target: usize,
     ) {
+        if self.scroll_revision != table.revision() {
+            self.scroll_start_valid = false;
+            self.scroll_revision = table.revision();
+        }
         if !self.scroll_start_valid {
             let byte =
                 table
@@ -1568,7 +1634,7 @@ impl<'a> Renderer<'a> {
 
     fn visible_terminal_line_count(&self) -> usize {
         let top_margin = TITLE_BAR_HEIGHT + 8;
-        let content_bottom = self.window_height.saturating_sub(self.bottom_inset.max(0));
+        let content_bottom = self.terminal_height().saturating_sub(self.terminal_bottom_inset.max(0));
         if content_bottom <= top_margin {
             return 1;
         }
@@ -1747,18 +1813,18 @@ impl<'a> Renderer<'a> {
     }
 
     /// Draw one terminal over a split pane. The terminal keeps its own layout
-    /// and history; only the focused pane is replaced by terminal output.
+    /// and history while the other pane remains available for editing.
     pub fn render_split_terminal(
         &mut self,
         active_table: &mut PieceTable,
         inactive_table: &mut PieceTable,
         terminal: &mut Terminal,
-        terminal_pane: usize,
         search_ui: &SearchUi,
         command_bar: &CommandBar,
     ) -> Result<(), String> {
-        self.terminal_text_cache.clear();
+        let terminal_pane = self.terminal_pane;
         self.bottom_inset = command_bar.reserved_height();
+        self.terminal_reserved_height = self.bottom_inset;
         self.canvas.set_draw_color(Color::RGB(30, 30, 30));
         self.canvas.clear();
         self.render_title_bar()?;
@@ -1766,11 +1832,14 @@ impl<'a> Renderer<'a> {
         let active_bounds = self.pane_bounds(self.active_pane);
         let inactive_pane = 1usize.saturating_sub(self.active_pane);
         let inactive_bounds = self.pane_bounds(inactive_pane);
-        self.render_document_pane(active_table, Some(search_ui), terminal_pane != self.active_pane, active_bounds)?;
-        self.swap_view();
-        let inactive_result = self.render_document_pane(inactive_table, None, terminal_pane != inactive_pane, inactive_bounds);
-        self.swap_view();
-        inactive_result?;
+        if terminal_pane != self.active_pane {
+            self.render_document_pane(active_table, Some(search_ui), true, active_bounds)?;
+        } else {
+            self.swap_view();
+            let inactive_result = self.render_document_pane(inactive_table, None, false, inactive_bounds);
+            self.swap_view();
+            inactive_result?;
+        }
         self.render_terminal_pane(terminal, self.pane_bounds(terminal_pane))?;
 
         self.canvas.set_draw_color(Color::RGB(74, 74, 74));
@@ -1792,14 +1861,21 @@ impl<'a> Renderer<'a> {
 
     fn render_terminal_pane(&mut self, terminal: &mut Terminal, (left, width): (i32, i32)) -> Result<(), String> {
         let full_width = self.window_width;
+        let full_height = self.window_height;
+        let editor_inset = self.bottom_inset;
+        self.window_height = self.terminal_height();
         self.canvas.set_viewport(Rect::new(left, 0, width.max(1) as u32, self.window_height.max(1) as u32));
         self.window_width = width.max(1);
+        self.rendering_terminal_pane = true;
         self.cache_terminal_text = true;
         let result = self.render_terminal_contents(terminal, false);
         self.cache_terminal_text = false;
         self.canvas.set_clip_rect(None);
         self.canvas.set_viewport(None);
         self.window_width = full_width;
+        self.window_height = full_height;
+        self.bottom_inset = editor_inset;
+        self.rendering_terminal_pane = false;
         result
     }
 
@@ -1819,6 +1895,7 @@ impl<'a> Renderer<'a> {
             self.window_height.max(1) as u32,
         ));
         self.window_width = width.max(1);
+        self.rendering_document_pane = true;
 
         let result = self.render_document_body(
             table,
@@ -1829,6 +1906,7 @@ impl<'a> Renderer<'a> {
         self.canvas.set_clip_rect(None);
         self.canvas.set_viewport(None);
         self.window_width = full_width;
+        self.rendering_document_pane = false;
 
         result
     }
@@ -1839,6 +1917,7 @@ impl<'a> Renderer<'a> {
         search_ui: Option<&SearchUi>,
         show_cursor: bool,
     ) -> Result<(), String> {
+        self.update_cursor(table);
 
         let visible =
             self.visible_line_count();
@@ -1899,6 +1978,7 @@ impl<'a> Renderer<'a> {
         &mut self,
         terminal: &mut Terminal,
     ) -> Result<(), String> {
+        self.terminal_reserved_height = 0;
         self.cache_terminal_text = true;
         let result = self.render_terminal_contents(terminal, true);
         self.cache_terminal_text = false;
@@ -1919,6 +1999,7 @@ impl<'a> Renderer<'a> {
             TERMINAL_BAR_HEIGHT
                 + TERMINAL_BAR_MARGIN
                 + status_height;
+        self.terminal_bottom_inset = self.bottom_inset;
 
         self.canvas.set_draw_color(Color::RGB(30, 30, 30));
         if full_view {
@@ -1975,7 +2056,8 @@ impl<'a> Renderer<'a> {
                     (right - left + newline_width).max(1) as u32, line_height as u32,
                 )).map_err(|error| error.to_string())?;
             }
-            if terminal.output_focused() && row == cursor_row {
+            if terminal.output_focused() && row == cursor_row
+                && (!self.split_mode || self.terminal_pane == self.active_pane) {
                 let column = cursor.saturating_sub(start).min(text.len());
                 let x = 12 + self.terminal_text_width(&text[..column]);
                 self.canvas.set_draw_color(Color::RGB(245, 245, 245));
@@ -2037,25 +2119,30 @@ impl<'a> Renderer<'a> {
         x: i32,
         y: i32,
     ) -> TerminalHit {
+        let (left, width) = self.terminal_bounds();
+        let x = x - left;
+        if x < 0 || x >= width {
+            return TerminalHit::Outside;
+        }
         if y < TITLE_BAR_HEIGHT
-            || y >= self.window_height
+            || y >= self.terminal_height()
                 - TERMINAL_BAR_MARGIN
         {
             return TerminalHit::Outside;
         }
 
-        let bar_top = self.window_height
+        let bar_top = self.terminal_height()
             - TERMINAL_BAR_MARGIN
             - TERMINAL_BAR_HEIGHT;
 
         if y < bar_top {
-            if y >= self.window_height - self.bottom_inset {
+            if y >= self.terminal_height() - self.terminal_bottom_inset {
                 return TerminalHit::Outside;
             }
             return TerminalHit::Output;
         }
 
-        let editor_left = self.window_width
+        let editor_left = self.terminal_bounds().1
             - TERMINAL_BAR_MARGIN
             - TERMINAL_EDITOR_WIDTH;
 
@@ -2083,6 +2170,7 @@ impl<'a> Renderer<'a> {
         terminal: &Terminal,
         x: i32,
     ) -> usize {
+        let x = x - self.terminal_bounds().0;
         let text_x = TERMINAL_BAR_MARGIN + 10;
 
         if x <= text_x {
@@ -2090,7 +2178,7 @@ impl<'a> Renderer<'a> {
         }
 
         let input = terminal.input();
-        let editor_left = self.window_width
+        let editor_left = self.terminal_bounds().1
             - TERMINAL_BAR_MARGIN
             - TERMINAL_EDITOR_WIDTH;
         let action_left = editor_left
@@ -2172,7 +2260,7 @@ impl<'a> Renderer<'a> {
         self.update_terminal_layout(terminal)?;
         let rows = self.terminal_layout.visible_rows(self.visible_terminal_line_count(), terminal.scroll_back());
         let row_y = y - TITLE_BAR_HEIGHT - 8;
-        let target_x = x - 12;
+        let target_x = x - self.terminal_bounds().0 - 12;
         if row_y < 0 || target_x < 0 {
             return Ok(None);
         }
@@ -2200,7 +2288,7 @@ impl<'a> Renderer<'a> {
         let rows = self.terminal_layout.visible_rows(self.visible_terminal_line_count(), terminal.scroll_back());
         let row = (rows.start + (y - TITLE_BAR_HEIGHT - 8).max(0) as usize / self.terminal_line_height() as usize)
             .min(rows.end.saturating_sub(1));
-        self.terminal_offset_on_row(terminal, row, x - 12)
+        self.terminal_offset_on_row(terminal, row, x - self.terminal_bounds().0 - 12)
     }
 
     fn terminal_offset_on_row(&self, terminal: &mut Terminal, row: usize, x: i32) -> Result<usize, String> {
@@ -2260,13 +2348,13 @@ impl<'a> Renderer<'a> {
     }
 
     pub(crate) fn terminal_columns(&self) -> usize {
-        ((self.window_width - 24).max(1) / self.char_width.max(1)).max(1) as usize
+        ((self.terminal_bounds().1 - 24).max(1) / self.char_width.max(1)).max(1) as usize
     }
 
     fn update_terminal_layout(&mut self, terminal: &mut Terminal) -> Result<(), String> {
         terminal.set_listing_width(self.terminal_columns());
         let metrics = WrapMetrics {
-            width: (self.window_width - 24).max(1),
+            width: (self.terminal_bounds().1 - 24).max(1),
             cell_width: self.char_width.max(1),
             tab_width: self.tab_width,
             font_size: self.logical_font_size.to_bits(),
@@ -2446,7 +2534,8 @@ impl<'a> Renderer<'a> {
             },
         )?;
 
-        if !terminal.is_running() && !terminal.output_focused() {
+        if !terminal.is_running() && !terminal.output_focused()
+            && (!self.split_mode || self.terminal_pane == self.active_pane) {
             self.canvas.set_draw_color(
                 Color::RGB(245, 245, 245),
             );
@@ -5017,6 +5106,230 @@ mod terminal_selection_render_tests {
     use super::*;
 
     #[test]
+    #[ignore = "Pixel regression; run with SDL_VIDEODRIVER=dummy in a separate process"]
+    fn split_document_uses_the_full_pane_width_beside_terminal() {
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let window = video.window("split document width", 1001, 600).hidden().build().unwrap();
+        let ttf = sdl3::ttf::init().unwrap();
+        let font = || ttf.load_font_from_iostream(
+            sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(), 18.0,
+        ).unwrap();
+        let canvas = window.into_canvas();
+        let texture_creator = canvas.texture_creator();
+        let mut renderer = Renderer::new(canvas, &texture_creator, font(), font(), 18.0,
+            (font(), font()), crate::window::WindowHitTestState::new(1001, 1.0)).unwrap();
+        renderer.set_file_path(Some(std::path::Path::new("example.rs")));
+        let mut document = PieceTable::empty().unwrap();
+        document.insert(0, &format!("// {}\nfn main() {{\n\tprintln!(\"{}\");\n}}\n",
+            "long comment with Unicode café 東京 ".repeat(10), "visible code ".repeat(10)).repeat(40)).unwrap();
+        document.move_cursor_to_line_column(0, 0).unwrap();
+        renderer.update_cursor(&document);
+        let mut other = PieceTable::empty().unwrap();
+        let mut terminal = Terminal::new(std::env::temp_dir()).unwrap();
+        terminal.clear().unwrap();
+        terminal.output_mut().insert(0, "project listing\n").unwrap();
+        let search = SearchUi::new();
+        let bar = CommandBar::new();
+        let pixels = |renderer: &Renderer<'_>, left, width| {
+            renderer.canvas.read_pixels(Rect::new(left + 2, TITLE_BAR_HEIGHT + 3,
+                (width - 4) as u32, (600 - TITLE_BAR_HEIGHT - 3) as u32)).unwrap()
+                .convert_format(sdl3::pixels::PixelFormat::RGBA32).unwrap()
+                .with_lock(|bytes| bytes.to_vec())
+        };
+        for window_width in [800, 1001] {
+            for pane in [0, 1] {
+                let (left, width) = fixed_split_pane_bounds(window_width, pane);
+                for (scroll, scroll_line) in [(0, 0), (93, 0), (0, 50), (93, 50)] {
+                    // A normal editor at the same width is the pixel reference.
+                    renderer.set_split_mode(false);
+                    renderer.window_width = width;
+                    renderer.scroll_x = scroll;
+                    renderer.set_scroll_line(&mut document, scroll_line);
+                    renderer.render(&mut document, &search, &bar).unwrap();
+                    let expected = pixels(&renderer, 0, width);
+                    let expected_cursor = renderer.cursor_target_at(&mut document,
+                        width - 25, TITLE_BAR_HEIGHT + 10).unwrap();
+                    renderer.window_width = window_width;
+                    renderer.set_split_mode(true);
+                    renderer.set_active_pane(1 - pane);
+                    renderer.place_terminal_in_active_pane();
+                    renderer.set_active_pane(pane);
+                    renderer.render_split_terminal(&mut document, &mut other, &mut terminal,
+                        &search, &bar).unwrap();
+                    assert!(pixels(&renderer, left, width) == expected,
+                        "document pane {pane} at window width {window_width}, scroll {scroll} must use its full width");
+                    assert_eq!(renderer.cursor_target_at(&mut document,
+                        left + width - 25, TITLE_BAR_HEIGHT + 10).unwrap(), expected_cursor);
+                    // The ordinary two-document split shares this rendering path.
+                    renderer.render_split(&mut document, &mut other, &search, &bar).unwrap();
+                    assert!(pixels(&renderer, left, width) == expected);
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "SDL split terminal regression; run with SDL_VIDEODRIVER=dummy in a separate process"]
+    fn split_terminal_layout_and_targets_follow_either_pane() {
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let window = video
+            .window("split terminal", 1001, 600)
+            .hidden()
+            .build()
+            .unwrap();
+        let ttf = sdl3::ttf::init().unwrap();
+        let font = || {
+            ttf.load_font_from_iostream(
+                sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(),
+                18.0,
+            )
+            .unwrap()
+        };
+        let canvas = window.into_canvas();
+        let texture_creator = canvas.texture_creator();
+        let mut renderer = Renderer::new(
+            canvas,
+            &texture_creator,
+            font(),
+            font(),
+            18.0,
+            (font(), font()),
+            crate::window::WindowHitTestState::new(1001, 1.0),
+        )
+        .unwrap();
+        let mut active = PieceTable::empty().unwrap();
+        let mut other = PieceTable::empty().unwrap();
+        other
+            .insert(0, &"The other document remains visible.\n".repeat(40))
+            .unwrap();
+        let mut terminal = Terminal::new(std::env::temp_dir()).unwrap();
+        terminal.clear().unwrap();
+        terminal
+            .output_mut()
+            .insert(0, &"aé 東京 words ".repeat(30))
+            .unwrap();
+        terminal.insert_text("echo hello");
+        let search = SearchUi::new();
+        let mut bar = CommandBar::new();
+        renderer.set_split_mode(true);
+        for width in [1000, 1001, 800] {
+            renderer.window_width = width;
+            for pane in [0, 1] {
+                renderer.set_active_pane(pane);
+                renderer.place_terminal_in_active_pane();
+                renderer
+                    .render_split(&mut active, &mut other, &search, &bar)
+                    .unwrap();
+                let (other_left, other_width) = renderer.pane_bounds(1 - pane);
+                let clip = Rect::new(
+                    other_left + 2,
+                    TITLE_BAR_HEIGHT + 3,
+                    (other_width - 4) as u32,
+                    (600 - TITLE_BAR_HEIGHT - 3) as u32,
+                );
+                let pixels = |renderer: &Renderer<'_>| {
+                    renderer
+                        .canvas
+                        .read_pixels(clip)
+                        .unwrap()
+                        .convert_format(sdl3::pixels::PixelFormat::RGBA32)
+                        .unwrap()
+                        .with_lock(|bytes| bytes.to_vec())
+                };
+                let expected = pixels(&renderer);
+                renderer
+                    .render_split_terminal(&mut active, &mut other, &mut terminal, &search, &bar)
+                    .unwrap();
+                assert_eq!(
+                    pixels(&renderer),
+                    expected,
+                    "terminal must not change the adjacent document"
+                );
+                assert_eq!(renderer.bottom_inset, 0);
+                let (left, pane_width) = renderer.pane_bounds(pane);
+                assert_eq!(
+                    renderer.terminal_columns(),
+                    ((pane_width - 24) / renderer.char_width) as usize
+                );
+                let rows = renderer.terminal_layout.len();
+                let x = left + 12 + renderer.terminal_text_width("aé");
+                assert_eq!(
+                    renderer
+                        .terminal_output_offset_at(&mut terminal, x, TITLE_BAR_HEIGHT + 8)
+                        .unwrap(),
+                    3
+                );
+                renderer
+                    .navigate_terminal_output(&mut terminal, OutputCommand::None)
+                    .unwrap();
+                assert_eq!(
+                    renderer.terminal_layout.len(),
+                    rows,
+                    "input must preserve pane-width wrapping"
+                );
+                assert_eq!(
+                    renderer.terminal_hit_at(other_left + 20, TITLE_BAR_HEIGHT + 10),
+                    TerminalHit::Outside
+                );
+                let y = 600 - TERMINAL_BAR_MARGIN - TERMINAL_BAR_HEIGHT + 4;
+                assert_eq!(renderer.terminal_hit_at(left + 20, y), TerminalHit::Input);
+                assert_eq!(
+                    renderer.terminal_hit_at(left + pane_width - TERMINAL_BAR_MARGIN - 4, y),
+                    TerminalHit::Editor
+                );
+                assert_eq!(
+                    renderer.terminal_hit_at(
+                        left + pane_width - TERMINAL_BAR_MARGIN - TERMINAL_EDITOR_WIDTH - 4,
+                        y
+                    ),
+                    TerminalHit::Clear
+                );
+                assert_eq!(
+                    renderer.terminal_hit_at(
+                        left + pane_width
+                            - TERMINAL_BAR_MARGIN
+                            - TERMINAL_EDITOR_WIDTH
+                            - TERMINAL_CLEAR_WIDTH
+                            - 4,
+                        y
+                    ),
+                    TerminalHit::StopOrRunAgain
+                );
+                assert_eq!(
+                    renderer.terminal_cursor_at(&terminal, left + TERMINAL_BAR_MARGIN + 10),
+                    0
+                );
+                assert!(
+                    renderer.terminal_cursor_at(&terminal, left + TERMINAL_BAR_MARGIN + 35) > 0
+                );
+                let misses = renderer.terminal_text_cache.misses;
+                renderer
+                    .render_split_terminal(&mut active, &mut other, &mut terminal, &search, &bar)
+                    .unwrap();
+                assert_eq!(renderer.terminal_text_cache.misses, misses);
+            }
+        }
+        bar.open(":find document");
+        renderer
+            .render_split_terminal(&mut active, &mut other, &mut terminal, &search, &bar)
+            .unwrap();
+        assert_eq!(renderer.bottom_inset, bar.reserved_height());
+        let (left, width) = renderer.terminal_bounds();
+        let button_x = left + width - TERMINAL_BAR_MARGIN - 4;
+        let button_y = 600 - bar.reserved_height() - TERMINAL_BAR_MARGIN - TERMINAL_BAR_HEIGHT + 4;
+        assert_eq!(
+            renderer.terminal_hit_at(button_x, button_y),
+            TerminalHit::Editor
+        );
+        assert_eq!(
+            renderer.terminal_hit_at(button_x, 599),
+            TerminalHit::Outside
+        );
+    }
+
+    #[test]
     #[ignore = "SDL rendering regression; run with SDL_VIDEODRIVER=dummy --ignored --test-threads=1"]
     fn unity_csharp_bom_and_windows_line_endings_render_without_error() {
         let sdl = sdl3::init().unwrap();
@@ -5424,18 +5737,34 @@ mod terminal_selection_render_tests {
         let original=terminal.output_text().unwrap();
         let entry=terminal.entries_in(0..original.len()).iter().find(|e| e.kind==EntryKind::Commit).unwrap().clone();
         let row=renderer.terminal_layout.row_at(entry.range.start);
-        let rows=renderer.terminal_layout.visible_rows(renderer.visible_line_count(),terminal.scroll_back());
-        let y=TITLE_BAR_HEIGHT+8+(row-rows.start) as i32*renderer.font.height()+2;
+        let rows=renderer.terminal_layout.visible_rows(renderer.visible_terminal_line_count(),terminal.scroll_back());
+        let y=TITLE_BAR_HEIGHT+8+(row-rows.start) as i32*renderer.terminal_line_height()+2;
         let x=16;
         let action=renderer.terminal_action_at(&mut terminal,x,y).unwrap();
         assert_eq!(action,entry.action());
-        terminal.begin_output_drag(entry.range.start,x,y,action).unwrap();
+        let mut active = PieceTable::empty().unwrap();
+        let mut other = PieceTable::empty().unwrap();
+        for pane in [0, 1] {
+            renderer.set_split_mode(true);
+            renderer.set_active_pane(pane);
+            renderer.place_terminal_in_active_pane();
+            renderer.render_split_terminal(&mut active, &mut other, &mut terminal,
+                &SearchUi::new(), &CommandBar::new()).unwrap();
+            let row = renderer.terminal_layout.row_at(entry.range.start);
+            let rows = renderer.terminal_layout.visible_rows(renderer.visible_terminal_line_count(), terminal.scroll_back());
+            let y = TITLE_BAR_HEIGHT + 8 + (row - rows.start) as i32 * renderer.terminal_line_height() + 2;
+            let x = renderer.pane_bounds(pane).0 + 16;
+            assert_eq!(renderer.terminal_action_at(&mut terminal, x, y).unwrap(), entry.action());
+        }
+        renderer.set_split_mode(false);
+        renderer.render_terminal(&mut terminal).unwrap();
+        terminal.begin_output_drag(entry.range.start,x,y,action,false).unwrap();
         let TerminalAction::Commit(commit)=terminal.finish_output_drag().unwrap() else {panic!()};
         let scroll=terminal.scroll_back();
         terminal.open_commit(commit).unwrap(); renderer.render_terminal(&mut terminal).unwrap();
         drain(&mut terminal,&mut pump); renderer.render_terminal(&mut terminal).unwrap();
         assert!(terminal.can_go_back());
-        assert_eq!(renderer.terminal_layout.visible_rows(renderer.visible_line_count(),terminal.scroll_back()).start,0,"diff should start at its header");
+        assert_eq!(renderer.terminal_layout.visible_rows(renderer.visible_terminal_line_count(),terminal.scroll_back()).start,0,"diff should start at its header");
         if let Ok(path)=std::env::var("POTYI_GIT_NAV_SCREENSHOT") {
             if let Some(hunk)=terminal.output_text().unwrap().find("@@") {
                 terminal.move_output_cursor(hunk,false).unwrap();

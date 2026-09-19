@@ -30,6 +30,7 @@ pub(super) struct Selection {
     pub desired_x: Option<i32>,
     drag: Option<(i32, i32, Option<TerminalAction>)>,
     dragged: bool,
+    open_other_pane: bool,
 }
 
 pub(crate) enum OutputCommand {
@@ -75,9 +76,11 @@ impl Terminal {
         x: i32,
         y: i32,
         action: Option<TerminalAction>,
+        open_other_pane: bool,
     ) -> io::Result<()> {
         self.selection = Selection {
             focused: true,
+            open_other_pane,
             ..Selection::default()
         };
         self.move_output_cursor(offset, false)?;
@@ -97,6 +100,10 @@ impl Terminal {
             }
         }
         Ok(())
+    }
+
+    pub(crate) fn output_click_opens_other_pane(&self) -> bool {
+        self.selection.open_other_pane
     }
 
     pub fn finish_output_drag(&mut self) -> Option<TerminalAction> {
@@ -511,11 +518,13 @@ mod tests {
     fn dragging_a_link_selects_without_opening_but_click_still_opens() {
         let mut term = terminal("Cargo.lock");
         let action = TerminalAction::ListedFile("Cargo.lock".into());
-        term.begin_output_drag(0, 12, 50, Some(action.clone()))
+        term.begin_output_drag(0, 12, 50, Some(action.clone()), false)
             .unwrap();
+        assert!(!term.output_click_opens_other_pane());
         term.drag_output_to(0, 13, 50).unwrap();
         assert_eq!(term.finish_output_drag(), Some(action.clone()));
-        term.begin_output_drag(0, 12, 50, Some(action)).unwrap();
+        term.begin_output_drag(0, 12, 50, Some(action), true).unwrap();
+        assert!(term.output_click_opens_other_pane());
         term.drag_output_to(10, 100, 50).unwrap();
         assert_eq!(term.finish_output_drag(), None);
         assert_eq!(selected(&mut term), "Cargo.lock");

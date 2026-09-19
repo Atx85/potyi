@@ -205,6 +205,25 @@ impl VimController {
         *self = Self::new();
     }
 
+    /// A pane switch ends the current undo group without leaving Insert mode.
+    pub(crate) fn pause_shared_view(&mut self, editor: &mut Editor) {
+        self.finish_insert_history(editor);
+    }
+
+    pub(crate) fn resume_shared_view(&mut self, editor: &Editor) {
+        if self.mode == VimMode::Insert {
+            self.insert_session = Some(InsertSession {
+                history_start: editor.begin_history_group(),
+                placement: InsertPlacement::Before,
+                change: None,
+                text: String::new(),
+            });
+        }
+        self.cancel_pending();
+        self.search_origin = None;
+        self.visual_lines = None;
+    }
+
     pub(crate) fn deactivate(&mut self, editor: &mut Editor) {
         self.finish_insert(editor);
         self.reset();

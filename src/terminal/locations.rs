@@ -422,7 +422,7 @@ mod tests {
             );
         }
         terminal
-            .begin_output_drag(0, 0, 0, expected.clone())
+            .begin_output_drag(0, 0, 0, expected.clone(), false)
             .unwrap();
         terminal.drag_output_to(3, 10, 0).unwrap();
         assert_eq!(terminal.finish_output_drag(), None);

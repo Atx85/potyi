@@ -228,6 +228,10 @@ pub(super) fn handle(
                     if outcome.quit {
                         return Ok(Some(EventFlow::Quit));
                     }
+                    if outcome.close_pane {
+                        close_focused_pane(split_mode, active_pane, editor, other_editor,
+                            vim, other_vim, renderer, terminal);
+                    }
                     if outcome.focus_other {
                         focus_pane(
                             1 - *active_pane,

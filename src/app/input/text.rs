@@ -20,7 +20,7 @@ pub(super) fn text(context: InputContext<'_, '_>, text: &str) -> Result<EventFlo
     if emacs.consume_text() {
         return Ok(EventFlow::Continue);
     }
-    if terminal.is_active() {
+    if renderer.terminal_focused(terminal) {
         if !terminal.output_focused() {
             terminal.insert_text(&text);
         }

@@ -28,6 +28,7 @@ pub(super) struct InputContext<'a, 'font> {
     pub search_ui: &'a mut SearchUi,
     pub command_bar: &'a mut CommandBar,
     pub key_bindings: &'a KeyBindings,
+    pub keyboard: &'a sdl3::keyboard::KeyboardUtil,
     pub clipboard: &'a sdl3::clipboard::ClipboardUtil,
     pub event_subsystem: &'a sdl3::EventSubsystem,
     pub dirty: &'a mut bool,
@@ -51,6 +52,7 @@ impl<'a, 'font> InputContext<'a, 'font> {
             search_ui: &mut *self.search_ui,
             command_bar: &mut *self.command_bar,
             key_bindings: self.key_bindings,
+            keyboard: self.keyboard,
             clipboard: self.clipboard,
             event_subsystem: self.event_subsystem,
             dirty: &mut *self.dirty,
@@ -62,6 +64,18 @@ impl<'a, 'font> InputContext<'a, 'font> {
 }
 
 pub(super) fn dispatch(
+    context: InputContext<'_, '_>,
+    event: Event,
+    coordinates_converted: bool,
+) -> Result<EventFlow, String> {
+    let mut context = context;
+    synchronize_pane_views(context.editor, context.other_editor, context.renderer).map_err(|e| e.to_string())?;
+    let result = dispatch_event(context.reborrow(), event, coordinates_converted);
+    synchronize_pane_views(context.editor, context.other_editor, context.renderer).map_err(|e| e.to_string())?;
+    result
+}
+
+fn dispatch_event(
     context: InputContext<'_, '_>,
     event: Event,
     coordinates_converted: bool,

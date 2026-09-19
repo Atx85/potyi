@@ -6,6 +6,7 @@ use super::*;
 pub(crate) struct CommandOutcome {
     pub(crate) quit: bool,
     pub(crate) toggle_split: bool,
+    pub(crate) close_pane: bool,
     pub(crate) focus_other: bool,
     pub(crate) document_changed: bool,
     pub(crate) document_reloaded: bool,
@@ -286,6 +287,7 @@ pub(crate) fn execute_command_bar(
         Ok(ParsedCommand::Term { command }) => {
             command_bar.close();
             search_ui.close();
+            renderer.place_terminal_in_active_pane();
             terminal.open(editor.path.as_deref());
             if let Some(command) = command {
                 terminal.set_listing_width(renderer.terminal_columns());
@@ -307,7 +309,7 @@ pub(crate) fn execute_command_bar(
                         ) {
                             Ok(focus_other) => {
                                 outcome.focus_other = focus_other;
-                                if opens_document && !terminal.is_active() {
+                                if opens_document && (!terminal.is_active() || focus_other) {
                                     outcome.document_reloaded = true;
                                     outcome.path_changed = true;
                                     outcome.cursor_changed = true;
@@ -476,6 +478,16 @@ pub(crate) fn execute_command_bar(
                         format!("Could not list recovery sessions: {error}")
                     }),
                 );
+            }
+        }
+
+        Ok(ParsedCommand::ExitPane) => {
+            if renderer.is_split() {
+                command_bar.close();
+                search_ui.close();
+                outcome.close_pane = true;
+            } else {
+                command_bar.set_status("No split pane to close. Use :quit to close Pötyi.");
             }
         }
 

@@ -358,6 +358,7 @@ pub(crate) fn prepare(
     })
 }
 
+#[derive(Clone)]
 pub(crate) struct Marker {
     record: Arc<PreparedRename>,
     local: Option<crate::PieceTableSnapshot>,
@@ -508,6 +509,13 @@ pub(crate) fn apply(
     editor: &mut Editor,
     other: &mut Editor,
 ) -> Result<(), String> {
+    if editor.shares_document_with(other) {
+        // A document displayed twice is still one workspace transaction target.
+        let mut unused = Editor::new(other.config.clone()).map_err(|e| e.to_string())?;
+        let result = apply(record, editor, &mut unused);
+        Editor::synchronize_views(editor, other).map_err(|e| e.to_string())?;
+        return result;
+    }
     if record.resources.is_some() { return resources::apply(record, editor, other); }
     let mut writes = Vec::new();
     for file in &record.files {
@@ -610,6 +618,13 @@ pub(crate) fn recent_disk_changes(editor: &Editor, undone: bool) -> Vec<(PathBuf
 
 /// Coordinate a workspace entry before normal per-pane undo/redo handling.
 pub(crate) fn history(editor: &mut Editor, other: &mut Editor, redo: bool) -> Result<bool, String> {
+    if editor.shares_document_with(other) {
+        let mut unused = Editor::new(other.config.clone()).map_err(|e| e.to_string())?;
+        let result = history(editor, &mut unused, redo);
+        Editor::synchronize_views(editor, other).map_err(|e| e.to_string())?;
+        return result;
+    }
+
     let stack = if redo {
         &editor.redo_stack
     } else {

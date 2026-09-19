@@ -22,16 +22,22 @@ potyi src/main.rs                # open a file
 potyi src/main.rs:42:7           # open a file at a line and column
 ```
 
-Folder launches open Pötyi's terminal with a clickable listing of that folder.
-Click a text file to edit it or a folder to browse it. `Ctrl+\`` switches between
+Opening a folder with `potyi .` or dropping a folder onto Pötyi opens a split:
+a clickable `ls` listing on the left and an empty editor on the right. Click a
+text file to open it in the listing's pane. Ctrl-click or Cmd-click opens it in
+the other pane while keeping the listing visible (creating a split if needed). Click
+a folder to browse it. A folder drop preserves unsaved documents; an unsaved
+right pane stays open instead of being cleared. If a terminal command is still
+running, finish or stop it before dropping a folder. `Ctrl+\`` switches between
 the terminal and editor. Running `potyi` without an argument opens an empty editor.
 
-The selected folder becomes the workspace root for this app window. Relative
+For command-line folder launches, the selected folder becomes the workspace root for this app window. Relative
 `:new` and `:save-as` paths, unnamed document saves, and `config/` overrides use
 that root. Terminal commands initially run there; later `cd` commands change
 only the terminal's directory. No project file is created. Language servers
 continue to discover their project roots from each file's project markers.
-Each launch starts a separate app instance.
+Folder drops change the browser's directory without changing the running app's
+workspace root or configuration. Each launch starts a separate app instance.
 
 To install the `potyi` command from a source checkout, run `cargo install --path .`
 with the build prerequisites below installed. Ensure Cargo's bin directory
@@ -149,6 +155,7 @@ Examples:
 :set line-numbers dynamic
 :set keybindings vim
 :split
+:exit
 :extract-config
 :format
 :format rustfmt
@@ -311,7 +318,18 @@ manage their own CPU and memory use. Pötyi requests one worker through
 
 Run `:split` to toggle a fixed 50/50 vertical split. Each pane owns an
 independent document, cursor, selection, scroll position, and undo history.
+Both editor panes use their full width and support horizontal and vertical
+scrolling, long-line editing, and automatic scrolling to keep the cursor visible.
 Click a pane to focus it; file and editing commands apply to the focused pane.
+Run `:exit` to close the focused split pane and leave the other pane visible.
+Its document and unsaved edits stay in memory; `:split` brings the pane back.
+You can also type `:exit` directly into a terminal pane. It only closes split
+panes; `:quit` remains the command for closing the app.
+Run `:term` (or press `Ctrl+\``) to show the terminal in the focused pane.
+The other pane stays editable. Click between panes to switch focus; terminal
+output continues while you edit. Opening `:term` in the other pane moves the
+same terminal there, preserving its output and command history. Closing the
+terminal restores that pane's document.
 
 Pötyi keeps only one editor instance per file. Opening a file that is
 already loaded in the other pane focuses that pane instead of creating a
@@ -382,9 +400,9 @@ as the terminal prompt, including quotes, flags, pipelines and redirects. It
 uses the terminal's current directory and records the command in its history.
 Plain `:term` opens the terminal without running anything.
 
-`ls` uses aligned columns sized to the terminal width when the command runs. Use `ls -1` for one name per line or `ls -lh` for file sizes. It shows text files in green, folders in blue with a trailing `/`, and binary files in amber. Underlined names are clickable: text files open in the editor, and folders change the terminal directory and show its contents. A clickable `../` entry at the start of each folder listing goes up one folder; it is omitted at the filesystem root. Binary and unreadable files are not links. Listing links remember their original paths, including names with spaces. File types are detected from a small content sample.
+`ls` uses aligned columns sized to the terminal width when the command runs. Use `ls -1` for one name per line or `ls -lh` for file sizes. It shows text files in green, folders in blue with a trailing `/`, and binary files in amber. Underlined names are clickable: plain-click opens a text file in the terminal's pane; Ctrl-click or Cmd-click opens it in the other pane. Opening the same file in both panes creates two views of its live contents, including unsaved edits. Each view has its own cursor and scroll position; edits, saves, and undo/redo stay synchronized. A pane with unsaved edits must be saved before a click can replace its document. Folders change the terminal directory and show its contents. A clickable `../` entry at the start of each folder listing goes up one folder; it is omitted at the filesystem root. Binary and unreadable files are not links. Listing links remember their original paths, including names with spaces. File types are detected from a small content sample.
 
-`edit` opens a file normally, while `view` opens it read-only. Relative paths are resolved from the terminal's current directory. File paths printed in terminal output can be clicked, including compiler-style `path:line:column` locations. If the current file has unsaved edits, terminal file links open in the other pane and preserve those edits; use `:split` to see both files. Links to an already-open file return to that document without reloading it. If both panes have unsaved edits, save one before opening a third file. Terminal messages appear above the command input and wrap to fit the window. Terminal output, including `ls`, also wraps at word boundaries and reflows when the window or font size changes. Very long words and filenames continue on the next row; links remain clickable on every wrapped part. Scrolling follows the displayed rows, while copied output keeps its original line breaks.
+`edit` opens a file normally, while `view` opens it read-only. Relative paths are resolved from the terminal's current directory. File paths printed in terminal output can be clicked, including compiler-style `path:line:column` locations. File links use the same plain-click and Ctrl/Cmd-click pane choices as listing links, including protection for unsaved edits. The `edit` and `view` commands prefer the other editor when the terminal is split, and can use an available clean pane when their preferred pane has unsaved edits. Already-open files return to their existing document without reloading it. If both panes have unsaved edits, save one before opening a third file. Terminal messages appear above the command input and wrap to fit the window. Terminal output, including `ls`, also wraps at word boundaries and reflows when the window or font size changes. Very long words and filenames continue on the next row; links remain clickable on every wrapped part. Scrolling follows the displayed rows, while copied output keeps its original line breaks.
 
 `grep` runs through the system shell with its arguments unchanged, so all flags supported by the installed `grep` are available. For example:
 
@@ -404,7 +422,7 @@ Pötyi does not bundle `grep`: it must be available on the shell's PATH (includi
 
 A text-file path on its own, such as `Cargo.lock`, `./Cargo.lock`, or
 `"notes with spaces.txt"`, opens that file in the editor. Existing unsaved
-documents receive the same protection as when clicking a file in a listing.
+documents receive the same protection as with the `edit` command.
 Executable files and installed commands still run normally; use `edit PATH`
 to explicitly edit a script or a file whose name matches a command.
 

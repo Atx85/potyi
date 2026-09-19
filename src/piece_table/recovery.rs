@@ -211,7 +211,7 @@ impl PieceTable {
         match root() {
             Ok(root) => self.enable_recovery_at(root, source),
             Err(error) => {
-                self.recovery.warning = Some(format!(
+                self.recovery.lock().unwrap().warning = Some(format!(
                     "Crash recovery unavailable: {error}. Save your work regularly."
                 ))
             }
@@ -219,16 +219,19 @@ impl PieceTable {
     }
 
     pub(crate) fn enable_recovery_at(&mut self, root: PathBuf, source: Option<&Path>) {
-        self.recovery.root = Some(root);
-        self.recovery.source = source.and_then(|p| std::path::absolute(p).ok());
+        let mut state = self.recovery.lock().unwrap();
+        state.root = Some(root);
+        state.source = source.and_then(|p| std::path::absolute(p).ok());
     }
 
     pub(crate) fn take_recovery_warning(&mut self) -> Option<String> {
-        self.recovery.warning.take()
+        self.recovery.lock().unwrap().warning.take()
     }
 
     pub(super) fn record_recovery(&mut self, change: Change<'_>) {
-        let mut state = std::mem::take(&mut self.recovery);
+        let recovery = self.recovery.clone();
+        let mut guard = recovery.lock().unwrap();
+        let state = &mut *guard;
         if !state.failed {
             if let Some(root) = &state.root {
                 let result = if let Some(journal) = &mut state.journal {
@@ -237,7 +240,7 @@ impl PieceTable {
                     Journal::create(root, state.source.as_deref(), self).and_then(|journal| {
                         // Pin the live original to the same immutable backing as
                         // recovery, including after saves or outside replacements.
-                        self.original = File::open(journal.directory.join("original"))?;
+                        self.original = std::sync::Arc::new(File::open(journal.directory.join("original"))?);
                         state.journal = Some(journal);
                         Ok(())
                     })
@@ -254,12 +257,13 @@ impl PieceTable {
                 }
             }
         }
-        self.recovery = state;
     }
 
     pub(super) fn recovery_snapshot(&mut self) {
         // Borrow the existing pieces directly; do not clone them for the journal.
-        let mut state = std::mem::take(&mut self.recovery);
+        let recovery = self.recovery.clone();
+        let mut guard = recovery.lock().unwrap();
+        let state = &mut *guard;
         if !state.failed {
             if let Some(root) = &state.root {
                 let result = if let Some(journal) = &mut state.journal {
@@ -268,7 +272,7 @@ impl PieceTable {
                     Journal::create(root, state.source.as_deref(), self).and_then(|journal| {
                         // Pin the live original to the same immutable backing as
                         // recovery, including after saves or outside replacements.
-                        self.original = File::open(journal.directory.join("original"))?;
+                        self.original = std::sync::Arc::new(File::open(journal.directory.join("original"))?);
                         state.journal = Some(journal);
                         Ok(())
                     })
@@ -284,20 +288,22 @@ impl PieceTable {
                 }
             }
         }
-        self.recovery = state;
     }
 
     pub(crate) fn recovered_from(&mut self, directory: PathBuf) {
-        self.recovery.recovered_from = Some(directory);
+        self.recovery.lock().unwrap().recovered_from = Some(directory);
     }
 
     pub(crate) fn recovery_saved(&mut self, path: &Path) {
-        let restart_after_failure = self.recovery.failed;
-        self.recovery.source = std::path::absolute(path).ok();
-        if self.recovery.journal.is_some() {
+        let recovery = self.recovery.clone();
+        let mut guard = recovery.lock().unwrap();
+        let state = &mut *guard;
+        let restart_after_failure = state.failed;
+        state.source = std::path::absolute(path).ok();
+        if state.journal.is_some() {
             // Saving the complete document retires recovery even after an I/O
             // failure stopped journaling. A failed retirement keeps the entry.
-            let journal = self.recovery.journal.as_mut().unwrap();
+            let journal = state.journal.as_mut().unwrap();
             let result = (|| -> io::Result<()> {
                 let log = journal.log.as_mut().unwrap();
                 format::write_frame(log, Change::Saved, self.add.len() as u64)?;
@@ -306,15 +312,15 @@ impl PieceTable {
                 Ok(())
             })();
             if let Err(error) = result {
-                self.recovery.warning = Some(format!(
+                state.warning = Some(format!(
                     "File saved, but the previous recovery entry was kept: {error}"
                 ));
             }
-            if let Some(journal) = &self.recovery.journal {
+            if let Some(journal) = &state.journal {
                 let update = (|| -> io::Result<()> {
                     let meta = Metadata {
                         version: 1,
-                        source: self.recovery.source.clone(),
+                        source: state.source.clone(),
                         original_length: self.original_length as u64,
                     };
                     let temporary = journal.directory.join("metadata.new");
@@ -329,7 +335,7 @@ impl PieceTable {
                     fs::rename(temporary, journal.directory.join("metadata.json"))
                 })();
                 if let Err(error) = update {
-                    self.recovery.warning = Some(format!(
+                    state.warning = Some(format!(
                         "File saved, but its recovery label could not be updated: {error}"
                     ));
                 }
@@ -338,10 +344,10 @@ impl PieceTable {
         if restart_after_failure {
             // Edits made while journaling was unavailable need a fresh full
             // checkpoint on the next edit, not a delta against the old state.
-            self.recovery.journal = None;
-            self.recovery.failed = false;
+            state.journal = None;
+            state.failed = false;
         }
-        if let Some(directory) = &self.recovery.recovered_from {
+        if let Some(directory) = &state.recovered_from {
             let result = (|| -> io::Result<()> {
                 let _lock = match claim(directory) {
                     Ok(Some(lock)) => lock,
@@ -360,10 +366,10 @@ impl PieceTable {
             match result {
                 Ok(()) => {
                     let _ = fs::remove_dir_all(directory);
-                    self.recovery.recovered_from = None;
+                    state.recovered_from = None;
                 }
                 Err(error) => {
-                    self.recovery.warning = Some(format!(
+                    state.warning = Some(format!(
                         "File saved. The older recovery entry was kept: {error}"
                     ))
                 }

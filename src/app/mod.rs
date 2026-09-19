@@ -92,6 +92,7 @@ pub(crate) fn run() -> Result<(), String> {
     let video = sdl.video().map_err(|e| e.to_string())?;
 
     let clipboard = video.clipboard();
+    let keyboard = sdl.keyboard();
 
     let (window, window_hit_test) = window::create_window(&video, "Pötyi", 800, 600)?;
 
@@ -187,14 +188,13 @@ pub(crate) fn run() -> Result<(), String> {
         .map_err(|error| error.to_string())?;
 
     terminal.set_events(event_subsystem.clone());
+    let mut split_mode = false;
+    let mut active_pane = 0usize;
     if let Some(root) = launch.workspace_root() {
-        terminal.open(None);
-        terminal
-            .enter_directory(root)
-            .map_err(|error| error.to_string())?;
-    }
-    if command_bar.is_info() && matches!(command_bar.parse(), Ok(ParsedCommand::Recover { .. })) {
-        terminal.close_to_editor();
+        open_folder_workspace(
+            root, &mut split_mode, &mut active_pane, &mut editor, &mut other_editor,
+            &mut vim, &mut other_vim, &mut renderer, &mut terminal,
+        )?;
     }
     event_subsystem
         .register_custom_event::<lsp::Event>()
@@ -211,8 +211,6 @@ pub(crate) fn run() -> Result<(), String> {
     }
 
     let mut dirty = true;
-    let mut split_mode = false;
-    let mut active_pane = 0usize;
     let mut pending_events = Vec::with_capacity(32);
 
     // ----------------------------------------------------------------------
@@ -222,13 +220,13 @@ pub(crate) fn run() -> Result<(), String> {
     let mut terminal_frames = terminal::FrameSchedule::default();
     'event_loop: loop {
         pending_events.clear();
-        if !terminal.is_active() {
+        if !renderer.terminal_visible(&terminal) {
             terminal_frames.clear();
         }
         if terminal
             .poll_background()
             .map_err(|error| error.to_string())?
-            && terminal.is_active()
+            && renderer.terminal_visible(&terminal)
         {
             terminal_frames.changed();
         }
@@ -251,7 +249,7 @@ pub(crate) fn run() -> Result<(), String> {
                 if terminal
                     .handle_event(terminal_event)
                     .map_err(|error| error.to_string())?
-                    && terminal.is_active()
+                    && renderer.terminal_visible(&terminal)
                 {
                     terminal_frames.changed();
                 }
@@ -267,12 +265,13 @@ pub(crate) fn run() -> Result<(), String> {
                 lsp_ui.validate_completion(
                     &editor,
                     &other_editor,
-                    !terminal.is_active()
+                    !renderer.terminal_focused(&terminal)
                         && !command_bar.is_active()
                         && (!vim_enabled || vim.mode() == vim::VimMode::Insert),
                 );
                 let outcome =
                     lsp_ui.accept(event, &mut editor, &mut other_editor, &mut command_bar);
+                synchronize_pane_views(&mut editor, &mut other_editor, &mut renderer).map_err(|e| e.to_string())?;
                 if outcome.document_changed && vim_enabled {
                     vim.finish_formatting(&mut editor);
                 }
@@ -317,6 +316,7 @@ pub(crate) fn run() -> Result<(), String> {
                     search_ui: &mut search_ui,
                     command_bar: &mut command_bar,
                     key_bindings: &key_bindings,
+                    keyboard: &keyboard,
                     clipboard: &clipboard,
                     event_subsystem: &event_subsystem,
                     dirty: &mut dirty,
@@ -343,14 +343,14 @@ pub(crate) fn run() -> Result<(), String> {
         lsp_ui.validate_completion(
             &editor,
             &other_editor,
-            !terminal.is_active()
+            !renderer.terminal_focused(&terminal)
                 && !command_bar.is_active()
                 && (!vim_enabled || vim.mode() == vim::VimMode::Insert),
         );
         lsp_ui.discard_dismissed_preview(&command_bar);
         lsp_ui.reconcile(&editor, &other_editor);
 
-        dirty |= terminal.is_active() && terminal_frames.due(Instant::now());
+        dirty |= renderer.terminal_visible(&terminal) && terminal_frames.due(Instant::now());
         if dirty {
             command_bar.refresh_formatters(editor.path.as_deref());
             let start = Instant::now();
@@ -358,8 +358,18 @@ pub(crate) fn run() -> Result<(), String> {
             renderer.update_window_size()?;
             renderer.set_completion(lsp_ui.completion_display());
 
-            if terminal.is_active() {
-                renderer.render_terminal(&mut terminal)?;
+            if renderer.terminal_visible(&terminal) {
+                if split_mode {
+                    renderer.render_split_terminal(
+                        &mut editor.document,
+                        &mut other_editor.document,
+                        &mut terminal,
+                        &search_ui,
+                        &command_bar,
+                    )?;
+                } else {
+                    renderer.render_terminal(&mut terminal)?;
+                }
                 terminal_frames.rendered(Instant::now());
             } else if split_mode {
                 renderer.render_split(

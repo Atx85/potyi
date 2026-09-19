@@ -19,10 +19,11 @@ pub(super) fn handle(
         event_subsystem,
         dirty,
         active_pane,
+        split_mode,
         vim_enabled,
         ..
     } = context;
-    if terminal.is_active() {
+    if renderer.terminal_focused(terminal) {
         if terminal.can_go_back() && alt_pressed(keymod) && key == Keycode::Left && !repeat {
             if let Err(error) = terminal.go_back() {
                 terminal.set_status(error.to_string());
@@ -164,6 +165,16 @@ pub(super) fn handle(
                 terminal.complete_path(shift_pressed(keymod));
             }
             Keycode::Return | Keycode::KpEnter if !repeat => {
+                if terminal.input().trim() == ":exit" {
+                    if close_focused_pane(split_mode, active_pane, editor, other_editor,
+                        vim, other_vim, renderer, terminal) {
+                        terminal.clear_input();
+                    } else {
+                        terminal.set_status("No split pane to close. Use :quit in the editor to close Pötyi.");
+                    }
+                    *dirty = true;
+                    return Ok(Some(EventFlow::Continue));
+                }
                 match terminal.submit(event_subsystem) {
                     Ok(action) => {
                         if handle_terminal_action(

@@ -9,6 +9,9 @@ pub(super) fn drop_file(
         editor,
         other_editor,
         renderer,
+        terminal,
+        split_mode,
+        lsp_ui,
         vim,
         other_vim,
         search_ui,
@@ -18,6 +21,36 @@ pub(super) fn drop_file(
         vim_enabled,
         ..
     } = context;
+
+    if std::path::Path::new(filename).is_dir() {
+        match open_folder_workspace(
+            std::path::Path::new(filename),
+            split_mode,
+            active_pane,
+            editor,
+            other_editor,
+            vim,
+            other_vim,
+            renderer,
+            terminal,
+        ) {
+            Ok(()) => {
+                search_ui.close();
+                command_bar.close();
+                lsp_ui.dismiss_completion();
+            }
+            Err(error) => {
+                if renderer.terminal_focused(terminal) {
+                    terminal.set_status(format!("Could not open folder {filename}: {error}"));
+                } else {
+                    command_bar.open(":");
+                    command_bar.show_info(&format!("Could not open folder {filename}: {error}"));
+                }
+            }
+        }
+        *dirty = true;
+        return Ok(EventFlow::Continue);
+    }
 
     /*
      * Opening a document also terminates the active search.

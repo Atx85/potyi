@@ -376,3 +376,66 @@ fn resource_undo_waits_for_newer_edits_in_both_copies_of_an_open_buffer() {
     other.undo().unwrap(); history(&mut active,&mut other,false).unwrap();
     assert!(!dest.exists()); assert_eq!(text(&active),"old();\n"); assert_eq!(text(&other),"old();\n");
 }
+
+#[test]
+fn rename_treats_shared_views_as_one_buffer_and_undo_works_from_either_view() {
+    let (root, paths) = setup();
+    let mut a = editor(&paths[0]);
+    let mut b = a.duplicate_view();
+    let record = Arc::new(prepare_all(&root.0, &paths, &[&a]));
+    apply(record, &mut a, &mut b).unwrap();
+    assert_eq!(text(&a), "renamed();\n");
+    assert_eq!(text(&a), text(&b));
+    assert_eq!(a.undo_stack.len(), 1);
+    assert_eq!(b.undo_stack.len(), 1);
+    assert!(history(&mut b, &mut a, false).unwrap());
+    assert_eq!(text(&a), "old();\n");
+    assert_eq!(text(&a), text(&b));
+    assert!(history(&mut a, &mut b, true).unwrap());
+    assert_eq!(text(&a), "renamed();\n");
+    assert_eq!(text(&a), text(&b));
+}
+
+#[test]
+fn shared_views_save_as_together_and_replacing_one_view_keeps_the_other_editable() {
+    let (root, paths) = setup();
+    let mut a = editor(&paths[0]);
+    a.insert_text("draft ").unwrap();
+    let mut b = a.duplicate_view();
+    let destination = root.0.join("saved.rs");
+    b.save_as(destination.to_str().unwrap(), false).unwrap();
+    Editor::synchronize_views(&mut b, &mut a).unwrap();
+    assert_eq!(a.path, b.path);
+    assert!(!a.dirty && !b.dirty);
+    assert_eq!(fs::read_to_string(&destination).unwrap(), "draft old();\n");
+    a.open(paths[1].to_str().unwrap()).unwrap();
+    assert!(!a.shares_document_with(&b));
+    b.insert_text("more ").unwrap();
+    Editor::synchronize_views(&mut b, &mut a).unwrap();
+    assert_eq!(text(&a), "old();\n");
+    assert_eq!(text(&b), "draft more old();\n");
+    b.save().unwrap();
+    assert_eq!(fs::read_to_string(&destination).unwrap(), text(&b));
+}
+
+#[test]
+fn moving_a_file_updates_both_shared_views_and_undo_restores_both_paths() {
+    let (root, paths) = setup();
+    let dest = root.0.join("renamed.rs");
+    let mut a = editor(&paths[0]);
+    a.insert_text("draft ").unwrap();
+    let mut b = a.duplicate_view();
+    let before = text(&a);
+    let preview = prepare(&json!({"documentChanges":[{"kind":"rename",
+        "oldUri":lsp::file_uri(&paths[0]).unwrap(),"newUri":lsp::file_uri(&dest).unwrap()}]}),
+        &root.0, &[lsp::Document { path: paths[0].clone(), text: before.clone() }],
+        &HashMap::new(), SystemTime::now()).unwrap();
+    apply(Arc::new(preview), &mut a, &mut b).unwrap();
+    assert_eq!(a.path.as_ref(), Some(&dest.canonicalize().unwrap()));
+    assert_eq!(a.path, b.path);
+    assert_eq!(text(&a), before);
+    assert_eq!(text(&b), before);
+    assert!(history(&mut b, &mut a, false).unwrap());
+    assert_eq!(a.path.as_ref(), Some(&paths[0].canonicalize().unwrap()));
+    assert_eq!(a.path, b.path);
+}

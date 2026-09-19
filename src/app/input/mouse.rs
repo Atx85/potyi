@@ -17,6 +17,7 @@ pub(super) fn mouse(
         search_ui,
         command_bar,
         event_subsystem,
+        keyboard,
         dirty,
         split_mode,
         active_pane,
@@ -57,7 +58,17 @@ pub(super) fn mouse(
                 }
 
                 WindowControl::None => {
-                    if terminal.is_active() {
+                    if renderer.terminal_visible(terminal)
+                        && y >= window::TITLE_BAR_HEIGHT as f32
+                        && renderer.pane_at(x as i32) == renderer.terminal_pane()
+                        && (!command_bar.is_active()
+                            || renderer.command_bar_hit_at(command_bar, x as i32, y as i32) == CommandBarHit::Outside)
+                    {
+                        let clicked_pane = renderer.pane_at(x as i32);
+                        focus_pane_preserving_view(clicked_pane, active_pane, editor, other_editor, vim, other_vim, renderer);
+                        search_ui.close();
+                        command_bar.close();
+                        lsp_ui.dismiss_completion();
                         match renderer.terminal_hit_at(x as i32, y as i32) {
                             TerminalHit::Input => {
                                 let cursor = renderer.terminal_cursor_at(&*terminal, x as i32);
@@ -124,8 +135,11 @@ pub(super) fn mouse(
                                     x as i32,
                                     y as i32,
                                 )?;
+                                let open_other_pane = keyboard.mod_state().intersects(
+                                    Mod::LCTRLMOD | Mod::RCTRLMOD | Mod::LGUIMOD | Mod::RGUIMOD,
+                                );
                                 terminal
-                                    .begin_output_drag(offset, x as i32, y as i32, action)
+                                    .begin_output_drag(offset, x as i32, y as i32, action, open_other_pane)
                                     .map_err(|error| error.to_string())?;
                             }
 
@@ -200,6 +214,10 @@ pub(super) fn mouse(
                                 if outcome.quit {
                                     return Ok(EventFlow::Quit);
                                 }
+                                if outcome.close_pane {
+                                    close_focused_pane(split_mode, active_pane, editor, other_editor,
+                                        vim, other_vim, renderer, terminal);
+                                }
 
                                 if outcome.toggle_split {
                                     *split_mode = !*split_mode;
@@ -267,7 +285,7 @@ pub(super) fn mouse(
                         if let Some(clicked_pane) = renderer.pane_at_point(x as i32, y as i32)
                             && clicked_pane != *active_pane
                         {
-                            focus_pane(
+                            focus_pane_preserving_view(
                                 clicked_pane,
                                 &mut *active_pane,
                                 &mut *editor,
@@ -321,15 +339,21 @@ pub(super) fn mouse(
                 terminal
                     .drag_output_to(offset, x as i32, y as i32)
                     .map_err(|error| error.to_string())?;
+                let open_other_pane = terminal.output_click_opens_other_pane();
                 if let Some(action) = terminal.finish_output_drag() {
                     terminal.focus_prompt();
-                    if handle_terminal_action(
+                    if handle_terminal_action_in_pane(
                         action,
                         &mut *terminal,
                         &mut *editor,
                         &mut *other_editor,
                         &mut *renderer,
+                        if open_other_pane { TerminalOpenTarget::OtherPane } else { TerminalOpenTarget::CurrentPane },
                     )? {
+                        if open_other_pane {
+                            *split_mode = true;
+                            renderer.set_split_mode(true);
+                        }
                         focus_pane(
                             1 - *active_pane,
                             &mut *active_pane,
@@ -371,7 +395,14 @@ pub(super) fn mouse(
             mouse_y,
             ..
         } => {
-            if terminal.is_active() {
+            if !coordinates_converted {
+                return Ok(EventFlow::Continue);
+            }
+            if renderer.terminal_visible(terminal)
+                && renderer.pane_at(mouse_x as i32) == renderer.terminal_pane()
+                && (!command_bar.is_active()
+                    || renderer.command_bar_hit_at(command_bar, mouse_x as i32, mouse_y as i32) == CommandBarHit::Outside)
+            {
                 terminal.scroll(y as isize * 3);
                 *dirty = true;
                 return Ok(EventFlow::Continue);
@@ -397,6 +428,12 @@ pub(super) fn mouse(
              * is open. This lets the user inspect nearby matches
              * without closing the search bar.
              */
+            if let Some(pane) = renderer.pane_at_point(mouse_x as i32, mouse_y as i32)
+                && pane != *active_pane
+            {
+                focus_pane_preserving_view(pane, active_pane, editor, other_editor, vim, other_vim, renderer);
+                search_ui.close();
+            }
             renderer.scroll_by(-(y as isize), &mut editor.document);
 
             renderer.scroll_horizontal(-(x as i32) * 40);

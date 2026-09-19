@@ -176,13 +176,13 @@ pub(super) fn replay(directory: &Path, meta: &Metadata) -> io::Result<(PieceTabl
     )?;
     let add = File::open(directory.join("add"))?;
     let add_length = add.metadata()?.len();
-    table.add = super::super::EditStore {
+    table.add = std::sync::Arc::new(super::super::EditStore {
         file: Some(add),
         path: directory.join("add"),
-        length: usize::try_from(add_length)
-            .map_err(|_| invalid("Edit store exceeds this platform"))?,
+        length: std::sync::Mutex::new(usize::try_from(add_length)
+            .map_err(|_| invalid("Edit store exceeds this platform"))?),
         remove_on_drop: false,
-    };
+    });
     let mut log = File::open(directory.join("journal"))?;
     let file_length = log.metadata()?.len();
     let mut offset = 0;

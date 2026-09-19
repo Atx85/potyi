@@ -49,6 +49,7 @@ impl Plan {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct BufferHistory {
     index: usize,
     before_dirty: bool,

@@ -97,7 +97,7 @@ fn recovery_untitled_save_then_undo_keeps_immutable_original() {
     let destination = temp.0.join("source.txt");
     table.write_to(&destination).unwrap();
     table.recovery_saved(&destination);
-    assert!(!table.recovery.journal.as_ref().unwrap().dirty);
+    assert!(!table.recovery.lock().unwrap().journal.as_ref().unwrap().dirty);
     table.delete(8, 7).unwrap();
     fs::write(&destination, "outside modification").unwrap();
     assert_eq!(
@@ -135,7 +135,7 @@ fn successful_saves_clear_recovery_but_failed_saves_do_not() {
     let temp = Temp::new();
     let mut table = temp.table("saved");
     table.insert(5, " change").unwrap();
-    let directory = table.recovery.journal.as_ref().unwrap().directory.clone();
+    let directory = table.recovery.lock().unwrap().journal.as_ref().unwrap().directory.clone();
     assert!(table.write_to(&temp.0.join("missing/file.txt")).is_err());
     drop(table);
     assert_eq!(temp.restore().0, "saved change");
@@ -146,7 +146,7 @@ fn successful_saves_clear_recovery_but_failed_saves_do_not() {
     let temp = Temp::new();
     let mut table = temp.table("a");
     table.insert(1, "b").unwrap();
-    let directory = table.recovery.journal.as_ref().unwrap().directory.clone();
+    let directory = table.recovery.lock().unwrap().journal.as_ref().unwrap().directory.clone();
     let path = temp.0.join("renamed.cs");
     table.write_to(&path).unwrap();
     table.recovery_saved(&path);
@@ -160,7 +160,7 @@ fn successful_saves_clear_recovery_but_failed_saves_do_not() {
     let mut table = PieceTable::open(path.to_str().unwrap()).unwrap();
     table.enable_recovery_at(temp.0.join("other"), Some(&path));
     table.insert(0, "new").unwrap();
-    let clean = table.recovery.journal.as_ref().unwrap().directory.clone();
+    let clean = table.recovery.lock().unwrap().journal.as_ref().unwrap().directory.clone();
     table.write_to(&path).unwrap();
     table.recovery_saved(&path);
     drop(table);
@@ -173,7 +173,7 @@ fn recovery_ignores_every_truncated_tail_and_checksum_damage() {
     let temp = Temp::new();
     let mut table = temp.table("base");
     table.insert(4, " first").unwrap();
-    let directory = table.recovery.journal.as_ref().unwrap().directory.clone();
+    let directory = table.recovery.lock().unwrap().journal.as_ref().unwrap().directory.clone();
     let log = directory.join("journal");
     let checkpoint = fs::metadata(&log).unwrap().len();
     table.insert(table.len(), " second").unwrap();
@@ -200,7 +200,7 @@ fn recovery_rejects_missing_sources_and_unbounded_frame_lengths() {
     let temp = Temp::new();
     let mut table = temp.table("a");
     table.insert(1, "b").unwrap();
-    let directory = table.recovery.journal.as_ref().unwrap().directory.clone();
+    let directory = table.recovery.lock().unwrap().journal.as_ref().unwrap().directory.clone();
     drop(table);
     fs::write(directory.join("original"), "").unwrap();
     assert!(temp.restore_error().contains("incomplete"));
@@ -260,7 +260,7 @@ fn recovery_uses_fixed_buffers_and_small_per_edit_records() {
     for _ in 0..100 {
         table.insert(0, "x").unwrap();
     }
-    let directory = table.recovery.journal.as_ref().unwrap().directory.clone();
+    let directory = table.recovery.lock().unwrap().journal.as_ref().unwrap().directory.clone();
     assert_eq!(
         fs::metadata(directory.join("original")).unwrap().len(),
         8 * 1024 * 1024
@@ -343,7 +343,7 @@ fn damaged_metadata_does_not_hide_other_recovery_sessions() {
     let temp = Temp::new();
     let mut table = temp.table("a");
     table.insert(1, "b").unwrap();
-    let directory = table.recovery.journal.as_ref().unwrap().directory.clone();
+    let directory = table.recovery.lock().unwrap().journal.as_ref().unwrap().directory.clone();
     drop(table);
     fs::write(directory.join("metadata.json"), "broken").unwrap();
     let mut table = temp.table("c");
@@ -363,12 +363,14 @@ fn cross_filesystem_add_copy_and_failed_format_keep_journal_consistent() {
     let mut table = temp.table("old");
     table.insert(3, " text").unwrap();
     // Exercise the fallback used when temp and recovery directories are on different volumes.
-    let journal = table.recovery.journal.as_mut().unwrap();
+    let mut recovery_state = table.recovery.lock().unwrap();
+    let journal = recovery_state.journal.as_mut().unwrap();
     let path = journal.directory.join("add");
     fs::remove_file(&path).unwrap();
     create_private(&path).unwrap();
     journal.linked_add = false;
     journal.copied_add = 0;
+    drop(recovery_state);
     table.insert(0, "new ").unwrap();
     let expected = table.text().unwrap();
     assert!(
@@ -387,13 +389,15 @@ fn saving_after_a_journal_failure_restarts_from_the_complete_current_state() {
     let temp = Temp::new();
     let mut table = temp.table("base");
     table.insert(4, " one").unwrap();
-    let journal = table.recovery.journal.as_mut().unwrap();
+    let mut recovery_state = table.recovery.lock().unwrap();
+    let journal = recovery_state.journal.as_mut().unwrap();
     let path = journal.directory.join("journal");
     journal.log = Some(File::open(&path).unwrap()); // inject a journal write failure
+    drop(recovery_state);
     table.insert(table.len(), " unjournaled").unwrap();
     assert!(table.take_recovery_warning().is_some());
-    assert!(table.recovery.failed);
-    table.recovery.journal.as_mut().unwrap().log = Some(
+    assert!(table.recovery.lock().unwrap().failed);
+    table.recovery.lock().unwrap().journal.as_mut().unwrap().log = Some(
         OpenOptions::new()
             .read(true)
             .write(true)
@@ -403,11 +407,32 @@ fn saving_after_a_journal_failure_restarts_from_the_complete_current_state() {
     let destination = temp.0.join("saved.txt");
     table.write_to(&destination).unwrap();
     table.recovery_saved(&destination);
-    assert!(!table.recovery.failed);
-    assert!(table.recovery.journal.is_none());
+    assert!(!table.recovery.lock().unwrap().failed);
+    assert!(table.recovery.lock().unwrap().journal.is_none());
     table.insert(table.len(), " after save").unwrap();
     let expected = table.text().unwrap();
     assert!(table.take_recovery_warning().is_none());
     drop(table);
+    assert_eq!(temp.restore().0, expected);
+}
+
+#[test]
+fn shared_views_use_one_recovery_journal_across_edits_saves_and_dropped_views() {
+    let temp = Temp::new();
+    let mut a = temp.table("original");
+    let mut b = a.duplicate_view();
+    a.insert(0, "left ").unwrap();
+    b.refresh_view_from(&a).unwrap();
+    b.insert(b.len(), " right").unwrap();
+    a.refresh_view_from(&b).unwrap();
+    let saved = temp.0.join("saved.txt");
+    b.write_to(&saved).unwrap();
+    b.recovery_saved(&saved);
+    a.insert(a.len(), " unsaved").unwrap();
+    b.refresh_view_from(&a).unwrap();
+    drop(a);
+    b.insert(b.len(), " surviving").unwrap();
+    let expected = b.text().unwrap();
+    drop(b);
     assert_eq!(temp.restore().0, expected);
 }

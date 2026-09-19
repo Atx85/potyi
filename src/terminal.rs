@@ -278,6 +278,13 @@ impl Terminal {
         &self.input
     }
 
+    pub(crate) fn clear_input(&mut self) {
+        self.input.clear();
+        self.cursor = 0;
+        self.reset_history_navigation();
+        self.completions.reset_cycle();
+    }
+
     pub fn cursor(&self) -> usize {
         self.cursor
     }
@@ -661,6 +668,7 @@ PATH           open a text file (e.g. Cargo.lock or ./Cargo.lock)\n\
 view PATH[:LINE[:COLUMN]]  open read-only\n\
 clear          clear terminal output\n\
 exit           return to the editor\n\
+:exit          close this split pane, keeping the other pane open\n\
 grep [OPTIONS] PATTERN [FILE...]  run installed grep with its supported flags\n\
 grep -nH PATTERN FILE  clickable results jump to the reported line\n\
 Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
