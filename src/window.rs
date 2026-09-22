@@ -299,10 +299,10 @@ pub fn create_window(
         )
         .map_err(|e| e.to_string())?;
 
+    // Wayland compositors may not implement xdg-toplevel-icon-v1. The
+    // desktop launcher can supply the icon; this must not prevent startup.
     if !window.set_icon(&icon) {
-        return Err(
-            sdl3::get_error().to_string(),
-        );
+        sdl3::clear_error();
     }
 
     let initial_pixel_density =
@@ -364,13 +364,13 @@ pub fn create_window(
             .map_err(|e| e.to_string())?;
     }
 
+    // Wayland owns the placement of normal windows and rejects explicit
+    // positioning. Centering is only a preference on other backends, too.
     if !window.set_position(
         WindowPos::Centered,
         WindowPos::Centered,
     ) {
-        return Err(
-            sdl3::get_error().to_string(),
-        );
+        sdl3::clear_error();
     }
 
     if !window.sync() {
@@ -475,6 +475,27 @@ mod tests {
         WINDOW_ICON_PIXELS,
         WINDOW_ICON_SIZE,
     };
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "Requires a Wayland compositor; run with SDL_VIDEODRIVER=wayland"]
+    fn wayland_window_startup_smoke() {
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let driver = video.current_video_driver();
+        assert_eq!(driver, "wayland", "this regression must exercise the Wayland backend");
+        let (window, _hit_test) = super::create_window(&video, "Pötyi startup test", 800, 600)
+            .unwrap_or_else(|e| panic!("{driver} window startup failed: {e}"));
+        let mut canvas = sdl3::render::create_renderer(window, None).unwrap();
+        assert!(canvas.window_mut().show(), "{driver}: {}", sdl3::get_error());
+        canvas.set_draw_color(sdl3::pixels::Color::RGB(30, 30, 30));
+        canvas.clear();
+        canvas.present(); // Wayland needs the first frame to map the window.
+        let mut events = sdl.event_pump().unwrap();
+        for _ in events.poll_iter() {}
+        let (width, height) = canvas.window().size_in_pixels();
+        assert!(width > 0 && height > 0);
+    }
 
     #[test]
     fn embedded_window_icon_has_rgba_pixel_data() {

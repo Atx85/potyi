@@ -659,6 +659,37 @@ fn folder_drop_preserves_unsaved_panes_and_refuses_to_interrupt_terminal_work() 
     });
 }
 
+#[cfg(unix)]
+#[test]
+#[ignore = "Headless SDL folder workspace; run with SDL_VIDEODRIVER=dummy in a separate process"]
+fn folder_drop_handles_spaces_trailing_slashes_and_symlinks() {
+    let folder = FolderFixture::new();
+    let nested = folder.0.join("nested folder");
+    std::fs::write(nested.join("child.txt"), "nested file\n").unwrap();
+    let link = folder.0.join("linked folder");
+    std::os::unix::fs::symlink(&nested, &link).unwrap();
+    with_fixture(|app| {
+        for path in [nested.clone(), link] {
+            app.send(Event::DropFile {
+                timestamp: 0,
+                window_id: 0,
+                filename: format!("{}/", path.display()),
+            }, true);
+            finish_folder_listing(app);
+            assert!(app.split_mode);
+            assert_eq!(app.active_pane, 1);
+            assert!(app.editor.path.is_none());
+            assert!(app.editor.document.is_empty());
+            assert!(!app.command_bar.is_info());
+            assert_eq!(app.terminal.resolve_path("child.txt").unwrap(), nested.join("child.txt"));
+            assert!(app.terminal.output_text().unwrap().contains("child.txt"));
+            // Rendering forces document reads, where a directory mistakenly
+            // opened as a Unix file would otherwise fail with EISDIR.
+            render_terminal_fixture(app);
+        }
+    });
+}
+
 #[test]
 #[ignore = "Headless SDL pane editing; run with SDL_VIDEODRIVER=dummy in a separate process"]
 fn editable_panes_keep_independent_scrolling_and_edit_beyond_the_initial_view() {

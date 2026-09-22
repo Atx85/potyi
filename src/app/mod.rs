@@ -52,7 +52,8 @@ pub(crate) fn run() -> Result<(), String> {
             .map_err(|error| format!("Could not open folder {}: {error}", root.display()))?;
     }
 
-    let editor_config = EditorConfig::load("config/editor.toml").map_err(|e| e.to_string())?;
+    let editor_config = EditorConfig::load("config/editor.toml")
+        .map_err(|e| format!("Could not load config/editor.toml: {e}"))?;
 
     println!(
         "EDITOR CONFIG: tab_width={}, insert_spaces={}, line_numbers={:?}, keybindings={:?}",
@@ -61,7 +62,8 @@ pub(crate) fn run() -> Result<(), String> {
         editor_config.line_numbers,
         editor_config.keybinding_mode,
     );
-    let key_bindings = KeyBindings::load("config/keybindings.toml").map_err(|e| e.to_string())?;
+    let key_bindings = KeyBindings::load("config/keybindings.toml")
+        .map_err(|e| format!("Could not load config/keybindings.toml: {e}"))?;
 
     let startup_start = Instant::now();
 
@@ -73,7 +75,7 @@ pub(crate) fn run() -> Result<(), String> {
     let mut vim_enabled = editor.config.keybinding_mode == KeybindingMode::Vim;
 
     if let startup::LaunchTarget::File { path, location } = &launch {
-        editor.open(path).map_err(|e| e.to_string())?;
+        editor.open(path).map_err(|e| format!("Could not open file {path}: {e}"))?;
         if let Some((line, column)) = location {
             editor
                 .document
@@ -87,18 +89,23 @@ pub(crate) fn run() -> Result<(), String> {
         startup_start.elapsed()
     );
 
+    // Match linux/potyi.desktop so Wayland can use its launcher icon.
+    sdl3::hint::set("SDL_APP_ID", "potyi");
     let sdl = sdl3::init().map_err(|e| e.to_string())?;
 
-    let video = sdl.video().map_err(|e| e.to_string())?;
+    let video = sdl.video().map_err(|e| format!("Could not initialize the display: {e}"))?;
 
     let clipboard = video.clipboard();
     let keyboard = sdl.keyboard();
 
-    let (window, window_hit_test) = window::create_window(&video, "Pötyi", 800, 600)?;
+    let driver = video.current_video_driver();
+    let (window, window_hit_test) = window::create_window(&video, "Pötyi", 800, 600)
+        .map_err(|e| format!("Could not create the window ({driver}): {e}"))?;
 
     video.text_input().start(&window);
 
-    let canvas = window.into_canvas();
+    let canvas = sdl3::render::create_renderer(window, None)
+        .map_err(|e| format!("Could not create the renderer ({driver}): {e}"))?;
 
     let ttf_context = sdl3::ttf::init().map_err(|e| e.to_string())?;
 

@@ -1,0 +1,166 @@
+name: Rebuild Linux
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing release tag to update (blank = artifact only)"
+        required: false
+        type: string
+
+# Serialize download updates with the complete release workflow.
+concurrency:
+  group: manual-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+  BUILD_TARGET: x86_64-unknown-linux-gnu
+
+jobs:
+  build:
+    name: Build and check Linux x64
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+        working-directory: potyi build
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          path: potyi build
+
+      - name: Check the requested release exists
+        if: inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Enter an existing release tag such as v0.1.8, or leave it blank."
+            exit 1
+          fi
+          gh release view "$RELEASE_TAG" --json tagName,url
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config \
+            libasound2-dev libpulse-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+            libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+            libxkbcommon-dev libwayland-dev libdecor-0-dev \
+            libgl1-mesa-dev libegl1-mesa-dev \
+            libdbus-1-dev libudev-dev weston
+
+      - name: Install Rust toolchain
+        id: rust
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update --target "$BUILD_TARGET"
+          echo "version=$(rustc +stable -Vv | sha256sum | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Rust dependencies and Linux build files
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            potyi build/target
+          key: linux-rebuild-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.version }}-${{ hashFiles('potyi build/Cargo.lock', 'potyi build/.github/workflows/build-linux.yml') }}-${{ github.sha }}
+          restore-keys: |
+            linux-rebuild-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.version }}-${{ hashFiles('potyi build/Cargo.lock', 'potyi build/.github/workflows/build-linux.yml') }}-
+
+      - name: Build release executable
+        run: cargo +stable build --release --locked --target "$BUILD_TARGET"
+
+      - name: Check core behavior
+        run: cargo +stable test --release --locked --target "$BUILD_TARGET" -- --test-threads=1
+
+      - name: Check folder drops and background setup
+        env:
+          SDL_VIDEODRIVER: dummy
+        run: |
+          cargo +stable test --release --locked --target "$BUILD_TARGET" folder_drop_ -- --include-ignored --test-threads=1
+          cargo +stable test --release --locked --target "$BUILD_TARGET" setup_ui_ -- --include-ignored --test-threads=1
+
+      - name: Check native Wayland startup and folder rendering
+        run: |
+          export XDG_RUNTIME_DIR
+          XDG_RUNTIME_DIR="$(mktemp -d "$RUNNER_TEMP/potyi-wayland.XXXXXX")"
+          export WAYLAND_DISPLAY=potyi-test
+          chmod 700 "$XDG_RUNTIME_DIR"
+          weston --backend=headless-backend.so --use-pixman --no-config \
+            --socket="$WAYLAND_DISPLAY" --idle-time=0 \
+            --log="$RUNNER_TEMP/potyi-weston.log" &
+          weston_pid=$!
+          trap 'kill "$weston_pid" 2>/dev/null || true; rm -rf "$XDG_RUNTIME_DIR"' EXIT
+          for _attempt in {1..100}; do
+            if [[ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]]; then break; fi
+            if ! kill -0 "$weston_pid" 2>/dev/null; then
+              cat "$RUNNER_TEMP/potyi-weston.log"
+              exit 1
+            fi
+            sleep 0.1
+          done
+          test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+          export SDL_VIDEODRIVER=wayland
+          export SDL_RENDER_DRIVER=software
+          timeout 120s cargo +stable test --release --locked --target "$BUILD_TARGET" \
+            wayland_window_startup_smoke -- --include-ignored --test-threads=1
+          timeout 120s cargo +stable test --release --locked --target "$BUILD_TARGET" \
+            folder_drop_ -- --include-ignored --test-threads=1
+
+      - name: Package Linux download
+        run: |
+          package=potyi-linux-x86_64
+          stage="$RUNNER_TEMP/$package"
+          mkdir -p "$stage/fonts" "$stage/docs" dist
+          cp LICENSE Readme.md "$stage/"
+          cp docs/formatters.md docs/syntax-highlighting.md docs/lsp.md docs/lsp-setup.md docs/crash-recovery.md docs/recovery-memory-results.json "$stage/docs/"
+          cp fonts/LICENSE-DejaVuSans.md "$stage/fonts/"
+          cp "target/$BUILD_TARGET/release/potyi" "$stage/"
+          cp linux/potyi.desktop linux/potyi.png "$stage/"
+          chmod +x "$stage/potyi"
+          tar -czf "dist/$package.tar.gz" -C "$RUNNER_TEMP" "$package"
+
+      - name: Upload Linux download
+        uses: actions/upload-artifact@v6
+        with:
+          name: potyi-linux-x86_64
+          path: potyi build/dist/potyi-linux-x86_64.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  publish:
+    name: Update the existing Linux release download
+    needs: build
+    if: inputs.release_tag != ''
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: potyi-linux-x86_64
+          path: dist
+
+      - name: Replace only the Linux archive
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          test -s dist/potyi-linux-x86_64.tar.gz
+          gh release view "$RELEASE_TAG" --json tagName,url
+          gh release upload "$RELEASE_TAG" dist/potyi-linux-x86_64.tar.gz --clobber

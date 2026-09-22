@@ -395,9 +395,18 @@ impl PieceTable {
         let started = Instant::now();
 
         let original = File::open(path)?;
+        let metadata = original.metadata()?;
+        // Unix permits opening a directory handle, but reading it as text
+        // fails later. Reject it before replacing the current editor buffer.
+        if metadata.is_dir() {
+            return Err(io::Error::new(
+                io::ErrorKind::IsADirectory,
+                format!("{} is a directory, not a text file", Path::new(path).display()),
+            ));
+        }
 
         let original_length = usize::try_from(
-            original.metadata()?.len(),
+            metadata.len(),
         )
         .map_err(|_| {
             io::Error::new(

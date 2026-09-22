@@ -1,0 +1,22 @@
+ARG FEDORA_VERSION=44
+FROM fedora:${FEDORA_VERSION}
+
+RUN dnf install -y --setopt=install_weak_deps=False \
+    cargo rust gcc-c++ cmake ninja-build pkgconf-pkg-config \
+    alsa-lib-devel pulseaudio-libs-devel \
+    libX11-devel libXext-devel libXrandr-devel libXcursor-devel \
+    libXfixes-devel libXi-devel libXScrnSaver-devel libXtst-devel \
+    libxkbcommon-devel wayland-devel libdecor-devel \
+    mesa-libGL-devel mesa-libEGL-devel dbus-devel systemd-devel \
+    kwin-wayland dbus-daemon mesa-dri-drivers qt6-qtwayland xkeyboard-config \
+    && dnf clean all
+
+# Fedora grants KWin real-time scheduling via file capabilities. Docker's
+# default capability set excludes SYS_NICE; virtual-display tests do not need it.
+RUN setcap -r "$(command -v kwin_wayland)"
+
+ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
+ENV CARGO_TARGET_DIR=/build
+ENV CARGO_HOME=/usr/local/cargo
+WORKDIR /workspace
+CMD ["bash", "tools/qa/linux-container/run-fedora.sh"]

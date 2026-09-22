@@ -1,5 +1,45 @@
 # Feature verification
 
+## Linux container checks
+
+From the project root, with Docker running:
+
+```sh
+docker build -t potyi-linux-test tools/qa/linux-container
+docker run --rm \
+  --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+  --mount type=volume,source=potyi-linux-test-build,target=/build \
+  --mount type=volume,source=potyi-linux-test-registry,target=/usr/local/cargo/registry \
+  potyi-linux-test
+```
+
+The source checkout is read-only; Linux build artifacts and downloaded crates
+stay in Docker volumes. This checks folder launch, simulated SDL folder drops,
+and native Wayland window creation/first-frame presentation under headless
+Weston with software rendering. It repeats the simulated folder drops and pane
+rendering under Wayland. It runs Debian on Docker's native architecture.
+It does not test physical drag-and-drop from a file manager,
+desktop portals, or the user's GPU/compositor combination.
+
+For Fedora with KDE's KWin Wayland compositor, use:
+
+```sh
+docker build -f tools/qa/linux-container/Dockerfile.fedora \
+  --build-arg FEDORA_VERSION=44 -t potyi-fedora-test tools/qa/linux-container
+docker run --rm \
+  --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+  --mount type=volume,source=potyi-fedora-test-build,target=/build \
+  --mount type=volume,source=potyi-linux-test-registry,target=/usr/local/cargo/registry \
+  potyi-fedora-test
+```
+
+This runs the same checks under KWin's virtual display with software rendering.
+It uses Fedora packages for Rust and KWin and prints their versions in the log.
+It is not a full Plasma login session: Dolphin drag delivery, desktop portals,
+and physical GPU behavior still need a desktop reproduction.
+
+## Full feature verification
+
 The [acceptance plan](../../docs/testing/plan.md) covers all 51 inventory entries.
 The [execution report](../../docs/testing/report.md) distinguishes passing local
 checks from missing native, platform and dependency coverage.

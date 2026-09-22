@@ -509,6 +509,15 @@ Release downloads remain available on GitHub; additional copies under
 runs only when started manually. Release publication uses the built-in
 GitHub token, so no additional credentials are required.
 
+For a Linux-only rebuild, use **Actions → Rebuild Linux → Run workflow**
+after `.github/workflows/build-linux.yml` reaches the default branch. Choose
+the branch containing your fixes. Leave `release_tag` blank for a downloadable
+workflow artifact, or enter an existing tag (for example `v0.1.8`) to replace
+only its `potyi-linux-x86_64.tar.gz` download. This builds the selected branch,
+not the old tag's source; it does not move the tag or change the other platform
+downloads. The workflow checks core behavior, folder drops, and native Wayland
+startup before packaging, and caches Linux build files for subsequent runs.
+
 Mac downloads contain `Potyi.app`; Windows downloads contain `potyi.exe`;
 Linux downloads contain `potyi` and optional desktop integration files.
 The Mac apps are ad-hoc signed, without Apple notarization. Linux builds

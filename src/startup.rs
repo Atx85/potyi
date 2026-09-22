@@ -146,6 +146,25 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn opening_a_directory_as_text_preserves_the_current_document() {
+        let fixture = Fixture::new();
+        let mut editor = crate::Editor::new(crate::config::EditorConfig::default()).unwrap();
+        editor.insert_text("unsaved work").unwrap();
+        let revision = editor.document.revision();
+        let undo_steps = editor.undo_stack.len();
+        let folder = fixture.0.join("project with spaces");
+        let error = editor.open(folder.to_str().unwrap()).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::IsADirectory);
+        assert!(error.to_string().contains(folder.to_str().unwrap()));
+        assert_eq!(editor.document.text().unwrap(), "unsaved work");
+        assert_eq!(editor.document.revision(), revision);
+        assert_eq!(editor.undo_stack.len(), undo_steps);
+        assert!(editor.dirty);
+        assert!(editor.path.is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn existing_colon_names_and_symlinked_folders_are_supported() {
         let fixture = Fixture::new();
         fs::create_dir(fixture.0.join("project:2")).unwrap();

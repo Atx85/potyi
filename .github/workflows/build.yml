@@ -89,7 +89,7 @@ jobs:
             libxfixes-dev libxi-dev libxss-dev libxtst-dev \
             libxkbcommon-dev libwayland-dev libdecor-0-dev \
             libgl1-mesa-dev libegl1-mesa-dev \
-            libdbus-1-dev libudev-dev
+            libdbus-1-dev libudev-dev weston
 
       - name: Install Rust toolchain
         env:
@@ -100,6 +100,32 @@ jobs:
         env:
           BUILD_TARGET: ${{ matrix.target }}
         run: cargo +stable build --release --locked --target "$BUILD_TARGET"
+
+      - name: Check native Wayland window startup
+        if: runner.os == 'Linux'
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+        run: |
+          export XDG_RUNTIME_DIR="$(mktemp -d "$RUNNER_TEMP/potyi-wayland.XXXXXX")"
+          export WAYLAND_DISPLAY=potyi-test
+          chmod 700 "$XDG_RUNTIME_DIR"
+          weston --backend=headless-backend.so --use-pixman --no-config \
+            --socket="$WAYLAND_DISPLAY" --idle-time=0 \
+            --log="$RUNNER_TEMP/potyi-weston.log" &
+          weston_pid=$!
+          trap 'kill "$weston_pid" 2>/dev/null || true; rm -rf "$XDG_RUNTIME_DIR"' EXIT
+          for attempt in {1..100}; do
+            if [[ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]]; then break; fi
+            if ! kill -0 "$weston_pid" 2>/dev/null; then
+              cat "$RUNNER_TEMP/potyi-weston.log"
+              exit 1
+            fi
+            sleep 0.1
+          done
+          test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+          SDL_VIDEODRIVER=wayland SDL_RENDER_DRIVER=software \
+            cargo +stable test --locked --target "$BUILD_TARGET" \
+              wayland_window_startup_smoke -- --include-ignored --test-threads=1
 
       - name: Check crash recovery and saving
         env:
@@ -118,6 +144,12 @@ jobs:
           BUILD_TARGET: ${{ matrix.target }}
           SDL_VIDEODRIVER: dummy
         run: cargo +stable test --locked --target "$BUILD_TARGET" setup_ui_ -- --include-ignored --test-threads=1
+
+      - name: Check folder drag and drop
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+          SDL_VIDEODRIVER: dummy
+        run: cargo +stable test --locked --target "$BUILD_TARGET" folder_drop_ -- --include-ignored --test-threads=1
 
       - name: Check Unity file opening and missing language server
         if: runner.os == 'Windows'
