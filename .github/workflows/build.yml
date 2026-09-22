@@ -105,8 +105,12 @@ jobs:
         if: runner.os == 'Linux'
         env:
           BUILD_TARGET: ${{ matrix.target }}
+          # Ubuntu 22.04's EGL library can leave a pthread cleanup callback
+          # behind after SDL unloads it. Retain it until the test process exits.
+          LD_PRELOAD: libEGL.so.1
         run: |
-          export XDG_RUNTIME_DIR="$(mktemp -d "$RUNNER_TEMP/potyi-wayland.XXXXXX")"
+          export XDG_RUNTIME_DIR
+          XDG_RUNTIME_DIR="$(mktemp -d "$RUNNER_TEMP/potyi-wayland.XXXXXX")"
           export WAYLAND_DISPLAY=potyi-test
           chmod 700 "$XDG_RUNTIME_DIR"
           weston --backend=headless-backend.so --use-pixman --no-config \
@@ -114,7 +118,7 @@ jobs:
             --log="$RUNNER_TEMP/potyi-weston.log" &
           weston_pid=$!
           trap 'kill "$weston_pid" 2>/dev/null || true; rm -rf "$XDG_RUNTIME_DIR"' EXIT
-          for attempt in {1..100}; do
+          for _attempt in {1..100}; do
             if [[ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]]; then break; fi
             if ! kill -0 "$weston_pid" 2>/dev/null; then
               cat "$RUNNER_TEMP/potyi-weston.log"

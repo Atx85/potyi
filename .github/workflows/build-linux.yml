@@ -92,6 +92,10 @@ jobs:
           cargo +stable test --release --locked --target "$BUILD_TARGET" setup_ui_ -- --include-ignored --test-threads=1
 
       - name: Check native Wayland startup and folder rendering
+        env:
+          # Keep Ubuntu 22.04's EGL thread-cleanup callbacks mapped after
+          # SDL teardown, until Rust's test worker threads have exited.
+          LD_PRELOAD: libEGL.so.1
         run: |
           export XDG_RUNTIME_DIR
           XDG_RUNTIME_DIR="$(mktemp -d "$RUNNER_TEMP/potyi-wayland.XXXXXX")"

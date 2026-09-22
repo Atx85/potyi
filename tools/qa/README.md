@@ -21,6 +21,24 @@ rendering under Wayland. It runs Debian on Docker's native architecture.
 It does not test physical drag-and-drop from a file manager,
 desktop portals, or the user's GPU/compositor combination.
 
+To match the Linux release workflow's Ubuntu 22.04 libraries, use:
+
+```sh
+docker build -f tools/qa/linux-container/Dockerfile.ubuntu22 \
+  -t potyi-ubuntu22-test tools/qa/linux-container
+docker run --rm \
+  --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+  --mount type=volume,source=potyi-ubuntu22-test-build,target=/build \
+  --mount type=volume,source=potyi-linux-test-registry,target=/usr/local/cargo/registry \
+  potyi-ubuntu22-test
+```
+
+The native Wayland tests preload `libEGL.so.1` so it stays loaded until process
+exit. Ubuntu 22.04's EGL library can otherwise leave a thread-cleanup callback
+pointing into unloaded code after SDL teardown, crashing Rust's test worker.
+The setting is applied only to tests, not embedded in the packaged application.
+These containers use Docker's native CPU architecture.
+
 For Fedora with KDE's KWin Wayland compositor, use:
 
 ```sh

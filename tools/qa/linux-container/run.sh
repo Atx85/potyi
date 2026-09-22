@@ -26,6 +26,9 @@ for attempt in {1..100}; do
     sleep 0.1
 done
 test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+# Older EGL libraries can retain thread-local cleanup callbacks after SDL
+# unloads them. Keep EGL mapped until the Rust test process exits.
+export LD_PRELOAD="libEGL.so.1${LD_PRELOAD:+:$LD_PRELOAD}"
 SDL_VIDEODRIVER=wayland SDL_RENDER_DRIVER=software \
     timeout 120s dbus-run-session -- cargo test --locked wayland_window_startup_smoke \
     -- --include-ignored --test-threads=1 --nocapture

@@ -1,0 +1,22 @@
+FROM rust:bookworm AS toolchain
+FROM ubuntu:22.04
+
+COPY --from=toolchain /usr/local/rustup /usr/local/rustup
+COPY --from=toolchain /usr/local/cargo/bin /usr/local/cargo/bin
+ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo
+ENV PATH=/usr/local/cargo/bin:$PATH
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    build-essential ca-certificates cmake ninja-build pkg-config \
+    libasound2-dev libpulse-dev \
+    libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+    libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+    libxkbcommon-dev libwayland-dev libdecor-0-dev \
+    libgl1-mesa-dev libegl1-mesa-dev libdbus-1-dev libudev-dev \
+    weston dbus-x11 \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
+ENV CARGO_TARGET_DIR=/build
+WORKDIR /workspace
+CMD ["bash", "tools/qa/linux-container/run.sh"]
