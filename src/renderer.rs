@@ -178,6 +178,7 @@ pub struct Renderer<'a> {
     scroll_revision: u64,
 
     window_hit_test: WindowHitTestState,
+    hovered_window_control: WindowControl,
     syntax: Option<SyntaxDefinition>,
 
     inactive_view: StoredViewState,
@@ -289,6 +290,7 @@ impl<'a> Renderer<'a> {
             scroll_revision: 0,
 
             window_hit_test,
+            hovered_window_control: WindowControl::None,
             syntax: None,
 
             inactive_view: StoredViewState::empty(),
@@ -1201,6 +1203,19 @@ impl<'a> Renderer<'a> {
     fn render_title_bar(
         &mut self,
     ) -> Result<(), String> {
+        // Window chrome uses fixed UI fonts, independent of editor zoom.
+        std::mem::swap(&mut self.font, &mut self.command_font);
+        std::mem::swap(&mut self.raster_font, &mut self.command_raster_font);
+        std::mem::swap(&mut self.char_width, &mut self.command_char_width);
+        let result = self.render_title_bar_contents();
+        std::mem::swap(&mut self.font, &mut self.command_font);
+        std::mem::swap(&mut self.raster_font, &mut self.command_raster_font);
+        std::mem::swap(&mut self.char_width, &mut self.command_char_width);
+        self.canvas.set_clip_rect(None);
+        result
+    }
+
+    fn render_title_bar_contents(&mut self) -> Result<(), String> {
         let height =
             TITLE_BAR_HEIGHT;
 
@@ -1233,7 +1248,10 @@ impl<'a> Renderer<'a> {
             ))
             .map_err(|e| e.to_string())?;
 
-        let title = "Pötyi";
+        let title = crate::APP_TITLE;
+
+        self.canvas.set_clip_rect(Rect::new(0, 0,
+            (width - WINDOW_BUTTONS_WIDTH).max(1) as u32, height as u32));
 
         let title_y =
             (
@@ -1272,12 +1290,28 @@ impl<'a> Renderer<'a> {
             )?;
         }
 
+        self.canvas.set_clip_rect(None);
+
         let buttons_left =
             width
                 - WINDOW_BUTTONS_WIDTH;
 
         let center_y =
             height / 2;
+
+        let hovered_button = match self.hovered_window_control {
+            WindowControl::Minimize => Some((0, Color::RGB(62, 62, 62))),
+            WindowControl::Maximize => Some((1, Color::RGB(62, 62, 62))),
+            WindowControl::Close => Some((2, Color::RGB(196, 43, 50))),
+            WindowControl::None => None,
+        };
+        if let Some((index, color)) = hovered_button {
+            self.canvas.set_draw_color(color);
+            self.canvas.fill_rect(Rect::new(
+                buttons_left + index * WINDOW_BUTTON_WIDTH, 0,
+                WINDOW_BUTTON_WIDTH as u32, (height - 1) as u32,
+            )).map_err(|e| e.to_string())?;
+        }
 
         self.canvas.set_draw_color(
             Color::RGB(
@@ -1321,6 +1355,9 @@ impl<'a> Renderer<'a> {
             .map_err(|e| e.to_string())?;
 
         // Close
+        if self.hovered_window_control == WindowControl::Close {
+            self.canvas.set_draw_color(Color::RGB(255, 255, 255));
+        }
         let close_center =
             buttons_left
                 + WINDOW_BUTTON_WIDTH * 2
@@ -1359,6 +1396,12 @@ impl<'a> Renderer<'a> {
     // Window control hit testing
     // ----------------------------------------------------------------------
 
+    pub(crate) fn set_window_control_hover(&mut self, control: WindowControl) -> bool {
+        if self.hovered_window_control == control { return false; }
+        self.hovered_window_control = control;
+        true
+    }
+
     pub fn window_control_at(
         &self,
         x: i32,
@@ -1374,7 +1417,7 @@ impl<'a> Renderer<'a> {
             self.window_width
                 - WINDOW_BUTTONS_WIDTH;
 
-        if x < buttons_left {
+        if x < 0 || x < buttons_left {
             return WindowControl::None;
         }
 
@@ -5148,6 +5191,39 @@ mod cursor_hit_tests {
 #[cfg(test)]
 mod terminal_selection_render_tests {
     use super::*;
+
+    #[test]
+    #[ignore = "Pixel regression; run with SDL_VIDEODRIVER=dummy in a separate process"]
+    fn title_bar_stays_fixed_when_editor_font_changes() {
+        let sdl = sdl3::init().unwrap();
+        let video = sdl.video().unwrap();
+        let window = video.window("title zoom", 800, 600).hidden().build().unwrap();
+        let ttf = sdl3::ttf::init().unwrap();
+        let font = || ttf.load_font_from_iostream(
+            sdl3::iostream::IOStream::from_bytes(crate::FONT_DATA).unwrap(), 18.0,
+        ).unwrap();
+        let canvas = window.into_canvas();
+        let textures = canvas.texture_creator();
+        let mut renderer = Renderer::new(canvas, &textures, font(), font(), 18.0,
+            (font(), font()), crate::window::WindowHitTestState::new(800, 1.0)).unwrap();
+        renderer.set_mode_label(Some("VIM INSERT"));
+        let pixels = |renderer: &Renderer<'_>| {
+            renderer.canvas.read_pixels(Rect::new(0, 0, 800, TITLE_BAR_HEIGHT as u32)).unwrap()
+                .convert_format(sdl3::pixels::PixelFormat::RGBA32).unwrap()
+                .with_lock(|bytes| bytes.to_vec())
+        };
+        renderer.render_title_bar().unwrap();
+        let expected = pixels(&renderer);
+        let initial_editor_height = renderer.font.height();
+        for size in [8.0, 48.0, 24.0, 18.0] {
+            renderer.set_font_size(size).unwrap();
+            let editor_height = renderer.font.height();
+            renderer.render_title_bar().unwrap();
+            assert_eq!(pixels(&renderer), expected, "title bar changed at editor size {size}");
+            assert_eq!(renderer.font.height(), editor_height, "editor font must be restored");
+            if size != 18.0 { assert_ne!(editor_height, initial_editor_height); }
+        }
+    }
 
     #[test]
     #[ignore = "Pixel regression; run with SDL_VIDEODRIVER=dummy in a separate process"]

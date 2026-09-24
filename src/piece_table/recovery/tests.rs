@@ -42,6 +42,44 @@ impl Drop for Temp {
 }
 
 #[test]
+fn startup_reminders_are_dismissible_without_discarding_recovery() {
+    let temp = Temp::new();
+    let root = temp.0.join("recovery");
+    assert!(startup_notice(&root).unwrap().is_none());
+    let mut table = temp.table("original");
+    table.insert(0, "unsaved ").unwrap();
+    assert!(startup_notice(&root).unwrap().is_none(), "live windows are excluded");
+    drop(table);
+    let notice = startup_notice(&root).unwrap().unwrap();
+    assert!(notice.text.contains("1: "));
+    // Merely checking/launching must not consume the reminder.
+    assert!(startup_notice(&root).unwrap().is_some());
+    notice.acknowledge();
+    assert!(startup_notice(&root).unwrap().is_none());
+    assert_eq!(list(&root).unwrap().len(), 1);
+    assert_eq!(temp.restore().0, "unsaved original");
+    let mut next = temp.table("second");
+    next.insert(0, "new ").unwrap();
+    drop(next);
+    assert!(startup_notice(&root).unwrap().is_some(), "new unsaved work is offered");
+    assert_eq!(list(&root).unwrap().len(), 2);
+}
+
+#[test]
+fn recovery_labels_simplify_only_windows_drive_and_unc_prefixes() {
+    for (path, expected) in [
+        (r"\\?\C:\Users\Zoë\file.txt", r"C:\Users\Zoë\file.txt"),
+        (r"\\?\c:\folder with spaces\file.rs", r"c:\folder with spaces\file.rs"),
+        (r"\\?\UNC\server\share\file.txt", r"\\server\share\file.txt"),
+        (r"\\server\share\file.txt", r"\\server\share\file.txt"),
+        (r"\\?\Volume{123}\file", r"\\?\Volume{123}\file"),
+        ("/home/user/file.rs", "/home/user/file.rs"),
+    ] {
+        assert_eq!(display_path(Path::new(path)), expected);
+    }
+}
+
+#[test]
 fn recovery_replays_unicode_deletions_piece_undo_and_batches() {
     let temp = Temp::new();
     let mut table = temp.table("hello 🦀\r\nworld");

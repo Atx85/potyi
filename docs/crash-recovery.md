@@ -1,8 +1,10 @@
 # Crash recovery
 
 Potyi journals edits for the documents open in the editor. On the next launch,
-unsaved sessions appear in the command bar. They also remain available after
-closing an unsaved document normally.
+new unsaved sessions appear in the command bar after the window opens. Dismissing
+the panel stops automatic reminders for those sessions; `:recover` still lists
+them whenever needed. They also remain available after closing an unsaved
+document normally. The startup check runs in the background.
 
 ```
 :recover

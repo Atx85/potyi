@@ -21,6 +21,7 @@
 )]
 
 static FONT_DATA: &[u8] = include_bytes!("../fonts/DejaVuSansMono.ttf");
+const APP_TITLE: &str = concat!("Pötyi  ", env!("POTYI_DISPLAY_VERSION"));
 
 mod app;
 mod editor;

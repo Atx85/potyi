@@ -454,11 +454,13 @@ fn valid_id(id: &str) -> bool {
 
 pub(crate) fn describe() -> io::Result<String> {
     let entries = list(&root()?)?;
+    Ok(describe_entries(&entries))
+}
+
+fn describe_entries(entries: &[Entry]) -> String {
     if entries.is_empty() {
-        return Ok(
-            "No unsaved recovery sessions. Sessions open in another Potyi window are left alone."
-                .into(),
-        );
+        return "No unsaved recovery sessions. Sessions open in another Potyi window are left alone."
+            .into();
     }
     let mut lines =
         vec!["Unsaved work is available. Recover a separate copy with :recover <number>.".into()];
@@ -469,12 +471,61 @@ pub(crate) fn describe() -> io::Result<String> {
             entry
                 .source
                 .as_deref()
-                .map(|p| p.display().to_string())
+                .map(display_path)
                 .unwrap_or_else(|| "Untitled document".into())
         ));
     }
     lines.push("Recovery keeps the originals unchanged. Save As chooses where the recovered work belongs. Up to 100 sessions are listed.".into());
-    Ok(lines.join("\n"))
+    lines.join("\n")
+}
+
+// Only simplify the displayed spelling. File operations keep the original
+// extended-length Windows path, including paths longer than MAX_PATH.
+fn display_path(path: &Path) -> String {
+    let text = path.to_string_lossy();
+    if let Some(unc) = text.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{unc}");
+    }
+    if let Some(drive) = text.strip_prefix(r"\\?\") {
+        let bytes = drive.as_bytes();
+        if bytes.len() >= 3 && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':' && bytes[2] == b'\\'
+        {
+            return drive.to_owned();
+        }
+    }
+    text.into_owned()
+}
+
+pub(crate) struct StartupNotice {
+    pub text: String,
+    directories: Vec<PathBuf>,
+}
+
+impl StartupNotice {
+    // A dismissed offer does not discard the recovery data. Explicit :recover
+    // continues to list all unsaved sessions, including acknowledged ones.
+    pub fn acknowledge(self) {
+        for directory in self.directories {
+            if let Ok(Some(_lock)) = claim(&directory) {
+                let _ = OpenOptions::new().write(true).create_new(true)
+                    .open(directory.join("notice-dismissed"));
+            }
+        }
+    }
+}
+
+pub(crate) fn startup_notice(root: &Path) -> io::Result<Option<StartupNotice>> {
+    let entries = list(root)?;
+    if !entries.iter().any(|entry| !root.join(&entry.id).join("notice-dismissed").is_file()) {
+        return Ok(None);
+    }
+    let text = format!("{}\nDismiss this panel to stop reminders for these sessions. They remain available through :recover.",
+        describe_entries(&entries));
+    Ok(Some(StartupNotice {
+        text,
+        directories: entries.iter().map(|entry| root.join(&entry.id)).collect(),
+    }))
 }
 
 pub(crate) fn restore_number_at(

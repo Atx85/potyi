@@ -3,6 +3,7 @@ use super::*;
 
 pub(super) fn text(context: InputContext<'_, '_>, text: &str) -> Result<EventFlow, String> {
     let InputContext {
+        pane_keys,
         editor,
         other_editor,
         renderer,
@@ -17,7 +18,7 @@ pub(super) fn text(context: InputContext<'_, '_>, text: &str) -> Result<EventFlo
         ..
     } = context;
 
-    if emacs.consume_text() {
+    if pane_keys.consume_text() || emacs.consume_text() {
         return Ok(EventFlow::Continue);
     }
     if renderer.terminal_focused(terminal) {

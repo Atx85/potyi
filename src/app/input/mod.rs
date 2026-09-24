@@ -4,6 +4,7 @@
 use super::*;
 mod drop_file;
 mod keyboard;
+pub(crate) use keyboard::PaneKeys;
 mod mouse;
 pub(super) use mouse::MouseState;
 mod text;
@@ -18,6 +19,7 @@ pub(super) enum EventFlow {
 }
 
 pub(super) struct InputContext<'a, 'font> {
+    pub pane_keys: &'a mut PaneKeys,
     pub mouse_state: &'a mut MouseState,
     pub editor: &'a mut Editor,
     pub other_editor: &'a mut Editor,
@@ -43,6 +45,7 @@ impl<'a, 'font> InputContext<'a, 'font> {
     // Sequential stages borrow the same state; no documents or controllers are copied.
     fn reborrow(&mut self) -> InputContext<'_, 'font> {
         InputContext {
+            pane_keys: &mut *self.pane_keys,
             mouse_state: &mut *self.mouse_state,
             editor: &mut *self.editor,
             other_editor: &mut *self.other_editor,
@@ -72,6 +75,10 @@ pub(super) fn dispatch(
     coordinates_converted: bool,
 ) -> Result<EventFlow, String> {
     let mut context = context;
+    if matches!(event, Event::MouseButtonDown { .. } | Event::DropFile { .. }
+        | Event::Window { win_event: WindowEvent::FocusLost, .. }) {
+        context.pane_keys.cancel();
+    }
     if matches!(event, Event::KeyDown { .. } | Event::TextInput { .. } | Event::DropFile { .. }
         | Event::Window { win_event: WindowEvent::FocusLost, .. })
     {
@@ -104,6 +111,14 @@ fn dispatch_event(
         | Event::MouseWheel { .. }) => mouse::mouse(context, event, coordinates_converted),
         Event::Quit { .. } => Ok(EventFlow::Quit),
         Event::Window {
+            win_event: WindowEvent::MouseLeave | WindowEvent::FocusLost
+                | WindowEvent::Hidden | WindowEvent::Minimized,
+            ..
+        } => {
+            *context.dirty |= context.renderer.set_window_control_hover(WindowControl::None);
+            Ok(EventFlow::Continue)
+        }
+        Event::Window {
             win_event:
                 WindowEvent::Resized(_, _)
                 | WindowEvent::PixelSizeChanged(_, _)
@@ -117,6 +132,7 @@ fn dispatch_event(
             display_event: DisplayEvent::ContentScaleChanged,
             ..
         } => {
+            context.renderer.set_window_control_hover(WindowControl::None);
             context.renderer.update_window_size()?;
             *context.dirty = true;
             Ok(EventFlow::Continue)

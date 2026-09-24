@@ -8,6 +8,8 @@ mod history;
 mod shortcuts;
 mod terminal;
 mod vim_mode;
+mod panes;
+pub(crate) use panes::PaneKeys;
 
 // None tries the next stage. Some(Continue) consumes the key; Some(Quit) exits.
 type KeyResult = Result<Option<EventFlow>, String>;
@@ -19,6 +21,9 @@ pub(super) fn key(
     repeat: bool,
 ) -> Result<EventFlow, String> {
     context.emacs.begin_key();
+    if let Some(flow) = panes::handle(context.reborrow(), key, keymod, repeat)? {
+        return Ok(flow);
+    }
     if let Some(flow) = shortcuts::terminal_toggle(context.reborrow(), key, keymod, repeat)? {
         return Ok(flow);
     }

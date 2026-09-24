@@ -135,6 +135,11 @@ operators including `dd`, `cc`, and `yy`. `x`, `u`, `Ctrl+R`, `p`, `P`,
 `D`, `C`, `Y`, `s`, `S`, `X`, and semantic `.` repeat are also available.
 The title bar shows the current Vim mode.
 
+In Normal or Visual mode, press `Ctrl+W`, then `W` to focus the other pane,
+`H` to focus the left pane, or `L` to focus the right pane. You can keep Ctrl
+held for the second key. These shortcuts also work from a terminal pane;
+press Escape first when editing in Vim Insert mode.
+
 In Normal and Visual modes, `Ctrl+F/B` and `Page Down/Up` move a full page; `Ctrl+D/U` move half a page. Counts repeat full pages or set the number of lines for a half-page movement. In Visual mode these motions extend the selection; `Shift+Page Up/Down` also starts a selection from Normal mode. Insert mode uses the conventional page shortcuts.
 
 Use `v` with `w`, `b`, or `e` to select by word, and `V` for whole-line selection. `ggVG` selects the entire document, including the last line. Whole-line selections also support page motions, `gg`/`G`, and yank/delete/change. In Normal and Visual modes, `Ctrl+F` pages forward; use `/` or `:find` to search.
@@ -181,7 +186,8 @@ Examples:
 ## Crash recovery
 
 Unsaved documents are journaled to disk with bounded memory overhead. On the
-next launch, Potyi offers available sessions. Use `:recover` to list them and
+next launch, Potyi offers new sessions. Dismissing the panel stops repeat reminders
+without deleting the recovery data. Use `:recover` to list all sessions and
 `:recover 1` to open a separate recovered copy, then Save As to choose its
 location. Recovery preserves files changed outside Potyi and leaves sessions
 open in other windows alone. See [crash recovery](docs/crash-recovery.md) for
@@ -335,6 +341,8 @@ independent document, cursor, selection, scroll position, and undo history.
 Both editor panes use their full width and support horizontal and vertical
 scrolling, long-line editing, and automatic scrolling to keep the cursor visible.
 Click a pane to focus it; file and editing commands apply to the focused pane.
+Keyboard navigation is available in Vim mode (`Ctrl+W`, then `W`, `H`, or `L`)
+and Emacs mode (`Ctrl+X`, then `O`), including when a terminal occupies a pane.
 Run `:exit` to close the focused split pane and leave the other pane visible.
 Its document and unsaved edits stay in memory; `:split` brings the pane back.
 You can also type `:exit` directly into a terminal pane. It only closes split

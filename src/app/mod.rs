@@ -31,6 +31,7 @@ use std::{
 
 pub(crate) mod commands;
 mod input;
+mod recovery_prompt;
 pub(crate) mod navigation;
 pub(crate) mod search;
 use commands::*;
@@ -99,7 +100,8 @@ pub(crate) fn run() -> Result<(), String> {
     let keyboard = sdl.keyboard();
 
     let driver = video.current_video_driver();
-    let (window, window_hit_test) = window::create_window(&video, "Pötyi", 800, 600)
+    let (window, window_hit_test) = window::create_window(
+        &video, crate::APP_TITLE, 800, 600)
         .map_err(|e| format!("Could not create the window ({driver}): {e}"))?;
 
     video.text_input().start(&window);
@@ -159,20 +161,7 @@ pub(crate) fn run() -> Result<(), String> {
     let mut search_ui = SearchUi::new();
 
     let mut command_bar = CommandBar::new();
-    match piece_table::recovery::root().and_then(|root| piece_table::recovery::list(&root)) {
-        Ok(entries) if !entries.is_empty() => {
-            command_bar.open(":recover");
-            command_bar.show_info(
-                &piece_table::recovery::describe()
-                    .unwrap_or_else(|e| format!("Could not list recovered work: {e}")),
-            );
-        }
-        Err(error) => {
-            command_bar.open(":recover");
-            command_bar.show_info(&format!("Could not check crash recovery: {error}"));
-        }
-        _ => (),
-    }
+    let mut recovery_prompt = recovery_prompt::RecoveryPrompt::default();
 
     let mut vim = VimController::new();
     let mut other_vim = VimController::new();
@@ -220,6 +209,7 @@ pub(crate) fn run() -> Result<(), String> {
     let mut dirty = true;
     let mut pending_events = Vec::with_capacity(32);
     let mut mouse_state = input::MouseState::default();
+    let mut pane_keys = input::PaneKeys::default();
 
     // ----------------------------------------------------------------------
     // Event loop
@@ -244,7 +234,7 @@ pub(crate) fn run() -> Result<(), String> {
                 Instant::now(),
                 dirty,
                 terminal.has_pending_work(),
-            ).min(mouse_state.wait_timeout()))
+            ).min(mouse_state.wait_timeout()).min(recovery_prompt.wait_timeout()))
         {
             pending_events.push(event);
         }
@@ -313,6 +303,7 @@ pub(crate) fn run() -> Result<(), String> {
 
             if input::dispatch(
                 input::InputContext {
+                    pane_keys: &mut pane_keys,
                     mouse_state: &mut mouse_state,
                     editor: &mut editor,
                     other_editor: &mut other_editor,
@@ -342,6 +333,7 @@ pub(crate) fn run() -> Result<(), String> {
         }
 
         dirty |= mouse_state.tick(&mut editor, &mut renderer, &mut vim, vim_enabled, active_pane)?;
+        dirty |= recovery_prompt.update(&mut command_bar);
 
         for document in [&mut editor.document, &mut other_editor.document] {
             if let Some(warning) = document.take_recovery_warning() {
@@ -400,8 +392,12 @@ pub(crate) fn run() -> Result<(), String> {
             }
 
             dirty = false;
+            recovery_prompt.start();
         }
     }
 
+    // Close visually before process/graphics cleanup or recovery bookkeeping.
+    renderer.window_mut().hide();
+    recovery_prompt.acknowledge();
     Ok(())
 }

@@ -33,6 +33,9 @@ also supplies Meta, useful where Alt/Option produces accented characters.
 | Show two panes / switch pane / show only current pane | `C-x 2` or `C-x 3` / `C-x o` / `C-x 1` |
 | Quit when both documents are saved | `C-x C-c` |
 
+`C-x o` also switches between an editor and a terminal pane, preserving the
+terminal's draft command. Press Ctrl+X, release Ctrl, then press O.
+
 Movement extends an active mark. Typing replaces the selected region. Consecutive
 kills accumulate in one kill-ring entry; backward kills prepend their text.
 The kill ring is shared by the two documents and retains at most 32 entries and

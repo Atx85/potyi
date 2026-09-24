@@ -4,6 +4,7 @@
 use super::*;
 
 struct Fixture<'font> {
+    pane_keys: PaneKeys,
     mouse_state: MouseState,
     editor: Editor,
     other_editor: Editor,
@@ -29,6 +30,7 @@ impl Fixture<'_> {
     fn send(&mut self, event: Event, coordinates: bool) -> EventFlow {
         dispatch(
             InputContext {
+                pane_keys: &mut self.pane_keys,
                 mouse_state: &mut self.mouse_state,
                 editor: &mut self.editor,
                 other_editor: &mut self.other_editor,
@@ -139,6 +141,7 @@ fn with_fixture(test: impl FnOnce(&mut Fixture<'_>)) {
         ..EditorConfig::default()
     };
     let mut fixture = Fixture {
+        pane_keys: PaneKeys::default(),
         mouse_state: MouseState::default(),
         editor: Editor::new(config.clone()).unwrap(),
         other_editor: Editor::new(config).unwrap(),
@@ -280,6 +283,96 @@ fn emacs_events_preserve_prefixes_text_suppression_and_cancellation() {
         app.key(Keycode::G, Mod::LCTRLMOD);
         assert!(!app.command_bar.is_active());
         assert_eq!(app.editor.document.text().unwrap(), "hello");
+    });
+}
+
+#[test]
+#[ignore = "Headless SDL event routing; run with SDL_VIDEODRIVER=dummy in a separate process"]
+fn pane_keyboard_vim_switches_direction_and_preserves_insert_text() {
+    with_fixture(|app| {
+        app.editor.insert_text("left").unwrap();
+        app.other_editor.insert_text("right").unwrap();
+        app.split_mode = true;
+        app.renderer.set_split_mode(true);
+        app.mode(KeybindingMode::Vim);
+        app.key(Keycode::W, Mod::LCTRLMOD);
+        app.key_repeat(Keycode::W, Mod::LCTRLMOD, true);
+        app.key(Keycode::L, Mod::NOMOD);
+        app.text("l");
+        assert_eq!(app.active_pane, 1);
+        assert_eq!(app.editor.document.text().unwrap(), "right");
+        app.key(Keycode::W, Mod::LCTRLMOD);
+        app.key(Keycode::L, Mod::LCTRLMOD);
+        assert_eq!(app.active_pane, 1, "right at the edge stays in place");
+        app.key(Keycode::I, Mod::NOMOD);
+        app.text("i");
+        assert_eq!(app.vim.mode(), vim::VimMode::Insert);
+        // Switch away with the same pointer path users can use while inserting.
+        focus_pane(0, &mut app.active_pane, &mut app.editor, &mut app.other_editor,
+            &mut app.vim, &mut app.other_vim, &mut app.renderer);
+        app.key(Keycode::W, Mod::LCTRLMOD);
+        app.key(Keycode::W, Mod::NOMOD);
+        app.text("w");
+        app.key_repeat(Keycode::W, Mod::NOMOD, true);
+        app.text("w");
+        assert_eq!(app.active_pane, 1);
+        assert_eq!(app.editor.document.text().unwrap(), "right", "shortcut text cannot leak into Insert mode");
+        app.key(Keycode::A, Mod::NOMOD);
+        app.text("a");
+        assert!(app.editor.document.text().unwrap().contains('a'), "the next ordinary key must not be swallowed");
+        app.key(Keycode::Escape, Mod::NOMOD);
+        app.key(Keycode::W, Mod::LCTRLMOD);
+        app.key(Keycode::LCtrl, Mod::LCTRLMOD);
+        app.key(Keycode::H, Mod::LCTRLMOD);
+        assert_eq!(app.active_pane, 0);
+        assert_eq!(app.editor.document.text().unwrap(), "left");
+        app.key(Keycode::W, Mod::LCTRLMOD);
+        app.key(Keycode::Escape, Mod::NOMOD);
+        app.key(Keycode::L, Mod::NOMOD);
+        assert_eq!(app.active_pane, 0, "Escape cancels the prefix");
+        app.split_mode = false;
+        app.renderer.set_split_mode(false);
+        app.key(Keycode::W, Mod::LCTRLMOD);
+        app.key(Keycode::W, Mod::LCTRLMOD);
+        assert_eq!(app.active_pane, 0, "single-pane mode must not expose a hidden document");
+    });
+}
+
+#[test]
+#[ignore = "Headless SDL event routing; run with SDL_VIDEODRIVER=dummy in a separate process"]
+fn pane_keyboard_switches_between_terminal_and_editor_in_vim_and_emacs() {
+    with_fixture(|app| {
+        app.split_mode = true;
+        app.renderer.set_split_mode(true);
+        app.editor.insert_text("left").unwrap();
+        app.other_editor.insert_text("right").unwrap();
+        app.renderer.place_terminal_in_active_pane();
+        app.terminal.open(None);
+        app.terminal.insert_text("draft command");
+        for (mode, prefix, second, text) in [
+            (KeybindingMode::Vim, Keycode::W, Keycode::W, "w"),
+            (KeybindingMode::Emacs, Keycode::X, Keycode::O, "o"),
+        ] {
+            app.mode(mode);
+            for target in [1, 0, 1, 0] {
+                app.key(prefix, Mod::LCTRLMOD);
+                app.key(second, Mod::NOMOD);
+                app.text(text);
+                assert_eq!(app.active_pane, target);
+                assert_eq!(app.renderer.terminal_focused(&app.terminal), target == 0);
+                assert_eq!(app.terminal.input(), "draft command");
+                assert_eq!(app.editor.document.text().unwrap(), if target == 0 { "left" } else { "right" });
+            }
+            app.key(prefix, Mod::LCTRLMOD);
+            app.key(Keycode::Escape, Mod::NOMOD);
+            assert!(app.renderer.terminal_focused(&app.terminal), "prefix cancellation must not close the terminal");
+        }
+        app.terminal.close_to_editor();
+        app.key(Keycode::X, Mod::LCTRLMOD);
+        app.key(Keycode::O, Mod::NOMOD);
+        app.text("o");
+        assert_eq!(app.active_pane, 1, "existing Emacs editor-to-editor navigation still works");
+        assert_eq!(app.editor.document.text().unwrap(), "right");
     });
 }
 

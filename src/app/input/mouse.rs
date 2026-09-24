@@ -516,6 +516,8 @@ pub(super) fn mouse(
                 terminal.cancel_output_drag();
             }
             if coordinates_converted {
+                let control = renderer.window_control_at(x as i32, y as i32);
+                *dirty |= renderer.set_window_control_hover(control);
                 mouse_state.show_resize_cursor(mouse_state.split_drag || renderer.split_divider_hit(x as i32, y as i32));
                 if mouse_state.split_drag {
                     renderer.resize_split(x as i32);

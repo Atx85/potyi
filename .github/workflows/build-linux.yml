@@ -19,6 +19,7 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+  POTYI_RELEASE_VERSION: ${{ inputs.release_tag }}
   BUILD_TARGET: x86_64-unknown-linux-gnu
 
 jobs:
@@ -90,6 +91,8 @@ jobs:
         run: |
           cargo +stable test --release --locked --target "$BUILD_TARGET" folder_drop_ -- --include-ignored --test-threads=1
           cargo +stable test --release --locked --target "$BUILD_TARGET" mouse_interactions -- --include-ignored --test-threads=1
+          cargo +stable test --release --locked --target "$BUILD_TARGET" title_bar_stays_fixed -- --include-ignored --test-threads=1
+          cargo +stable test --release --locked --target "$BUILD_TARGET" pane_keyboard_ -- --include-ignored --test-threads=1
           cargo +stable test --release --locked --target "$BUILD_TARGET" setup_ui_ -- --include-ignored --test-threads=1
 
       - name: Check native Wayland startup and folder rendering
