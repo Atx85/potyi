@@ -34,11 +34,15 @@ const QUEUED_CHUNKS: usize = 8;
 pub(super) enum Message {
     Started(Option<PathBuf>),
     Chunk(DirectoryListing),
+    NamesReady,
+    GitStatus(super::git_status::Snapshot),
     Finished(Result<(), String>),
 }
 
 pub(super) struct Job {
     pub receiver: Receiver<Message>,
+    pub background_only: bool,
+    pub decorations: Option<(super::git_status::Snapshot, usize)>,
     cancelled: Arc<AtomicBool>,
 }
 
@@ -88,20 +92,41 @@ pub(super) fn start(
                     cwd
                 };
                 let (options, paths) = parse_ls_arguments(&arguments)?;
+                let mut scopes = Vec::new();
                 for (index, value) in paths.iter().enumerate() {
                     writer.check_cancelled()?;
                     if index > 0 {
                         writer.chunk.text.push('\n');
                     }
+                    let path = resolve_ls_path(value, &cwd);
+                    // Normalize parent components without following a file symlink.
+                    let path = if path.is_dir() { path.canonicalize()? } else {
+                        path.parent().unwrap_or(&cwd).canonicalize()?.join(path.file_name().unwrap_or_default())
+                    };
+                    let scope = if path.is_dir() { path.clone() } else { path.parent().unwrap().to_path_buf() };
+                    if !scopes.iter().any(|existing: &PathBuf| scope.starts_with(existing)) {
+                        scopes.retain(|existing| !existing.starts_with(&scope));
+                        if scopes.len() < 8 { scopes.push(scope); }
+                    }
                     writer.path(
-                        &resolve_ls_path(value, &cwd),
+                        &path,
                         value,
                         &options,
                         paths.len() > 1 || options.recursive,
                     )?;
                 }
                 writer.chunk.text.push('\n');
-                writer.flush()
+                writer.flush()?;
+                writer.send(Message::NamesReady)?;
+                // All names are available before Git starts. No watcher or idle polling.
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+                for scope in scopes {
+                    writer.check_cancelled()?;
+                    if let Some(snapshot) = super::git_status::load(&scope, &writer.cancelled, deadline) {
+                        writer.send(Message::GitStatus(snapshot))?;
+                    }
+                }
+                Ok(())
             })();
             // Preserve any entries produced before a filesystem error.
             if !writer.chunk.text.is_empty() {
@@ -113,6 +138,8 @@ pub(super) fn start(
         })?;
     Ok(Job {
         receiver,
+        background_only: false,
+        decorations: None,
         cancelled,
     })
 }

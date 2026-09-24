@@ -42,6 +42,7 @@ use sdl3::event::EventSender;
 use crate::piece_table::PieceTable;
 
 mod listing;
+mod git_status;
 mod completion;
 mod selection;
 mod locations;
@@ -100,6 +101,7 @@ pub(crate) enum EntryKind {
 #[derive(Clone, Debug)]
 pub(crate) struct OutputEntry {
     pub commit: Option<git::Commit>,
+    pub git_status: Option<git_status::Status>,
     pub range: std::ops::Range<usize>,
     pub path: PathBuf,
     pub kind: EntryKind,
@@ -548,6 +550,7 @@ impl Terminal {
     }
 
     pub fn clear(&mut self) -> io::Result<()> {
+        self.cancel_git_status();
         self.focus_prompt();
         self.completions.reset_cycle();
         self.output = PieceTable::empty()?;
@@ -564,6 +567,7 @@ impl Terminal {
 
     /// Use the same execution, history and action handling as the terminal prompt.
     pub(crate) fn run_command(&mut self, command: &str) -> io::Result<TerminalAction> {
+        self.cancel_git_status();
         if self.is_running() {
             return Err(io::Error::other("A command is already running"));
         }
@@ -577,6 +581,7 @@ impl Terminal {
         &mut self,
         events: &EventSubsystem,
     ) -> io::Result<TerminalAction> {
+        self.cancel_git_status();
         if self.is_running() {
             self.status = Some(
                 "A command is already running"
@@ -655,14 +660,16 @@ impl Terminal {
                 self.append_text(
                     "cd PATH        change directory\n\
 pwd            show current directory\n\
-ls [OPTIONS] [PATH]  list directory contents\n\
+ls [OPTIONS] [PATH]  list directory contents, including dotfiles\n\
+ls --hide-hidden  hide dotfiles and dotfolders\n\
 touch [-c] [--] PATH...  create files or update their timestamps\n\
 Tab / Shift+Tab  cycle matching filenames from the latest ls or cd\n\
 Ctrl/Cmd+V     paste into command input\n\
 Shift+Up      select output from command input; Esc returns to input\n\
 Ctrl/Cmd+C     copy selection; Ctrl+Shift+C copies all; Ctrl+C stops if unselected\n\
 Vim output    h/j/k/l, w/b, 0/$, gg/G, v/V selection, y copy\n\
-Underlined names are clickable: green text files, blue folders; amber = binary\n\
+Underlined names are clickable; folders end with / (e.g. src/)\n\
+Git colors: amber modified, green added, cyan untracked, muted ignored, pink conflict\n\
 edit PATH[:LINE[:COLUMN]]  edit a file\n\
 PATH           open a text file (e.g. Cargo.lock or ./Cargo.lock)\n\
 view PATH[:LINE[:COLUMN]]  open read-only\n\
@@ -717,6 +724,7 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
         &mut self,
         events: &EventSubsystem,
     ) -> io::Result<TerminalAction> {
+        self.cancel_git_status();
         if self.is_running() {
             return Ok(TerminalAction::None);
         }
@@ -901,6 +909,7 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
     }
 
     pub fn enter_directory(&mut self, path: &Path) -> io::Result<()> {
+        self.cancel_git_status();
         if self.is_running() {
             self.set_status("Wait for the running command before entering a folder");
             return Ok(());
@@ -947,6 +956,14 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
         self.listing_width = columns.clamp(1, 1000);
     }
 
+    fn cancel_git_status(&mut self) {
+        if self.listing.as_ref().is_some_and(|job| job.background_only) {
+            self.listing = None;
+            self.listing_pending = false;
+            self.status = None;
+        }
+    }
+
     fn start_listing(&mut self, arguments: &str, enter: Option<PathBuf>) -> io::Result<()> {
         self.listing = Some(listing::start(arguments.to_string(), self.cwd.clone(), enter, self.listing_width, self.events.as_ref().map(EventSubsystem::event_sender))?);
         self.status = Some("Listing… Ctrl+C stops".into());
@@ -960,6 +977,24 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
         let mut changed = self.poll_output()?;
         if !self.output_pending { changed |= self.poll_process()?; }
         self.listing_pending = false;
+        // Recolor bounded batches, including older links to the same paths.
+        // Even a very large scrollback must yield to input between batches.
+        if let Some(job) = &mut self.listing {
+            if let Some((snapshot, offset)) = &mut job.decorations {
+                let end = offset.saturating_add(256).min(self.entries.len());
+                for entry in &mut self.entries[(*offset).min(end)..end] {
+                    if entry.location.is_none() && entry.commit.is_none()
+                        && entry.path.starts_with(&snapshot.scope)
+                    {
+                        entry.git_status = snapshot.status(&entry.path);
+                    }
+                }
+                *offset = end;
+                if end == self.entries.len() { job.decorations = None; }
+                self.listing_pending = true;
+                return Ok(true);
+            }
+        }
         let message = self.listing.as_ref().map(|job| job.receiver.try_recv());
         match message {
             Some(Ok(listing::Message::Started(directory))) => {
@@ -971,6 +1006,17 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
             Some(Ok(listing::Message::Chunk(chunk))) => {
                 self.listing_pending = true;
                 self.append_listing(chunk)?;
+                changed = true;
+            }
+            Some(Ok(listing::Message::NamesReady)) => {
+                if let Some(job) = &mut self.listing { job.background_only = true; }
+                self.listing_pending = true;
+                self.status = Some("Checking Git… Ctrl+C stops".into());
+                changed = true;
+            }
+            Some(Ok(listing::Message::GitStatus(snapshot))) => {
+                self.listing_pending = true;
+                if let Some(job) = &mut self.listing { job.decorations = Some((snapshot, 0)); }
                 changed = true;
             }
             Some(Ok(listing::Message::Finished(result))) => {
@@ -1303,7 +1349,7 @@ Pipelines and redirects run through the system shell (e.g. ls | grep .rs).\n"
     }
 
     pub fn complete_path(&mut self, backwards: bool) {
-        if self.is_running() { return; }
+        if self.is_running() && !self.listing.as_ref().is_some_and(|job| job.background_only) { return; }
         self.history_position = None;
         self.history_draft.clear();
         self.status = self.completions.complete(&mut self.input, &mut self.cursor, &self.cwd, backwards);
@@ -1444,9 +1490,7 @@ fn format_exit_status(
     status: ExitStatus,
 ) -> String {
     match status.code() {
-        Some(0) =>
-            "[finished successfully]\n"
-                .to_string(),
+        Some(0) => String::new(),
 
         Some(code) => format!(
             "[finished with exit code {code}]\n"
@@ -1458,13 +1502,18 @@ fn format_exit_status(
     }
 }
 
-#[derive(Default)]
 struct LsOptions {
     all: bool,
     long: bool,
     human_readable: bool,
     recursive: bool,
     one_per_line: bool,
+}
+
+impl Default for LsOptions {
+    fn default() -> Self {
+        Self { all: true, long: false, human_readable: false, recursive: false, one_per_line: false }
+    }
 }
 
 fn parse_ls_arguments(arguments: &str) -> io::Result<(LsOptions, Vec<String>)> {
@@ -1481,6 +1530,7 @@ fn parse_ls_arguments(arguments: &str) -> io::Result<(LsOptions, Vec<String>)> {
         if parse_options && argument.starts_with("--") {
             match argument.as_str() {
                 "--all" => options.all = true,
+                "--hide-hidden" => options.all = false,
                 "--long" => options.long = true,
                 "--human-readable" => {
                     options.human_readable = true;
@@ -1671,6 +1721,7 @@ fn append_ls_entry(
         range: start..output.text.len(),
         location: None,
         commit: None,
+        git_status: None,
         path: path.to_path_buf(),
         kind,
     });
@@ -2145,7 +2196,7 @@ mod tests {
         assert!(listing.text.ends_with('\n'));
     }
 
-    struct Fixture(PathBuf);
+    pub(super) struct Fixture(pub(super) PathBuf);
 
     fn finish_listing(terminal: &mut Terminal) {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
@@ -2158,7 +2209,7 @@ mod tests {
     }
 
     impl Fixture {
-        fn new() -> Self {
+        pub(super) fn new() -> Self {
             let path = env::temp_dir().join(format!(
                 "potyi-listing-{}-{}", std::process::id(),
                 std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
@@ -2173,6 +2224,63 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
         }
+    }
+
+    #[test]
+    fn listing_navigation_cancels_optional_git_work_without_stale_updates() {
+        let root = Fixture::new();
+        let target = root.0.join("next");
+        fs::create_dir(&target).unwrap();
+        fs::write(target.join("note"), "text").unwrap();
+        let mut terminal = Terminal::new(root.0.clone()).unwrap();
+        terminal.start_listing("", None).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !terminal.listing.as_ref().is_some_and(|job| job.background_only) {
+            assert!(Instant::now() < deadline);
+            terminal.poll_background().unwrap();
+            thread::sleep(Duration::from_millis(1));
+        }
+        terminal.enter_directory(&target).unwrap();
+        finish_listing(&mut terminal);
+        assert_eq!(terminal.cwd, target);
+        assert_eq!(terminal.status(), None);
+        assert!(terminal.entries.iter().any(|e| e.path == target.join("note")));
+        assert!(!terminal.has_pending_work());
+    }
+
+    #[test]
+    fn listing_shows_dotfiles_by_default_and_refreshes_git_colors() {
+        use git_status::Status;
+        use git_status::tests::repo_command;
+        let root = Fixture::new();
+        repo_command(&root.0, &["init", "-q"]);
+        fs::write(root.0.join(".settings"), "original\n").unwrap();
+        fs::create_dir(root.0.join(".config")).unwrap();
+        fs::write(root.0.join(".config/file"), "original\n").unwrap();
+        repo_command(&root.0, &["add", "."]);
+        repo_command(&root.0, &["commit", "-qm", "initial"]);
+        fs::write(root.0.join(".settings"), "changed\n").unwrap();
+        // Cross both the listing and recoloring batch boundaries.
+        for i in 0..300 { fs::write(root.0.join(format!(".untracked-{i}")), "new").unwrap(); }
+        let mut terminal = Terminal::new(root.0.clone()).unwrap();
+        terminal.start_listing("", None).unwrap();
+        finish_listing(&mut terminal);
+        let entry = terminal.entries.iter().find(|e| e.path == root.0.join(".settings")).unwrap();
+        assert_eq!(entry.git_status, Some(Status::Modified));
+        assert_eq!(terminal.entries.iter().filter(|e| e.git_status == Some(Status::Untracked)).count(), 300);
+        assert_eq!(entry.action(), Some(TerminalAction::ListedFile(root.0.join(".settings"))));
+        assert!(terminal.entries.iter().any(|e| e.path == root.0.join(".config")));
+        assert!(terminal.entries.iter().any(|e| e.path == root.0.join(".git")));
+        assert!(!terminal.entries.iter().any(|e| e.path.starts_with(root.0.join(".git/objects"))));
+        repo_command(&root.0, &["add", ".settings"]);
+        repo_command(&root.0, &["commit", "-qm", "update"]);
+        terminal.start_listing("", None).unwrap();
+        finish_listing(&mut terminal);
+        assert!(terminal.entries.iter().filter(|e| e.path == root.0.join(".settings")).all(|e| e.git_status.is_none()));
+        terminal.clear().unwrap();
+        terminal.start_listing("--hide-hidden", None).unwrap();
+        finish_listing(&mut terminal);
+        assert_eq!(terminal.entries.len(), 1); // ../ only
     }
 
     #[test]
@@ -2780,7 +2888,8 @@ mod tests {
         }
         let output = terminal.output_text().unwrap();
         assert!(output.contains("\nsample file.txt\n"), "{output}");
-        assert!(output.contains("[finished successfully]"), "{output}");
+        assert!(output.ends_with("\nsample file.txt\n"), "{output}");
+        assert!(!output.contains("[finished successfully]"), "{output}");
 
         terminal.insert_text("grep -n hello 'sample file.txt'");
         terminal.submit(&events).unwrap();

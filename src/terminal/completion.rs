@@ -269,6 +269,7 @@ mod tests {
                     range: 0..0,
                     location: None,
                     commit: None,
+                    git_status: None,
                     path: cwd.join(name),
                     kind: if *directory {
                         EntryKind::Directory
@@ -362,6 +363,7 @@ mod tests {
                 range: 0..0,
                 location: None,
                 commit: None,
+                git_status: None,
                 path: cwd.join(format!("{i}.txt")),
                 kind: EntryKind::Text,
             }]);
@@ -374,6 +376,7 @@ mod tests {
                 range: 0..0,
                 location: None,
                 commit: None,
+                git_status: None,
                 path: cwd.join("x".repeat(1000)),
                 kind: EntryKind::Text,
             }]);

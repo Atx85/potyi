@@ -154,6 +154,7 @@ impl Terminal {
     }
 
     pub fn open_commit(&mut self, commit: Commit) -> io::Result<()> {
+        self.cancel_git_status();
         if self.is_running() {
             self.status =
                 Some("Wait for the command to finish, or stop it before opening a commit.".into());

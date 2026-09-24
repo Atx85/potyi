@@ -73,6 +73,7 @@ impl Scanner {
                         if entries.len() < super::git::MAX_LINKS {
                             if let Some(range) = super::git::hash_range(line) {
                                 entries.push(OutputEntry {
+                                    git_status: None,
                                     commit: Some(super::git::Commit {hash:line[range.clone()].into(),repo:repo.clone()}),
                                     range:self.start + range.start..self.start + range.end,
                                     path:context.cwd.clone(), kind:EntryKind::Commit, location:None,
@@ -86,6 +87,7 @@ impl Scanner {
                             kind: EntryKind::Text,
                             location: Some(location),
                             commit: None,
+                            git_status: None,
                         });
                     }
                 }

@@ -1248,7 +1248,7 @@ impl<'a> Renderer<'a> {
             ))
             .map_err(|e| e.to_string())?;
 
-        let title = crate::APP_TITLE;
+        let title = "Pötyi";
 
         self.canvas.set_clip_rect(Rect::new(0, 0,
             (width - WINDOW_BUTTONS_WIDTH).max(1) as u32, height as u32));
@@ -1259,16 +1259,42 @@ impl<'a> Renderer<'a> {
                     - self.font.height()
             ) / 2;
 
-        self.render_dpi_text(
+        let title_width = self.render_dpi_text(
             title,
             14.0,
             title_y as f32,
-            Color::RGB(
-                220,
-                220,
-                220,
-            ),
+            Color::RGB(220, 220, 220),
         )?;
+
+        // Reuse the fixed UI font at a smaller destination size: no extra font
+        // or glyph-cache resets when drawing this secondary label.
+        let version = env!("POTYI_DISPLAY_VERSION");
+        let (version_width, version_height) = self.logical_text_size(version);
+        let version_width = version_width * 0.5;
+        let version_height = version_height * 0.5;
+        let pill_x = (14.0 + title_width + 6.0).round();
+        let pill_height = 10.0;
+        let pill_y = (title_y + self.font.height()) as f32 - pill_height;
+        let pill_width = version_width.ceil() + 10.0;
+        let pill_right = self.mode_label.map_or(width - WINDOW_BUTTONS_WIDTH - 12, |label| {
+            let label_width = self.logical_text_size(label).0.ceil() as i32;
+            (width - WINDOW_BUTTONS_WIDTH - label_width - 16).max(80) - 12
+        });
+        // Hide the secondary badge first in narrow windows, preserving controls.
+        if pill_x + pill_width <= pill_right as f32 {
+            // Rounded capsule, batched in one draw call with no heap allocation.
+            const INSETS: [f32; 10] = [3., 1., 1., 0., 0., 0., 0., 1., 1., 3.];
+            let rows: [FRect; 10] = std::array::from_fn(|row| {
+                let inset = INSETS[row];
+                FRect::new(pill_x + inset, pill_y + row as f32, pill_width - inset * 2.0, 1.0)
+            });
+            self.canvas.set_draw_color(Color::RGB(49, 49, 49));
+            self.canvas.fill_rects(&rows).map_err(|e| e.to_string())?;
+            self.render_dpi_text_with_size(
+                version, pill_x + 5.0, pill_y + (pill_height - version_height) / 2.0,
+                Color::RGB(155, 155, 155), version_width, version_height,
+            )?;
+        }
 
         if let Some(label) = self.mode_label {
             let label_width = self.font.size_of(label)
@@ -2162,12 +2188,12 @@ impl<'a> Renderer<'a> {
                 )?;
                 let left = self.terminal_text_width(&text[..from]);
                 let right = self.terminal_text_width(&text[..to]);
-                let color = semantic_color.unwrap_or(match entry.kind {
-                    EntryKind::Text => Color::RGB(150, 220, 165),
-                    EntryKind::Directory => Color::RGB(120, 185, 255),
-                    EntryKind::Binary => Color::RGB(225, 185, 115),
-                    EntryKind::Unreadable => Color::RGB(155, 160, 155),
+                let color = semantic_color.or_else(|| entry.git_status.map(|status| {
+                    let (r, g, b) = status.color();
+                    Color::RGB(r, g, b)
+                })).unwrap_or(match entry.kind {
                     EntryKind::Commit => Color::RGB(225, 195, 120),
+                    _ => base_color,
                 });
                 self.render_terminal_text_chunk(
                     &text[from..to], 12 + left,
