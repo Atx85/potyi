@@ -84,11 +84,12 @@ jobs:
       - name: Check core behavior
         run: cargo +stable test --release --locked --target "$BUILD_TARGET" -- --test-threads=1
 
-      - name: Check folder drops and background setup
+      - name: Check folder drops, mouse interactions, and background setup
         env:
           SDL_VIDEODRIVER: dummy
         run: |
           cargo +stable test --release --locked --target "$BUILD_TARGET" folder_drop_ -- --include-ignored --test-threads=1
+          cargo +stable test --release --locked --target "$BUILD_TARGET" mouse_interactions -- --include-ignored --test-threads=1
           cargo +stable test --release --locked --target "$BUILD_TARGET" setup_ui_ -- --include-ignored --test-threads=1
 
       - name: Check native Wayland startup and folder rendering

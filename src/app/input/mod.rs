@@ -5,6 +5,7 @@ use super::*;
 mod drop_file;
 mod keyboard;
 mod mouse;
+pub(super) use mouse::MouseState;
 mod text;
 
 #[cfg(test)]
@@ -17,6 +18,7 @@ pub(super) enum EventFlow {
 }
 
 pub(super) struct InputContext<'a, 'font> {
+    pub mouse_state: &'a mut MouseState,
     pub editor: &'a mut Editor,
     pub other_editor: &'a mut Editor,
     pub renderer: &'a mut Renderer<'font>,
@@ -41,6 +43,7 @@ impl<'a, 'font> InputContext<'a, 'font> {
     // Sequential stages borrow the same state; no documents or controllers are copied.
     fn reborrow(&mut self) -> InputContext<'_, 'font> {
         InputContext {
+            mouse_state: &mut *self.mouse_state,
             editor: &mut *self.editor,
             other_editor: &mut *self.other_editor,
             renderer: &mut *self.renderer,
@@ -69,6 +72,12 @@ pub(super) fn dispatch(
     coordinates_converted: bool,
 ) -> Result<EventFlow, String> {
     let mut context = context;
+    if matches!(event, Event::KeyDown { .. } | Event::TextInput { .. } | Event::DropFile { .. }
+        | Event::Window { win_event: WindowEvent::FocusLost, .. })
+    {
+        context.mouse_state.cancel_drag();
+        context.terminal.cancel_output_drag();
+    }
     synchronize_pane_views(context.editor, context.other_editor, context.renderer).map_err(|e| e.to_string())?;
     let result = dispatch_event(context.reborrow(), event, coordinates_converted);
     synchronize_pane_views(context.editor, context.other_editor, context.renderer).map_err(|e| e.to_string())?;

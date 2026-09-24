@@ -9,7 +9,7 @@ use sdl3::keyboard::{Keycode, Mod};
 
 use super::{Terminal, TerminalAction};
 use crate::clipboard::TextClipboard;
-use crate::piece_table::PieceTable;
+use crate::piece_table::{PieceTable, MouseSelection};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum Visual {
@@ -30,6 +30,7 @@ pub(super) struct Selection {
     pub desired_x: Option<i32>,
     drag: Option<(i32, i32, Option<TerminalAction>)>,
     dragged: bool,
+    mouse_selection: MouseSelection,
     open_other_pane: bool,
 }
 
@@ -78,14 +79,25 @@ impl Terminal {
         action: Option<TerminalAction>,
         open_other_pane: bool,
     ) -> io::Result<()> {
+        self.begin_output_mouse_drag(offset, x, y, action, open_other_pane, 1, false)
+    }
+
+    pub(crate) fn begin_output_mouse_drag(&mut self, offset: usize, x: i32, y: i32,
+        action: Option<TerminalAction>, open_other_pane: bool, clicks: u8, extend: bool) -> io::Result<()>
+    {
+        let anchor = (extend && self.selection.focused).then_some(self.selection.anchor);
+        let mouse_selection = MouseSelection::begin(&mut self.output, offset, clicks, anchor)?;
+        let (cursor, anchor) = mouse_selection.endpoints(&mut self.output, offset)?;
         self.selection = Selection {
-            focused: true,
-            open_other_pane,
+            focused: true, open_other_pane, cursor, anchor,
+            drag: Some((x, y, action)), dragged: extend || clicks > 1, mouse_selection,
             ..Selection::default()
         };
-        self.move_output_cursor(offset, false)?;
-        self.selection.drag = Some((x, y, action));
-        Ok(())
+        self.refresh_output_selection()
+    }
+
+    pub(crate) fn cancel_output_drag(&mut self) {
+        self.selection.drag = None;
     }
 
     pub fn output_dragging(&self) -> bool {
@@ -96,7 +108,10 @@ impl Terminal {
         if let Some((start_x, start_y, _)) = &self.selection.drag {
             self.selection.dragged |= (x - start_x).abs() >= 3 || (y - start_y).abs() >= 3;
             if self.selection.dragged {
-                self.move_output_cursor(offset, true)?;
+                let (cursor, anchor) = self.selection.mouse_selection.endpoints(&mut self.output, offset)?;
+                self.selection.cursor = cursor;
+                self.selection.anchor = anchor;
+                self.refresh_output_selection()?;
             }
         }
         Ok(())
@@ -528,6 +543,23 @@ mod tests {
         term.drag_output_to(10, 100, 50).unwrap();
         assert_eq!(term.finish_output_drag(), None);
         assert_eq!(selected(&mut term), "Cargo.lock");
+    }
+
+    #[test]
+    fn mouse_word_line_and_shift_selection_never_activate_links() {
+        let mut term = terminal("one café_東京\nnext line\n");
+        let action = Some(TerminalAction::ListedFile("some-file".into()));
+        term.begin_output_mouse_drag(7, 10, 50, action.clone(), false, 2, false).unwrap();
+        assert_eq!(selected(&mut term), "café_東京");
+        assert!(term.finish_output_drag().is_none());
+        term.begin_output_mouse_drag(0, 10, 50, action.clone(), false, 1, true).unwrap();
+        assert_eq!(selected(&mut term), "one ");
+        assert!(term.finish_output_drag().is_none());
+        term.begin_output_mouse_drag(18, 10, 75, action, false, 3, false).unwrap();
+        assert_eq!(selected(&mut term), "next line\n");
+        term.drag_output_to(1, 10, 50).unwrap();
+        assert_eq!(selected(&mut term), "one café_東京\nnext line\n");
+        assert!(term.finish_output_drag().is_none());
     }
 
     #[test]

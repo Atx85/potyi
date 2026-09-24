@@ -155,6 +155,12 @@ jobs:
           SDL_VIDEODRIVER: dummy
         run: cargo +stable test --locked --target "$BUILD_TARGET" folder_drop_ -- --include-ignored --test-threads=1
 
+      - name: Check mouse selection and pane resizing
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+          SDL_VIDEODRIVER: dummy
+        run: cargo +stable test --locked --target "$BUILD_TARGET" mouse_interactions -- --include-ignored --test-threads=1
+
       - name: Check Unity file opening and missing language server
         if: runner.os == 'Windows'
         env:

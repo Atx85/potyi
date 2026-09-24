@@ -201,6 +201,13 @@ impl VimController {
         Ok(())
     }
 
+    pub(crate) fn mouse_selection_changed(&mut self, editor: &Editor) {
+        self.visual_lines = None;
+        if self.mode != VimMode::Insert {
+            self.mode = if editor.document.has_selection() { VimMode::Visual } else { VimMode::Normal };
+        }
+    }
+
     pub(crate) fn reset(&mut self) {
         *self = Self::new();
     }

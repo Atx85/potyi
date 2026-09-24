@@ -219,6 +219,7 @@ pub(crate) fn run() -> Result<(), String> {
 
     let mut dirty = true;
     let mut pending_events = Vec::with_capacity(32);
+    let mut mouse_state = input::MouseState::default();
 
     // ----------------------------------------------------------------------
     // Event loop
@@ -243,7 +244,7 @@ pub(crate) fn run() -> Result<(), String> {
                 Instant::now(),
                 dirty,
                 terminal.has_pending_work(),
-            ))
+            ).min(mouse_state.wait_timeout()))
         {
             pending_events.push(event);
         }
@@ -312,6 +313,7 @@ pub(crate) fn run() -> Result<(), String> {
 
             if input::dispatch(
                 input::InputContext {
+                    mouse_state: &mut mouse_state,
                     editor: &mut editor,
                     other_editor: &mut other_editor,
                     renderer: &mut renderer,
@@ -338,6 +340,8 @@ pub(crate) fn run() -> Result<(), String> {
                 break 'event_loop;
             }
         }
+
+        dirty |= mouse_state.tick(&mut editor, &mut renderer, &mut vim, vim_enabled, active_pane)?;
 
         for document in [&mut editor.document, &mut other_editor.document] {
             if let Some(warning) = document.take_recovery_warning() {

@@ -4,6 +4,7 @@
 use super::*;
 
 struct Fixture<'font> {
+    mouse_state: MouseState,
     editor: Editor,
     other_editor: Editor,
     renderer: Renderer<'font>,
@@ -28,6 +29,7 @@ impl Fixture<'_> {
     fn send(&mut self, event: Event, coordinates: bool) -> EventFlow {
         dispatch(
             InputContext {
+                mouse_state: &mut self.mouse_state,
                 editor: &mut self.editor,
                 other_editor: &mut self.other_editor,
                 renderer: &mut self.renderer,
@@ -137,6 +139,7 @@ fn with_fixture(test: impl FnOnce(&mut Fixture<'_>)) {
         ..EditorConfig::default()
     };
     let mut fixture = Fixture {
+        mouse_state: MouseState::default(),
         editor: Editor::new(config.clone()).unwrap(),
         other_editor: Editor::new(config).unwrap(),
         renderer,
@@ -1067,5 +1070,215 @@ fn shared_views_keep_vim_insert_groups_separate_when_switching_panes() {
         app.text("u");
         assert!(app.editor.document.is_empty());
         assert!(app.other_editor.document.is_empty());
+    });
+}
+
+fn document_mouse_point(app: &mut Fixture<'_>, line: usize, column: usize) -> (f32, f32) {
+    for y in (40..590).step_by(2) {
+        let left = if app.active_pane == 1 && app.split_mode { app.renderer.split_divider() } else { 0 };
+        for x in (left..800).step_by(2) {
+            if app.renderer.cursor_target_at(&mut app.editor.document, x, y).unwrap() == Some((line, column)) {
+                return (x as f32, y as f32);
+            }
+        }
+    }
+    panic!("no mouse target for {line}:{column}");
+}
+
+fn mouse_press(app: &mut Fixture<'_>, point: (f32, f32), clicks: u8, modifiers: Mod) {
+    app.keyboard.set_mod_state(modifiers);
+    app.send(Event::MouseButtonDown { timestamp: 0, window_id: 0, which: 0,
+        mouse_btn: MouseButton::Left, clicks, x: point.0, y: point.1 }, true);
+}
+
+fn mouse_move(app: &mut Fixture<'_>, point: (f32, f32)) {
+    app.send(Event::MouseMotion { timestamp: 0, window_id: 0, which: 0,
+        mousestate: sdl3::mouse::MouseState::from_sdl_state(1),
+        x: point.0, y: point.1, xrel: 0.0, yrel: 0.0 }, true);
+}
+
+fn mouse_release(app: &mut Fixture<'_>, point: (f32, f32)) {
+    app.send(Event::MouseButtonUp { timestamp: 0, window_id: 0, which: 0,
+        mouse_btn: MouseButton::Left, clicks: 1, x: point.0, y: point.1 }, true);
+    app.keyboard.set_mod_state(Mod::NOMOD);
+}
+
+fn selected_document_text(app: &Fixture<'_>) -> String {
+    let doc = &app.editor.document;
+    String::from_utf8(doc.read_range(doc.selection_start(), doc.selection_end() - doc.selection_start()).unwrap()).unwrap()
+}
+
+#[test]
+#[ignore = "Headless SDL mouse selection; run with SDL_VIDEODRIVER=dummy"]
+fn mouse_interactions_select_edit_extend_words_and_lines() {
+    with_fixture(|app| {
+        app.editor.insert_text("hello café_東京!\nsecond line\nthird").unwrap();
+        app.editor.document.move_cursor(0).unwrap();
+        app.renderer.render(&mut app.editor.document, &app.search_ui, &app.command_bar).unwrap();
+        let start = document_mouse_point(app, 0, 0);
+        let end = document_mouse_point(app, 0, 5);
+        mouse_press(app, start, 1, Mod::NOMOD);
+        mouse_move(app, end);
+        mouse_release(app, end);
+        assert_eq!(selected_document_text(app), "hello");
+        let word = document_mouse_point(app, 0, 9);
+        mouse_press(app, word, 2, Mod::NOMOD);
+        mouse_release(app, word);
+        assert_eq!(selected_document_text(app), "café_東京");
+        mouse_press(app, start, 1, Mod::LSHIFTMOD);
+        mouse_release(app, start);
+        assert_eq!(selected_document_text(app), "hello ");
+        let second = document_mouse_point(app, 1, 4);
+        mouse_press(app, second, 3, Mod::NOMOD);
+        mouse_release(app, second);
+        assert_eq!(selected_document_text(app), "second line\n");
+        app.text("replacement\n");
+        assert_eq!(app.editor.document.text().unwrap(), "hello café_東京!\nreplacement\nthird");
+        assert_eq!(app.editor.undo_stack.len(), 2);
+    });
+}
+
+#[test]
+#[ignore = "Headless SDL split mouse selection; run with SDL_VIDEODRIVER=dummy"]
+fn mouse_interactions_resize_split_and_keep_drag_in_its_pane() {
+    with_fixture(|app| {
+        for editor in [&mut app.editor, &mut app.other_editor] {
+            editor.insert_text("one two three\nnext line").unwrap();
+            editor.document.move_cursor(0).unwrap();
+        }
+        app.split_mode = true;
+        app.renderer.set_split_mode(true);
+        app.renderer.render_split(&mut app.editor.document, &mut app.other_editor.document,
+            &app.search_ui, &app.command_bar).unwrap();
+        mouse_press(app, (400.0, 150.0), 1, Mod::NOMOD);
+        mouse_move(app, (280.0, 150.0));
+        mouse_release(app, (280.0, 150.0));
+        assert_eq!(app.renderer.split_divider(), 280);
+        assert_eq!(app.renderer.pane_at(300), 1);
+        app.renderer.render_split(&mut app.editor.document, &mut app.other_editor.document,
+            &app.search_ui, &app.command_bar).unwrap();
+        let start = document_mouse_point(app, 0, 4);
+        mouse_press(app, start, 2, Mod::NOMOD);
+        mouse_move(app, (600.0, start.1));
+        mouse_release(app, (600.0, start.1));
+        assert_eq!(app.active_pane, 0);
+        assert!(selected_document_text(app).starts_with("two three"));
+        assert!(!app.other_editor.document.has_selection());
+        mouse_press(app, (380.0, start.1), 1, Mod::NOMOD);
+        mouse_release(app, (380.0, start.1));
+        assert_eq!(app.active_pane, 1);
+        assert!(!app.editor.document.has_selection());
+        assert!(app.other_editor.document.has_selection());
+        app.renderer.window_mut().set_size(1000, 600).unwrap();
+        app.renderer.update_window_size().unwrap();
+        assert_eq!(app.renderer.split_divider(), 350);
+        mouse_press(app, (350.0, 120.0), 1, Mod::NOMOD);
+        mouse_move(app, (-100.0, 120.0));
+        mouse_release(app, (-100.0, 120.0));
+        assert_eq!(app.renderer.split_divider(), 120);
+    });
+}
+
+#[test]
+#[ignore = "Headless SDL mouse scrolling; run with SDL_VIDEODRIVER=dummy"]
+fn mouse_interactions_accumulate_fractional_scroll_separately_per_pane() {
+    with_fixture(|app| {
+        for editor in [&mut app.editor, &mut app.other_editor] {
+            editor.insert_text(&format!("{}\n", "long ".repeat(100)).repeat(80)).unwrap();
+            editor.document.move_cursor(0).unwrap();
+        }
+        app.split_mode = true;
+        app.renderer.set_split_mode(true);
+        app.renderer.render_split(&mut app.editor.document, &mut app.other_editor.document,
+            &app.search_ui, &app.command_bar).unwrap();
+        let wheel = |app: &mut Fixture<'_>, pane, x, y| {
+            app.send(Event::MouseWheel { timestamp: 0, window_id: 0, which: 0, x, y,
+                direction: sdl3::mouse::MouseWheelDirection::Normal,
+                mouse_x: pane as f32 * 400.0 + 200.0, mouse_y: 60.0, integer_x: 0, integer_y: 0 }, true);
+        };
+        for _ in 0..3 { wheel(app, 0, 0.0, -0.25); }
+        wheel(app, 1, 0.0, -0.25);
+        assert_eq!(app.renderer.cursor_target_at(&mut app.editor.document, 600, 50).unwrap().unwrap().0, 0);
+        wheel(app, 0, -0.25, -0.25);
+        assert_eq!(app.renderer.cursor_target_at(&mut app.editor.document, 200, 50).unwrap().unwrap().0, 1);
+        let before = app.renderer.cursor_target_at(&mut app.editor.document, 200, 50).unwrap().unwrap().1;
+        wheel(app, 0, -0.25, 0.0);
+        let after = app.renderer.cursor_target_at(&mut app.editor.document, 200, 50).unwrap().unwrap().1;
+        assert!(after > before, "fractional horizontal wheel movement must not disappear");
+    });
+}
+
+#[test]
+#[ignore = "Headless SDL Vim mouse selection; run with SDL_VIDEODRIVER=dummy"]
+fn mouse_interactions_vim_can_yank_and_delete_mouse_selection() {
+    with_fixture(|app| {
+        app.editor.insert_text("one two three").unwrap();
+        app.mode(KeybindingMode::Vim);
+        app.renderer.render(&mut app.editor.document, &app.search_ui, &app.command_bar).unwrap();
+        let word = document_mouse_point(app, 0, 5);
+        mouse_press(app, word, 2, Mod::NOMOD);
+        mouse_release(app, word);
+        assert_eq!(selected_document_text(app), "two");
+        app.key(Keycode::Y, Mod::NOMOD);
+        assert_eq!(app.clipboard.clipboard_text().unwrap(), "two");
+        mouse_press(app, word, 2, Mod::NOMOD);
+        mouse_release(app, word);
+        app.key(Keycode::D, Mod::NOMOD);
+        assert_eq!(app.editor.document.text().unwrap(), "one  three");
+    });
+}
+
+#[test]
+#[ignore = "Headless SDL mouse autoscroll; run with SDL_VIDEODRIVER=dummy"]
+fn mouse_interactions_autoscroll_stops_on_release_and_focus_loss() {
+    with_fixture(|app| {
+        app.editor.insert_text(&"line of code\n".repeat(150)).unwrap();
+        app.editor.document.move_cursor(0).unwrap();
+        app.renderer.render(&mut app.editor.document, &app.search_ui, &app.command_bar).unwrap();
+        let start = document_mouse_point(app, 0, 0);
+        mouse_press(app, start, 1, Mod::NOMOD);
+        mouse_move(app, (start.0, 620.0));
+        let before = app.editor.document.cursor.line;
+        assert!(app.mouse_state.wait_timeout() <= std::time::Duration::from_millis(40));
+        std::thread::sleep(std::time::Duration::from_millis(45));
+        assert!(app.mouse_state.tick(&mut app.editor, &mut app.renderer, &mut app.vim, false, 0).unwrap());
+        assert!(app.editor.document.cursor.line > before);
+        mouse_release(app, (start.0, 620.0));
+        assert_eq!(app.mouse_state.wait_timeout(), std::time::Duration::MAX);
+        mouse_press(app, start, 1, Mod::NOMOD);
+        mouse_move(app, (start.0, 620.0));
+        app.send(Event::Window { timestamp: 0, window_id: 0,
+            win_event: WindowEvent::FocusLost }, true);
+        assert_eq!(app.mouse_state.wait_timeout(), std::time::Duration::MAX);
+        assert!(!app.mouse_state.tick(&mut app.editor, &mut app.renderer, &mut app.vim, false, 0).unwrap());
+        let position = app.editor.document.cursor.position;
+        mouse_move(app, start);
+        assert_eq!(app.editor.document.cursor.position, position);
+    });
+}
+
+#[test]
+#[ignore = "Headless SDL terminal divider; run with SDL_VIDEODRIVER=dummy"]
+fn mouse_interactions_resize_terminal_pane_and_preserve_editor_hit_testing() {
+    let folder = FolderFixture::new();
+    with_fixture(|app| {
+        open_folder_fixture(app, &folder);
+        finish_folder_listing(app);
+        app.editor.insert_text("right pane code").unwrap();
+        app.editor.document.move_cursor(0).unwrap();
+        render_terminal_fixture(app);
+        let old_columns = app.renderer.terminal_columns();
+        mouse_press(app, (400.0, 120.0), 1, Mod::NOMOD);
+        mouse_move(app, (240.0, 120.0));
+        mouse_release(app, (240.0, 120.0));
+        render_terminal_fixture(app);
+        assert_eq!(app.renderer.split_divider(), 240);
+        assert!(app.renderer.terminal_columns() < old_columns);
+        let point = document_mouse_point(app, 0, 8);
+        mouse_press(app, point, 2, Mod::NOMOD);
+        mouse_release(app, point);
+        assert_eq!(app.active_pane, 1);
+        assert_eq!(selected_document_text(app), "pane");
+        assert!(app.renderer.terminal_visible(&app.terminal));
     });
 }

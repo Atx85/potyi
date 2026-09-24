@@ -1,12 +1,117 @@
 // Pötyi - SPDX-License-Identifier: GPL-3.0-or-later
 use super::*;
 
+use crate::piece_table::MouseSelection;
+
+struct DocumentDrag {
+    pane: usize,
+    revision: u64,
+    selection: MouseSelection,
+    start: (i32, i32),
+    moved: bool,
+    pointer: (i32, i32),
+    next_scroll: Option<Instant>,
+}
+
+#[derive(Default)]
+struct WheelRemainder { x: f64, y: f64 }
+
+impl WheelRemainder {
+    fn take(&mut self, x: f64, y: f64) -> (i32, isize) {
+        fn accumulate(remainder: &mut f64, delta: f64) -> f64 {
+            if !delta.is_finite() { return 0.0; }
+            if delta != 0.0 && delta.signum() != remainder.signum() { *remainder = 0.0; }
+            *remainder += delta;
+            let whole = remainder.trunc();
+            *remainder -= whole;
+            whole
+        }
+        (accumulate(&mut self.x, x) as i32, accumulate(&mut self.y, y) as isize)
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct MouseState {
+    document_drag: Option<DocumentDrag>,
+    split_drag: bool,
+    wheel: [WheelRemainder; 4], // left editor, right editor, terminal, command bar
+    resize_cursor: Option<sdl3::mouse::Cursor>,
+    arrow_cursor: Option<sdl3::mouse::Cursor>,
+    resizing_cursor: bool,
+}
+
+impl MouseState {
+    pub(crate) fn wait_timeout(&self) -> Duration {
+        self.document_drag.as_ref().and_then(|drag| drag.next_scroll)
+            .map(|deadline| deadline.saturating_duration_since(Instant::now()))
+            .unwrap_or(Duration::MAX)
+    }
+
+    pub(crate) fn tick(&mut self, editor: &mut Editor, renderer: &mut Renderer<'_>,
+        vim: &mut VimController, vim_enabled: bool, active_pane: usize) -> Result<bool, String>
+    {
+        let Some(drag) = &self.document_drag else { return Ok(false); };
+        if drag.next_scroll.is_some_and(|deadline| Instant::now() >= deadline) {
+            let (x, y) = drag.pointer;
+            return self.drag_document(editor, renderer, vim, vim_enabled, active_pane, x, y);
+        }
+        Ok(false)
+    }
+
+    pub(super) fn cancel_drag(&mut self) {
+        self.document_drag = None;
+        self.split_drag = false;
+        self.show_resize_cursor(false);
+    }
+
+    fn show_resize_cursor(&mut self, resize: bool) {
+        if resize == self.resizing_cursor { return; }
+        self.resizing_cursor = resize;
+        let (cursor, kind) = if resize {
+            (&mut self.resize_cursor, sdl3::mouse::SystemCursor::SizeWE)
+        } else {
+            (&mut self.arrow_cursor, sdl3::mouse::SystemCursor::Arrow)
+        };
+        if cursor.is_none() { *cursor = sdl3::mouse::Cursor::from_system(kind).ok(); }
+        if let Some(cursor) = cursor { cursor.set(); }
+    }
+
+    fn drag_document(&mut self, editor: &mut Editor, renderer: &mut Renderer<'_>,
+        vim: &mut VimController, vim_enabled: bool, active_pane: usize, x: i32, y: i32)
+        -> Result<bool, String>
+    {
+        let Some(drag) = &mut self.document_drag else { return Ok(false); };
+        if drag.pane != active_pane || drag.revision != editor.document.revision() {
+            self.document_drag = None;
+            return Ok(false);
+        }
+        drag.moved |= (x - drag.start.0).abs() >= 3 || (y - drag.start.1).abs() >= 3;
+        if !drag.moved { return Ok(true); }
+        drag.pointer = (x, y);
+        drag.next_scroll = renderer.selection_drag_outside(x, y)
+            .then(|| Instant::now() + Duration::from_millis(40));
+        if let Some((line, column)) = renderer.drag_cursor_target(&mut editor.document, x, y)? {
+            editor.document.move_cursor_to_line_column(line, column).map_err(|e| e.to_string())?;
+            let position = editor.document.cursor.position;
+            let (cursor, anchor) = drag.selection.endpoints(&mut editor.document, position).map_err(|e| e.to_string())?;
+            editor.set_cursor_and_anchor(cursor, anchor).map_err(|e| e.to_string())?;
+            if vim_enabled {
+                vim.mouse_selection_changed(editor);
+                renderer.set_mode_label(Some(vim.mode_label()));
+            }
+            renderer.update_cursor(&editor.document);
+        }
+        Ok(true)
+    }
+}
+
 pub(super) fn mouse(
     context: InputContext<'_, '_>,
     event: Event,
     coordinates_converted: bool,
 ) -> Result<EventFlow, String> {
     let InputContext {
+        mouse_state,
         editor,
         other_editor,
         renderer,
@@ -27,7 +132,7 @@ pub(super) fn mouse(
     match event {
         Event::MouseButtonDown {
             mouse_btn: MouseButton::Left,
-            clicks: 1,
+            clicks,
             x,
             y,
             ..
@@ -36,6 +141,17 @@ pub(super) fn mouse(
                 return Ok(EventFlow::Continue);
             }
 
+            mouse_state.cancel_drag();
+            terminal.cancel_output_drag();
+            if renderer.split_divider_hit(x as i32, y as i32) {
+                mouse_state.split_drag = true;
+                mouse_state.show_resize_cursor(true);
+                return Ok(EventFlow::Continue);
+            }
+            let extend = keyboard.mod_state().intersects(Mod::LSHIFTMOD | Mod::RSHIFTMOD);
+            if clicks > 1 && !matches!(renderer.window_control_at(x as i32, y as i32), WindowControl::None) {
+                return Ok(EventFlow::Continue);
+            }
             match renderer.window_control_at(x as i32, y as i32) {
                 WindowControl::Minimize => {
                     renderer.window_mut().minimize();
@@ -139,7 +255,7 @@ pub(super) fn mouse(
                                     Mod::LCTRLMOD | Mod::RCTRLMOD | Mod::LGUIMOD | Mod::RGUIMOD,
                                 );
                                 terminal
-                                    .begin_output_drag(offset, x as i32, y as i32, action, open_other_pane)
+                                    .begin_output_mouse_drag(offset, x as i32, y as i32, action, open_other_pane, clicks, extend)
                                     .map_err(|error| error.to_string())?;
                             }
 
@@ -307,14 +423,27 @@ pub(super) fn mouse(
                             renderer.cursor_target_at(&mut editor.document, x as i32, y as i32)?;
 
                         if let Some((line, column)) = target {
+                            let anchor = extend.then_some(editor.document.cursor.anchor);
                             editor.clear_secondary_cursors();
                             editor
                                 .document
                                 .move_cursor_to_line_column(line, column)
                                 .map_err(|error| error.to_string())?;
 
-                            if *vim_enabled {
+                            if *vim_enabled && clicks == 1 && !extend {
                                 vim.settle_cursor(&mut *editor)?;
+                            }
+                            let position = editor.document.cursor.position;
+                            let selection = MouseSelection::begin(&mut editor.document, position, clicks, anchor)
+                                .map_err(|e| e.to_string())?;
+                            let (cursor, anchor) = selection.endpoints(&mut editor.document, position).map_err(|e| e.to_string())?;
+                            editor.set_cursor_and_anchor(cursor, anchor).map_err(|e| e.to_string())?;
+                            mouse_state.document_drag = Some(DocumentDrag { pane: *active_pane,
+                                revision: editor.document.revision(), selection, start: (x as i32, y as i32),
+                                moved: false, pointer: (x as i32, y as i32), next_scroll: None });
+                            if *vim_enabled {
+                                vim.mouse_selection_changed(editor);
+                                renderer.set_mode_label(Some(vim.mode_label()));
                             }
 
                             renderer.ensure_cursor_visible(&mut editor.document);
@@ -333,6 +462,18 @@ pub(super) fn mouse(
             y,
             ..
         } => {
+            if mouse_state.split_drag {
+                if coordinates_converted {
+                    renderer.resize_split(x as i32);
+                    *dirty = true;
+                }
+                mouse_state.cancel_drag();
+                return Ok(EventFlow::Continue);
+            }
+            if coordinates_converted {
+                *dirty |= mouse_state.drag_document(editor, renderer, vim, *vim_enabled, *active_pane, x as i32, y as i32)?;
+            }
+            mouse_state.document_drag = None;
             if terminal.is_active() && terminal.output_dragging() && coordinates_converted {
                 let offset =
                     renderer.terminal_output_offset_at(&mut *terminal, x as i32, y as i32)?;
@@ -369,7 +510,24 @@ pub(super) fn mouse(
             }
         }
 
-        Event::MouseMotion { x, y, .. } => {
+        Event::MouseMotion { x, y, mousestate, .. } => {
+            if !mousestate.left() {
+                mouse_state.cancel_drag();
+                terminal.cancel_output_drag();
+            }
+            if coordinates_converted {
+                mouse_state.show_resize_cursor(mouse_state.split_drag || renderer.split_divider_hit(x as i32, y as i32));
+                if mouse_state.split_drag {
+                    renderer.resize_split(x as i32);
+                    terminal.set_listing_width(renderer.terminal_columns());
+                    *dirty = true;
+                    return Ok(EventFlow::Continue);
+                }
+                if mouse_state.drag_document(editor, renderer, vim, *vim_enabled, *active_pane, x as i32, y as i32)? {
+                    *dirty = true;
+                    return Ok(EventFlow::Continue);
+                }
+            }
             if terminal.is_active() && terminal.output_dragging() && coordinates_converted {
                 let offset =
                     renderer.terminal_output_offset_at(&mut *terminal, x as i32, y as i32)?;
@@ -393,6 +551,7 @@ pub(super) fn mouse(
             y,
             mouse_x,
             mouse_y,
+            direction,
             ..
         } => {
             if !coordinates_converted {
@@ -403,7 +562,9 @@ pub(super) fn mouse(
                 && (!command_bar.is_active()
                     || renderer.command_bar_hit_at(command_bar, mouse_x as i32, mouse_y as i32) == CommandBarHit::Outside)
             {
-                terminal.scroll(y as isize * 3);
+                let sign = if direction == sdl3::mouse::MouseWheelDirection::Flipped { -1.0 } else { 1.0 };
+                let (_, rows) = mouse_state.wheel[2].take(0.0, y as f64 * sign * 3.0);
+                terminal.scroll(rows);
                 *dirty = true;
                 return Ok(EventFlow::Continue);
             }
@@ -417,7 +578,9 @@ pub(super) fn mouse(
                 )
             {
                 if y != 0.0 {
-                    command_bar.scroll_suggestions(if y > 0.0 { -3 } else { 3 });
+                    let sign = if direction == sdl3::mouse::MouseWheelDirection::Flipped { -1.0 } else { 1.0 };
+                    let (_, rows) = mouse_state.wheel[3].take(0.0, -y as f64 * sign * 3.0);
+                    command_bar.scroll_suggestions(rows);
                     *dirty = true;
                 }
                 return Ok(EventFlow::Continue);
@@ -434,9 +597,13 @@ pub(super) fn mouse(
                 focus_pane_preserving_view(pane, active_pane, editor, other_editor, vim, other_vim, renderer);
                 search_ui.close();
             }
-            renderer.scroll_by(-(y as isize), &mut editor.document);
-
-            renderer.scroll_horizontal(-(x as i32) * 40);
+            let sign = if direction == sdl3::mouse::MouseWheelDirection::Flipped { -1.0 } else { 1.0 };
+            let (x, y) = if x == 0.0 && keyboard.mod_state().intersects(Mod::LSHIFTMOD | Mod::RSHIFTMOD) {
+                (y, 0.0)
+            } else { (x, y) };
+            let (pixels, rows) = mouse_state.wheel[*active_pane].take(-x as f64 * sign * 40.0, -y as f64 * sign);
+            renderer.scroll_by(rows, &mut editor.document);
+            renderer.scroll_horizontal(pixels);
 
             *dirty = true;
         }

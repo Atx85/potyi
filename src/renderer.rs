@@ -182,6 +182,7 @@ pub struct Renderer<'a> {
 
     inactive_view: StoredViewState,
     split_mode: bool,
+    split_ratio: f64,
     active_pane: usize,
     mode_label: Option<&'static str>,
 }
@@ -292,6 +293,7 @@ impl<'a> Renderer<'a> {
 
             inactive_view: StoredViewState::empty(),
             split_mode: false,
+            split_ratio: 0.5,
             active_pane: 0,
             mode_label: None,
         })
@@ -367,7 +369,7 @@ impl<'a> Renderer<'a> {
             return self.active_pane;
         }
 
-        if x < self.window_width / 2 {
+        if x < self.split_divider() {
             0
         } else {
             1
@@ -397,10 +399,49 @@ impl<'a> Renderer<'a> {
             return (0, self.window_width.max(1));
         }
 
-        fixed_split_pane_bounds(
-            self.window_width,
-            pane,
-        )
+        split_pane_bounds(self.window_width, pane, self.split_ratio)
+    }
+
+    pub(crate) fn split_divider(&self) -> i32 {
+        split_pane_bounds(self.window_width, 1, self.split_ratio).0
+    }
+
+    pub(crate) fn split_divider_hit(&self, x: i32, y: i32) -> bool {
+        self.split_mode && y >= TITLE_BAR_HEIGHT
+            && y < self.window_height - self.bottom_inset
+            && (x - self.split_divider()).abs() <= 5
+    }
+
+    pub(crate) fn resize_split(&mut self, x: i32) {
+        let minimum = 120.min(self.window_width.max(2) / 2);
+        let x = x.clamp(minimum, self.window_width.max(2) - minimum);
+        self.split_ratio = x as f64 / self.window_width.max(2) as f64;
+        self.invalidate_scroll_cache();
+        self.inactive_view.scroll_start_valid = false;
+    }
+
+    /// Clamp selection drags to the originating pane, including its gutter.
+    pub(crate) fn selection_drag_outside(&self, x: i32, y: i32) -> bool {
+        let (left, width) = self.pane_bounds(self.active_pane);
+        x < left || x >= left + width || y < TITLE_BAR_HEIGHT + 8
+            || y >= self.window_height - self.bottom_inset
+    }
+
+    pub(crate) fn drag_cursor_target(&mut self, table: &mut PieceTable, x: i32, y: i32)
+        -> Result<Option<(usize, usize)>, String>
+    {
+        let (left, width) = self.pane_bounds(self.active_pane);
+        let text_left = left + self.text_left(table)?;
+        let top = TITLE_BAR_HEIGHT + 8;
+        // The padding below the last complete text row is not a cursor target.
+        let bottom = (top + self.visible_line_count() as i32 * self.font.height().max(1))
+            .min(self.window_height - self.bottom_inset).max(top + 1);
+        if y < top { self.scroll_by(-1, table); }
+        if y >= bottom { self.scroll_by(1, table); }
+        if x < left { self.scroll_horizontal(-self.char_width); }
+        if x >= left + width { self.scroll_horizontal(self.char_width); }
+        let right = (left + width - 1).max(text_left);
+        self.cursor_target_at(table, x.clamp(text_left, right), y.clamp(top, bottom - 1))
     }
 
     fn active_content_width(&self) -> i32 {
@@ -1779,7 +1820,7 @@ impl<'a> Renderer<'a> {
         self.canvas.set_draw_color(
             Color::RGB(74, 74, 74),
         );
-        let divider = self.window_width / 2;
+        let divider = self.split_divider();
         self.canvas.fill_rect(Rect::new(
             divider,
             TITLE_BAR_HEIGHT,
@@ -1843,7 +1884,7 @@ impl<'a> Renderer<'a> {
         self.render_terminal_pane(terminal, self.pane_bounds(terminal_pane))?;
 
         self.canvas.set_draw_color(Color::RGB(74, 74, 74));
-        let divider = self.window_width / 2;
+        let divider = self.split_divider();
         self.canvas.fill_rect(Rect::new(divider, TITLE_BAR_HEIGHT, 1,
             self.window_height.saturating_sub(TITLE_BAR_HEIGHT).max(1) as u32,
         )).map_err(|error| error.to_string())?;
@@ -4586,12 +4627,15 @@ mod terminal_status_tests {
     }
 }
 
-fn fixed_split_pane_bounds(
-    window_width: i32,
-    pane: usize,
-) -> (i32, i32) {
+#[cfg(test)]
+fn fixed_split_pane_bounds(window_width: i32, pane: usize) -> (i32, i32) {
+    split_pane_bounds(window_width, pane, 0.5)
+}
+
+fn split_pane_bounds(window_width: i32, pane: usize, ratio: f64) -> (i32, i32) {
     let window_width = window_width.max(1);
-    let divider = window_width / 2;
+    let minimum = 120.min(window_width / 2);
+    let divider = ((window_width as f64 * ratio) as i32).clamp(minimum, window_width - minimum);
 
     if pane == 0 {
         (0, divider.max(1))

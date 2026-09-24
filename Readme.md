@@ -45,6 +45,20 @@ with the build prerequisites below installed. Ensure Cargo's bin directory
 `PATH`. For a downloaded build, add the directory containing the executable to
 `PATH`; on macOS the executable is inside `Potyi.app/Contents/MacOS`.
 
+## Mouse and trackpad
+
+Drag over editor text to select it; hold the pointer beyond a pane's edge to
+scroll while selecting. Double-click selects a word, and triple-click selects
+a whole line. Continuing to drag extends by words or lines. Shift-click extends
+from the current selection's anchor. These work in either pane, including two
+views of the same file; Vim uses Visual mode for mouse selections outside Insert mode.
+Terminal output also supports word, line, and Shift-click selection.
+
+Drag the divider between split panes to resize them. Both panes keep a usable
+minimum width, and the proportion is retained when the window changes size.
+Wheel and trackpad scrolling retains fractional movements independently in each
+pane; horizontal scrolling and Shift-wheel work in the editor.
+
 ## Command Bar
 
 Pötyi uses one discoverable command bar for search, replacement, navigation, and file commands. Press `Ctrl+P`, or type `:` on an empty line, to open it. Colons typed in normal content such as `foo: bar` are inserted into the document. Type `::` on an empty line to insert a literal colon there.

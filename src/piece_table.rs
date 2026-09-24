@@ -32,6 +32,8 @@ use std::sync::{Arc, Mutex};
 pub(crate) mod recovery;
 mod line_view;
 mod shared_view;
+mod mouse_selection;
+pub(crate) use mouse_selection::MouseSelection;
 use line_view::LineViewCache;
 
 
