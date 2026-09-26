@@ -35,12 +35,14 @@ pub(crate) struct MouseState {
     document_drag: Option<DocumentDrag>,
     split_drag: bool,
     wheel: [WheelRemainder; 4], // left editor, right editor, terminal, command bar
-    resize_cursor: Option<sdl3::mouse::Cursor>,
-    arrow_cursor: Option<sdl3::mouse::Cursor>,
-    resizing_cursor: bool,
+    cursors: [Option<sdl3::mouse::Cursor>; 5],
+    cursor_kind: Option<sdl3::mouse::SystemCursor>,
 }
 
 impl MouseState {
+    #[cfg(test)]
+    pub(super) fn cursor_kind(&self) -> Option<sdl3::mouse::SystemCursor> { self.cursor_kind }
+
     pub(crate) fn wait_timeout(&self) -> Duration {
         self.document_drag.as_ref().and_then(|drag| drag.next_scroll)
             .map(|deadline| deadline.saturating_duration_since(Instant::now()))
@@ -61,18 +63,23 @@ impl MouseState {
     pub(super) fn cancel_drag(&mut self) {
         self.document_drag = None;
         self.split_drag = false;
-        self.show_resize_cursor(false);
+        self.reset_cursor();
     }
 
+    pub(super) fn reset_cursor(&mut self) { self.show_cursor(None); }
+
     fn show_resize_cursor(&mut self, resize: bool) {
-        if resize == self.resizing_cursor { return; }
-        self.resizing_cursor = resize;
-        let (cursor, kind) = if resize {
-            (&mut self.resize_cursor, sdl3::mouse::SystemCursor::SizeWE)
-        } else {
-            (&mut self.arrow_cursor, sdl3::mouse::SystemCursor::Arrow)
-        };
-        if cursor.is_none() { *cursor = sdl3::mouse::Cursor::from_system(kind).ok(); }
+        self.show_cursor(if resize { Some(sdl3::mouse::SystemCursor::SizeWE) } else { None });
+    }
+
+    fn show_cursor(&mut self, kind: Option<sdl3::mouse::SystemCursor>) {
+        use sdl3::mouse::{Cursor, SystemCursor::*};
+        let kind = kind.unwrap_or(Arrow);
+        if self.cursor_kind == Some(kind) { return; }
+        self.cursor_kind = Some(kind);
+        let index = match kind { SizeWE => 1, SizeNS => 2, SizeNWSE => 3, SizeNESW => 4, _ => 0 };
+        let cursor = &mut self.cursors[index];
+        if cursor.is_none() { *cursor = Cursor::from_system(kind).ok(); }
         if let Some(cursor) = cursor { cursor.set(); }
     }
 
@@ -143,6 +150,10 @@ pub(super) fn mouse(
 
             mouse_state.cancel_drag();
             terminal.cancel_output_drag();
+            if let Some(cursor) = renderer.window_resize_cursor(x as i32, y as i32) {
+                mouse_state.show_cursor(Some(cursor));
+                return Ok(EventFlow::Continue);
+            }
             if renderer.split_divider_hit(x as i32, y as i32) {
                 mouse_state.split_drag = true;
                 mouse_state.show_resize_cursor(true);
@@ -513,13 +524,21 @@ pub(super) fn mouse(
 
         Event::MouseMotion { x, y, mousestate, .. } => {
             if !mousestate.left() {
-                mouse_state.cancel_drag();
+                if mouse_state.document_drag.is_some() || mouse_state.split_drag { mouse_state.cancel_drag(); }
                 terminal.cancel_output_drag();
             }
             if coordinates_converted {
-                let control = renderer.window_control_at(x as i32, y as i32);
+                let window_cursor = renderer.window_resize_cursor(x as i32, y as i32);
+                let control = if window_cursor.is_some() { WindowControl::None }
+                    else { renderer.window_control_at(x as i32, y as i32) };
                 *dirty |= renderer.set_window_control_hover(control);
-                mouse_state.show_resize_cursor(mouse_state.split_drag || renderer.split_divider_hit(x as i32, y as i32));
+                let cursor = if mouse_state.split_drag {
+                    Some(sdl3::mouse::SystemCursor::SizeWE)
+                } else {
+                    window_cursor.or_else(||
+                        renderer.split_divider_hit(x as i32, y as i32).then_some(sdl3::mouse::SystemCursor::SizeWE))
+                };
+                mouse_state.show_cursor(cursor);
                 if mouse_state.split_drag {
                     renderer.resize_split(x as i32);
                     terminal.set_listing_width(renderer.terminal_columns());

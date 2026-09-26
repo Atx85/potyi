@@ -1486,3 +1486,34 @@ fn mouse_interactions_resize_terminal_pane_and_preserve_editor_hit_testing() {
         assert!(app.renderer.terminal_visible(&app.terminal));
     });
 }
+
+#[test]
+#[ignore = "Headless SDL resize cursors; run with SDL_VIDEODRIVER=dummy"]
+fn mouse_interactions_window_edges_show_resize_cursors_without_editing() {
+    use sdl3::mouse::SystemCursor::*;
+    with_fixture(|app| {
+        app.editor.insert_text("unchanged document").unwrap();
+        let position = app.editor.document.cursor.position;
+        for ((x, y), expected) in [
+            ((2.0, 300.0), SizeWE), ((798.0, 300.0), SizeWE),
+            ((400.0, 2.0), SizeNS), ((400.0, 598.0), SizeNS),
+            ((2.0, 2.0), SizeNWSE), ((798.0, 598.0), SizeNWSE),
+            ((798.0, 2.0), SizeNESW), ((2.0, 598.0), SizeNESW),
+        ] {
+            mouse_move(app, (x, y));
+            assert_eq!(app.mouse_state.cursor_kind(), Some(expected));
+            mouse_press(app, (x, y), 1, Mod::NOMOD);
+            assert_eq!(app.editor.document.cursor.position, position);
+            mouse_release(app, (x, y));
+        }
+        mouse_move(app, (100.0, 100.0));
+        assert_eq!(app.mouse_state.cursor_kind(), Some(Arrow));
+        app.split_mode = true;
+        app.renderer.set_split_mode(true);
+        mouse_move(app, (400.0, 120.0));
+        assert_eq!(app.mouse_state.cursor_kind(), Some(SizeWE));
+        app.send(Event::Window { timestamp: 0, window_id: 0, win_event: WindowEvent::MouseLeave }, true);
+        assert_eq!(app.mouse_state.cursor_kind(), Some(Arrow));
+        assert_eq!(app.editor.document.text().unwrap(), "unchanged document");
+    });
+}

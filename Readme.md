@@ -47,6 +47,8 @@ with the build prerequisites below installed. Ensure Cargo's bin directory
 
 ## Mouse and trackpad
 
+Move the pointer near a window edge or corner to see the resize cursor, then drag to resize. The invisible resize area is six logical pixels wide and follows display scaling. Maximized and full-screen windows disable edge resizing; the custom title bar still supports moving and restoring the window.
+
 Drag over editor text to select it; hold the pointer beyond a pane's edge to
 scroll while selecting. Double-click selects a word, and triple-click selects
 a whole line. Continuing to drag extends by words or lines. Shift-click extends

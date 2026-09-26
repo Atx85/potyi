@@ -241,9 +241,11 @@ impl<'a> Renderer<'a> {
 
         window_hit_test.set_metrics(
             window_width as i32,
+            window_height as i32,
             window_coordinate_scale(
                 canvas.window(),
             ),
+            crate::window::can_resize(canvas.window()),
         );
 
         Ok(Self {
@@ -974,6 +976,18 @@ impl<'a> Renderer<'a> {
     // Window
     // ----------------------------------------------------------------------
 
+    pub(crate) fn window_resize_cursor(&self, x: i32, y: i32) -> Option<sdl3::mouse::SystemCursor> {
+        use sdl3::{mouse::SystemCursor, video::HitTestResult::*};
+        match crate::window::frame_hit_test(x, y, self.window_width, self.window_height,
+            crate::window::can_resize(self.canvas.window())) {
+            ResizeLeft | ResizeRight => Some(SystemCursor::SizeWE),
+            ResizeTop | ResizeBottom => Some(SystemCursor::SizeNS),
+            ResizeTopLeft | ResizeBottomRight => Some(SystemCursor::SizeNWSE),
+            ResizeTopRight | ResizeBottomLeft => Some(SystemCursor::SizeNESW),
+            _ => None,
+        }
+    }
+
     pub fn update_window_size(
         &mut self,
     ) -> Result<(), String> {
@@ -1026,9 +1040,11 @@ impl<'a> Renderer<'a> {
         self.window_hit_test
             .set_metrics(
                 width as i32,
+                height as i32,
                 window_coordinate_scale(
                     self.canvas.window(),
                 ),
+                crate::window::can_resize(self.canvas.window()),
             );
 
         Ok(())

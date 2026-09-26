@@ -115,6 +115,7 @@ fn dispatch_event(
                 | WindowEvent::Hidden | WindowEvent::Minimized,
             ..
         } => {
+            context.mouse_state.reset_cursor();
             *context.dirty |= context.renderer.set_window_control_hover(WindowControl::None);
             Ok(EventFlow::Continue)
         }

@@ -17,6 +17,7 @@
 
 use std::sync::{
     atomic::{
+        AtomicBool,
         AtomicI32,
         AtomicU32,
         Ordering,
@@ -171,11 +172,13 @@ pub fn window_coordinate_scale(
 ///
 /// SDL's hit-test callback gives us the mouse position,
 /// but the callback itself does not know the current
-/// window width. Therefore the renderer updates this
-/// value whenever the window is resized.
+/// window dimensions or maximized state. The renderer refreshes these metrics
+/// on resize, display changes and maximize/restore events.
 #[derive(Clone)]
 pub struct WindowHitTestState {
     render_width: Arc<AtomicI32>,
+    render_height: Arc<AtomicI32>,
+    resize_enabled: Arc<AtomicBool>,
     window_coordinate_scale: Arc<AtomicU32>,
 }
 
@@ -188,6 +191,8 @@ impl WindowHitTestState {
             render_width: Arc::new(
                 AtomicI32::new(render_width),
             ),
+            render_height: Arc::new(AtomicI32::new(0)),
+            resize_enabled: Arc::new(AtomicBool::new(false)),
             window_coordinate_scale: Arc::new(
                 AtomicU32::new(
                     normalized_scale(
@@ -202,8 +207,12 @@ impl WindowHitTestState {
     pub fn set_metrics(
         &self,
         render_width: i32,
+        render_height: i32,
         window_coordinate_scale: f32,
+        resize_enabled: bool,
     ) {
+        self.render_height.store(render_height, Ordering::Relaxed);
+        self.resize_enabled.store(resize_enabled, Ordering::Relaxed);
         self.render_width.store(
             render_width,
             Ordering::Relaxed,
@@ -218,9 +227,14 @@ impl WindowHitTestState {
         );
     }
 
-    fn render_width(&self) -> i32 {
-        self.render_width.load(
-            Ordering::Relaxed,
+    fn hit_test(&self, point: Point) -> HitTestResult {
+        let scale = self.window_coordinate_scale();
+        frame_hit_test(
+            render_coordinate(point.x(), scale),
+            render_coordinate(point.y(), scale),
+            self.render_width.load(Ordering::Relaxed),
+            self.render_height.load(Ordering::Relaxed),
+            self.resize_enabled.load(Ordering::Relaxed),
         )
     }
 
@@ -231,6 +245,34 @@ impl WindowHitTestState {
             ),
         )
     }
+}
+
+/// Borderless windows need explicit edge hit tests for native resizing.
+/// Coordinates are display-scaled logical pixels, independent of editor zoom.
+pub(crate) fn frame_hit_test(x: i32, y: i32, width: i32, height: i32, resize: bool) -> HitTestResult {
+    use HitTestResult::*;
+    if x < 0 || y < 0 || x >= width || y >= height { return Normal; }
+    if resize {
+        const EDGE: i32 = 6;
+        const CORNER: i32 = 12;
+        let left = x < EDGE;
+        let right = x >= width - EDGE;
+        let top = y < EDGE;
+        let bottom = y >= height - EDGE;
+        if (left && y < CORNER) || (top && x < CORNER) { return ResizeTopLeft; }
+        if (right && y < CORNER) || (top && x >= width - CORNER) { return ResizeTopRight; }
+        if (left && y >= height - CORNER) || (bottom && x < CORNER) { return ResizeBottomLeft; }
+        if (right && y >= height - CORNER) || (bottom && x >= width - CORNER) { return ResizeBottomRight; }
+        if left { return ResizeLeft; }
+        if right { return ResizeRight; }
+        if top { return ResizeTop; }
+        if bottom { return ResizeBottom; }
+    }
+    if y < TITLE_BAR_HEIGHT && x < width - WINDOW_BUTTONS_WIDTH { Draggable } else { Normal }
+}
+
+pub(crate) fn can_resize(window: &Window) -> bool {
+    !window.is_maximized() && window.fullscreen_state() == sdl3::video::FullscreenType::Off
 }
 
 /// Create the Pötyi borderless window.
@@ -380,8 +422,7 @@ pub fn create_window(
         );
     }
 
-    let render_width =
-        logical_render_size(&window).0;
+    let (render_width, render_height) = logical_render_size(&window);
 
     let coordinate_scale =
         window_coordinate_scale(&window);
@@ -392,70 +433,15 @@ pub fn create_window(
             coordinate_scale,
         );
 
+    hit_test_state.set_metrics(render_width as i32, render_height as i32, coordinate_scale,
+        can_resize(&window));
+
     let state_for_callback =
         hit_test_state.clone();
 
     window
         .set_hit_test(
-            move |point: Point| {
-                let window_width =
-                    state_for_callback
-                        .render_width();
-
-                let coordinate_scale =
-                    state_for_callback
-                        .window_coordinate_scale();
-
-                let point_x =
-                    render_coordinate(
-                        point.x(),
-                        coordinate_scale,
-                    );
-
-                let point_y =
-                    render_coordinate(
-                        point.y(),
-                        coordinate_scale,
-                    );
-
-                let buttons_left =
-                    window_width
-                        - WINDOW_BUTTONS_WIDTH;
-
-                /*
-                 * The custom controls must NOT be draggable.
-                 *
-                 * Returning Normal here allows SDL to deliver
-                 * the mouse click to our application, where the
-                 * renderer/window-control code handles:
-                 *
-                 *     - minimize
-                 *     □ maximize/restore
-                 *     X close
-                 */
-                if point_y >= 0
-                    && point_y < TITLE_BAR_HEIGHT
-                    && point_x >= buttons_left
-                {
-                    return HitTestResult::Normal;
-                }
-
-                /*
-                 * The rest of the custom title bar is draggable.
-                 */
-                if point_y >= 0
-                    && point_y < TITLE_BAR_HEIGHT
-                {
-                    return HitTestResult::Draggable;
-                }
-
-                /*
-                 * Everything below the title bar behaves
-                 * normally, including the editor and resize
-                 * borders.
-                 */
-                HitTestResult::Normal
-            },
+            move |point: Point| state_for_callback.hit_test(point),
         )
         .map_err(|e| e.to_string())?;
 
@@ -621,5 +607,45 @@ mod tests {
             ),
             10,
         );
+    }
+
+    #[test]
+    fn borderless_hit_tests_cover_edges_corners_title_and_controls() {
+        use super::frame_hit_test;
+        use sdl3::video::HitTestResult::*;
+        for (x, y, expected) in [
+            (0, 300, ResizeLeft), (799, 300, ResizeRight),
+            (400, 0, ResizeTop), (400, 599, ResizeBottom),
+            (0, 0, ResizeTopLeft), (799, 0, ResizeTopRight),
+            (0, 599, ResizeBottomLeft), (799, 599, ResizeBottomRight),
+            (10, 2, ResizeTopLeft), (797, 10, ResizeTopRight),
+            (10, 598, ResizeBottomLeft), (797, 590, ResizeBottomRight),
+            (20, 20, Draggable), (680, 20, Normal), (775, 20, Normal),
+            (12, 44, Normal), (400, 300, Normal),
+            (-1, 50, Normal), (800, 50, Normal), (50, 600, Normal),
+        ] {
+            assert_eq!(frame_hit_test(x, y, 800, 600, true), expected, "{x},{y}");
+        }
+        assert_eq!(frame_hit_test(5, 300, 800, 600, true), ResizeLeft);
+        assert_eq!(frame_hit_test(6, 300, 800, 600, true), Normal);
+    }
+
+    #[test]
+    fn resize_hit_tests_track_dimensions_scale_and_maximize_state() {
+        use super::WindowHitTestState;
+        use sdl3::{rect::Point, video::HitTestResult::*};
+        let state = WindowHitTestState::new(800, 1.0);
+        let callback = state.clone();
+        state.set_metrics(800, 600, 0.5, true);
+        assert_eq!(callback.hit_test(Point::new(1596, 600)), ResizeRight);
+        assert_eq!(callback.hit_test(Point::new(800, 1196)), ResizeBottom);
+        assert_eq!(callback.hit_test(Point::new(800, 80)), Normal);
+        state.set_metrics(1000, 700, 1.0, true);
+        assert_eq!(callback.hit_test(Point::new(798, 300)), Normal);
+        assert_eq!(callback.hit_test(Point::new(998, 698)), ResizeBottomRight);
+        state.set_metrics(1000, 700, 1.0, false);
+        assert_eq!(callback.hit_test(Point::new(998, 698)), Normal);
+        assert_eq!(callback.hit_test(Point::new(998, 2)), Normal);
+        assert_eq!(callback.hit_test(Point::new(200, 2)), Draggable);
     }
 }
