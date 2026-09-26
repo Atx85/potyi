@@ -18,6 +18,7 @@ pub(super) struct Scanner {
 struct Context {
     git: Option<std::sync::Arc<super::git::Repository>>,
     cwd: PathBuf,
+    location_base: std::sync::Arc<PathBuf>,
     single_file: Option<PathBuf>,
     columns: bool,
     byte_columns: bool,
@@ -74,6 +75,7 @@ impl Scanner {
                             if let Some(range) = super::git::hash_range(line) {
                                 entries.push(OutputEntry {
                                     git_status: None,
+                                    location_base: None,
                                     commit: Some(super::git::Commit {hash:line[range.clone()].into(),repo:repo.clone()}),
                                     range:self.start + range.start..self.start + range.end,
                                     path:context.cwd.clone(), kind:EntryKind::Commit, location:None,
@@ -82,16 +84,24 @@ impl Scanner {
                         }
                     } else if entries.len() < super::git::MAX_LINKS {
                         let parsed = rust_location(line).map(|(range, path, location)| {
-                            (range, context.cwd.join(path), location)
+                            // Check before joining: verbatim Windows bases can
+                            // normalize away explicit parent components.
+                            let base = Path::new(path).is_relative()
+                                .then_some(Path::new(path))
+                                .filter(|path| path.components().all(|part| matches!(part,
+                                    std::path::Component::Normal(_) | std::path::Component::CurDir)))
+                                .map(|_| context.location_base.clone());
+                            (range, context.cwd.join(path), location, base)
                         }).or_else(|| context.parse(line).map(|(path, location)| {
-                            (0..line.len(), path, location)
+                            (0..line.len(), path, location, None)
                         }));
-                        if let Some((range, path, location)) = parsed {
+                        if let Some((range, path, location, location_base)) = parsed {
                             entries.push(OutputEntry {
                                 range: self.start + range.start..self.start + range.end,
                                 path,
                                 kind: EntryKind::Text,
                                 location: Some(location),
+                                location_base,
                                 commit: None,
                                 git_status: None,
                             });
@@ -103,6 +113,31 @@ impl Scanner {
             }
         }
     }
+}
+
+/// Cargo can print workspace-relative paths while running inside a member.
+/// Resolve only on activation, never while rendering or streaming output. Keep
+/// an existing (or inaccessible) exact path; only a missing relative path may
+/// fall back to an ancestor. Absolute paths and explicit ../ paths stay literal.
+pub(super) fn resolve_compiler_path(path: &Path, base: &Path) -> PathBuf {
+    use std::{fs, io, path::Component};
+    if !matches!(fs::metadata(path), Err(error) if error.kind() == io::ErrorKind::NotFound) {
+        return path.to_path_buf();
+    }
+    let Ok(relative) = path.strip_prefix(base) else {
+        return path.to_path_buf();
+    };
+    if relative.components().any(|part| !matches!(part, Component::Normal(_) | Component::CurDir)) {
+        return path.to_path_buf();
+    }
+    // A fixed number of metadata checks, without recursive search or indexing.
+    for parent in base.ancestors().skip(1).take(32) {
+        let candidate = parent.join(relative);
+        if fs::metadata(&candidate).is_ok_and(|metadata| metadata.is_file()) {
+            return candidate;
+        }
+    }
+    path.to_path_buf()
 }
 
 /// Rust's human diagnostics and panic messages place a location after a marker.
@@ -145,6 +180,7 @@ impl Context {
         let mut context = Self {
             git: super::git::Repository::from_log(command, cwd),
             cwd: cwd.into(),
+            location_base: std::sync::Arc::new(cwd.into()),
             single_file: None,
             columns: true,
             byte_columns: false,
@@ -433,6 +469,69 @@ mod tests {
         assert_eq!(document.cursor_line_column().unwrap(), (1, 40));
         let offset = source.rfind("café").unwrap();
         assert_eq!(document.line_column_at(offset).unwrap(), (1, 40));
+    }
+
+    #[test]
+    fn cargo_links_resolve_workspace_paths_without_duplicating_the_member_name() {
+        let root = super::super::tests::Fixture::new();
+        let member = root.0.join("member 東京");
+        std::fs::create_dir_all(member.join("src")).unwrap();
+        let source = member.join("src/main.rs");
+        std::fs::write(&source, "fn main() {}\n").unwrap();
+        let mut terminal = Terminal::new(member.clone()).unwrap();
+        terminal.clear().unwrap();
+        terminal.location_scanner = Scanner::new("cargo check", &member);
+        let output = " --> member 東京/src/main.rs:1:4\n ::: member 東京/src/main.rs:1:1\n";
+        terminal.append_text(output).unwrap();
+        assert_eq!(terminal.entries[0].path, member.join("member 東京/src/main.rs"));
+        assert!(std::sync::Arc::ptr_eq(
+            terminal.entries[0].location_base.as_ref().unwrap(),
+            terminal.entries[1].location_base.as_ref().unwrap(),
+        ));
+        // Old diagnostics retain the original command directory after cd/end.
+        terminal.cwd = root.0.join("elsewhere");
+        terminal.location_scanner = Scanner::default();
+        assert_eq!(terminal.action_at_output_offset(output.find("src/main").unwrap()).unwrap(),
+            Some(TerminalAction::Location(source, SourceLocation {
+                line: 1, column: Some(4), byte_column: false,
+            })));
+    }
+
+    #[test]
+    fn compiler_path_fallback_preserves_existing_absolute_and_explicit_parent_paths() {
+        let root = super::super::tests::Fixture::new();
+        let member = root.0.join("member");
+        let nested = member.join("member/src/main.rs");
+        let fallback = member.join("src/main.rs");
+        std::fs::create_dir_all(nested.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(fallback.parent().unwrap()).unwrap();
+        std::fs::write(&fallback, "parent").unwrap();
+        std::fs::write(&nested, "exact").unwrap();
+        assert_eq!(resolve_compiler_path(&nested, &member), nested);
+        std::fs::remove_file(&nested).unwrap();
+        assert_eq!(resolve_compiler_path(&nested, &member), fallback);
+        let mut scanner = Scanner::new("cargo check", &member);
+        let mut entries = Vec::new();
+        scanner.append(&format!(" --> {}:1:1\n", nested.display()), 0, &mut entries);
+        assert!(entries[0].location_base.is_none());
+        assert!(matches!(entries[0].action(), Some(TerminalAction::Location(path, _)) if path == nested));
+        let explicit = member.join("../member/member/src/main.rs");
+        assert_eq!(resolve_compiler_path(&explicit, &member), explicit);
+        let missing = member.join("missing.rs");
+        assert_eq!(resolve_compiler_path(&missing, &member), missing);
+    }
+
+    #[test]
+    fn grep_paths_do_not_fall_back_to_unrelated_parent_files() {
+        let root = super::super::tests::Fixture::new();
+        let child = root.0.join("child");
+        std::fs::create_dir(&child).unwrap();
+        std::fs::write(root.0.join("main.rs"), "other file").unwrap();
+        let mut scanner = Scanner::new("grep -nH main main.rs", &child);
+        let mut entries = Vec::new();
+        scanner.append("main.rs:1:match\n", 0, &mut entries);
+        assert!(entries[0].location_base.is_none());
+        assert!(matches!(entries[0].action(), Some(TerminalAction::Location(path, _)) if path == child.join("main.rs")));
     }
 
     #[test]

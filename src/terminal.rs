@@ -106,6 +106,8 @@ pub(crate) struct OutputEntry {
     pub path: PathBuf,
     pub kind: EntryKind,
     pub location: Option<SourceLocation>,
+    // Shared per command; only relative compiler locations need fallback roots.
+    pub location_base: Option<Arc<PathBuf>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -119,7 +121,11 @@ impl OutputEntry {
     pub fn action(&self) -> Option<TerminalAction> {
         if let Some(commit) = &self.commit { return Some(TerminalAction::Commit(commit.clone())); }
         if let Some(location) = self.location {
-            return Some(TerminalAction::Location(self.path.clone(), location));
+            let path = self.location_base.as_deref().map_or_else(
+                || self.path.clone(),
+                |base| locations::resolve_compiler_path(&self.path, base),
+            );
+            return Some(TerminalAction::Location(path, location));
         }
         match self.kind {
             EntryKind::Text => Some(TerminalAction::ListedFile(self.path.clone())),
@@ -1720,6 +1726,7 @@ fn append_ls_entry(
     output.entries.push(OutputEntry {
         range: start..output.text.len(),
         location: None,
+        location_base: None,
         commit: None,
         git_status: None,
         path: path.to_path_buf(),

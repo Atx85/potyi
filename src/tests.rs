@@ -2775,6 +2775,75 @@ fn terminal_failed_open_preserves_both_documents() {
 }
 
 #[test]
+fn terminal_link_autosaves_named_document_and_syncs_its_other_view() {
+    let original = temporary_path();
+    let destination = temporary_path();
+    fs::write(&original, "old file").unwrap();
+    fs::write(&destination, "next file").unwrap();
+    {
+        let mut editor = test_editor("");
+        editor.open(original.to_str().unwrap()).unwrap();
+        editor.insert("edited ").unwrap();
+        let edited = editor.document.text().unwrap();
+        let mut other = editor.duplicate_view();
+        replace_terminal_document(destination.to_str().unwrap(), false, &mut editor, &mut other).unwrap();
+        assert_eq!(fs::read_to_string(&original).unwrap(), edited);
+        assert_eq!(editor.document.text().unwrap(), "next file");
+        assert_eq!(other.document.text().unwrap(), edited);
+        assert!(!editor.dirty && !other.dirty);
+        assert!(!editor.shares_document_with(&other));
+        other.undo().unwrap();
+        assert_eq!(other.document.text().unwrap(), "old file");
+    }
+    fs::remove_file(original).unwrap();
+    fs::remove_file(destination).unwrap();
+}
+
+#[test]
+fn terminal_link_failed_destination_does_not_autosave_or_replace_document() {
+    let original = temporary_path();
+    let missing = temporary_path();
+    fs::write(&original, "on disk").unwrap();
+    {
+        let mut editor = test_editor("");
+        editor.open(original.to_str().unwrap()).unwrap();
+        editor.insert("changed ").unwrap();
+        let edited = editor.document.text().unwrap();
+        let history = editor.undo_stack.len();
+        let mut other = test_editor("");
+        assert!(replace_terminal_document(missing.to_str().unwrap(), false, &mut editor, &mut other).is_err());
+        assert_eq!(fs::read_to_string(&original).unwrap(), "on disk");
+        assert_eq!(editor.document.text().unwrap(), edited);
+        assert_eq!(editor.undo_stack.len(), history);
+        assert!(editor.dirty);
+    }
+    fs::remove_file(original).unwrap();
+}
+
+#[test]
+fn terminal_link_failed_autosave_preserves_edits_and_does_not_switch() {
+    let destination = temporary_path();
+    fs::write(&destination, "next file").unwrap();
+    {
+        let mut editor = test_editor("");
+        editor.open(destination.to_str().unwrap()).unwrap();
+        editor.insert("changed ").unwrap();
+        let edited = editor.document.text().unwrap();
+        let history = editor.undo_stack.len();
+        // A path with a missing parent fails consistently on every platform.
+        editor.path = Some(temporary_path().join("original.rs"));
+        let mut other = test_editor("");
+        let error = replace_terminal_document(destination.to_str().unwrap(), false, &mut editor, &mut other).unwrap_err();
+        assert!(error.to_string().contains("Could not save"));
+        assert_eq!(editor.document.text().unwrap(), edited);
+        assert_eq!(editor.undo_stack.len(), history);
+        assert!(editor.dirty);
+        assert_eq!(fs::read_to_string(&destination).unwrap(), "next file");
+    }
+    fs::remove_file(destination).unwrap();
+}
+
+#[test]
 fn terminal_locations_jump_to_reported_lines_and_unicode_byte_columns() {
     let mut editor = test_editor("first\né🙂 fn main\nlast\n");
     move_to_terminal_location(&mut editor.document, 2, None, false).unwrap();

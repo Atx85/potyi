@@ -294,16 +294,51 @@ pub(crate) fn open_terminal_document(
         return Ok(true);
     }
     let focus_other = editor.dirty;
-    let target = if focus_other { other_editor } else { editor };
-    if target.dirty {
+    let (target, source) = if focus_other { (other_editor, editor) } else { (editor, other_editor) };
+    if target.dirty && target.path.is_none() {
         return Err(io::Error::new(
             io::ErrorKind::Other,
-            "Both panes have unsaved changes. Save one file before opening another.",
+            "Both panes have unsaved changes. Give the selected document a filename with :save-as before opening another.",
         ));
     }
-    target.open(path)?;
-    target.read_only = read_only;
+    replace_terminal_document(path, read_only, target, source)?;
     Ok(focus_other)
+}
+
+/// Stage the destination before saving, so broken links leave the current file
+/// untouched. Save failures must also leave the document and undo history intact.
+pub(crate) fn replace_terminal_document(
+    path: &str,
+    read_only: bool,
+    target: &mut Editor,
+    source: &mut Editor,
+) -> io::Result<()> {
+    if file_is_open_in(path, target) {
+        return Ok(());
+    }
+    if target.dirty && target.path.is_none() {
+        return Err(io::Error::other(
+            "The selected pane has unsaved changes in an unnamed document. Give it a filename with :save-as before opening another file.",
+        ));
+    }
+    let replacement = if file_is_open_in(path, source) {
+        source.duplicate_view()
+    } else {
+        let mut replacement = Editor::new(target.config.clone())?;
+        replacement.open(path)?;
+        replacement.read_only = read_only;
+        replacement
+    };
+    if target.dirty {
+        target.save().map_err(|error| io::Error::new(error.kind(), format!(
+            "Could not save {} before switching: {error}. Your edits are still open.",
+            terminal::display_path(target.path.as_deref().expect("named document")),
+        )))?;
+        // Propagate the saved state before this view detaches from a shared file.
+        Editor::synchronize_views(target, source)?;
+    }
+    *target = replacement;
+    Ok(())
 }
 
 pub(crate) fn move_to_terminal_location(
@@ -409,25 +444,11 @@ pub(crate) fn handle_terminal_action_in_pane(
         TerminalOpenTarget::CurrentPane | TerminalOpenTarget::OtherPane => {
             let other = matches!(destination, TerminalOpenTarget::OtherPane);
             let (target, source) = if other {
-                (&mut *other_editor, &*editor)
+                (&mut *other_editor, &mut *editor)
             } else {
-                (&mut *editor, &*other_editor)
+                (&mut *editor, &mut *other_editor)
             };
-            if file_is_open_in(&display_path, target) {
-                Ok(other)
-            } else if target.dirty {
-                Err(io::Error::other(
-                    "The selected pane has unsaved changes. Save it before opening another file.",
-                ))
-            } else if file_is_open_in(&display_path, source) {
-                *target = source.duplicate_view();
-                Ok(other)
-            } else {
-                target.open(&display_path).map(|()| {
-                    target.read_only = read_only;
-                    other
-                })
-            }
+            replace_terminal_document(&display_path, read_only, target, source).map(|()| other)
         }
     };
     let focus_other = match opened {

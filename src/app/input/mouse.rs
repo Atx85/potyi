@@ -200,12 +200,13 @@ pub(super) fn mouse(
                                 } else {
                                     match terminal.run_again(event_subsystem) {
                                         Ok(action) => {
-                                            if handle_terminal_action(
+                                            if handle_terminal_action_in_pane(
                                                 action,
                                                 &mut *terminal,
                                                 &mut *editor,
                                                 &mut *other_editor,
                                                 &mut *renderer,
+                                                TerminalOpenTarget::CurrentPane,
                                             )? {
                                                 focus_pane(
                                                     1 - *active_pane,

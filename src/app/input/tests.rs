@@ -1036,6 +1036,53 @@ fn open_folder_fixture(app: &mut Fixture<'_>, folder: &FolderFixture) {
 }
 
 #[test]
+#[ignore = "Headless SDL terminal input; run with SDL_VIDEODRIVER=dummy in a separate process"]
+fn terminal_typed_paths_open_in_the_terminal_pane() {
+    let folder = FolderFixture::new();
+    let original = folder.0.join("original.txt");
+    std::fs::write(folder.0.join("notes with spaces.txt"), "notes\n").unwrap();
+    with_fixture(|app| {
+        for split in [false, true] {
+            for pane in [0, 1] {
+                if !split && pane == 1 { continue; }
+                for (input, contents, read_only) in [
+                    ("./sample.txt", "project file\n", false),
+                    ("\"notes with spaces.txt\"", "notes\n", false),
+                    ("edit ./sample.txt:1:3", "project file\n", false),
+                    ("view ./sample.txt", "project file\n", true),
+                ] {
+                    app.editor = Editor::new(app.editor.config.clone()).unwrap();
+                    app.other_editor = Editor::new(app.other_editor.config.clone()).unwrap();
+                    open_folder_fixture(app, &folder);
+                    focus_pane(pane, &mut app.active_pane, &mut app.editor, &mut app.other_editor,
+                        &mut app.vim, &mut app.other_vim, &mut app.renderer);
+                    app.renderer.place_terminal_in_active_pane();
+                    app.split_mode = split;
+                    app.renderer.set_split_mode(split);
+                    std::fs::write(&original, "original").unwrap();
+                    app.editor.open(original.to_str().unwrap()).unwrap();
+                    app.editor.insert_text("saved ").unwrap();
+                    app.other_editor.insert_text("other pane draft").unwrap();
+                    app.text(input);
+                    app.key(Keycode::Return, Mod::NOMOD);
+                    assert_eq!(app.active_pane, pane, "{input}");
+                    assert_eq!(app.split_mode, split);
+                    assert!(!app.terminal.is_active(), "{:?}", app.terminal.status());
+                    assert_eq!(app.editor.document.text().unwrap(), contents);
+                    assert_eq!(app.editor.read_only, read_only);
+                    assert_eq!(app.other_editor.document.text().unwrap(), "other pane draft");
+                    assert!(app.other_editor.dirty);
+                    assert_eq!(std::fs::read_to_string(&original).unwrap(), "saved original");
+                    if input.starts_with("edit ") {
+                        assert_eq!(app.editor.document.cursor_line_column().unwrap(), (0, 2));
+                    }
+                }
+            }
+        }
+    });
+}
+
+#[test]
 #[ignore = "Headless SDL terminal clicks; run with SDL_VIDEODRIVER=dummy in a separate process"]
 fn terminal_clicks_choose_both_panes_and_create_splits_only_for_file_opens() {
     let folder = FolderFixture::new();
@@ -1117,6 +1164,29 @@ fn terminal_clicks_protect_the_selected_destination_and_reuse_open_files() {
         assert!(app.terminal.is_active());
         assert!(app.other_editor.path.is_none());
     });
+}
+
+#[test]
+#[ignore = "Headless SDL terminal clicks; run with SDL_VIDEODRIVER=dummy in a separate process"]
+fn terminal_clicks_autosave_named_files_in_the_selected_pane() {
+    for modifiers in [Mod::NOMOD, Mod::LCTRLMOD, Mod::LGUIMOD] {
+        let folder = FolderFixture::new();
+        let original = folder.0.join("original.txt");
+        std::fs::write(&original, "original file").unwrap();
+        let file = TerminalAction::ListedFile(folder.0.join("sample.txt"));
+        with_fixture(|app| {
+            open_folder_fixture(app, &folder);
+            // Folder opening leaves the right pane active, with the terminal left.
+            let target = if modifiers == Mod::NOMOD { &mut app.other_editor } else { &mut app.editor };
+            target.open(original.to_str().unwrap()).unwrap();
+            target.insert_text("saved ").unwrap();
+            click_terminal_action(app, &file, modifiers, false);
+            assert_eq!(std::fs::read_to_string(&original).unwrap(), "saved original file");
+            assert_eq!(app.editor.document.text().unwrap(), "project file\n");
+            assert_eq!(app.active_pane, if modifiers == Mod::NOMOD { 0 } else { 1 });
+            assert!(!app.editor.dirty);
+        });
+    }
 }
 
 #[test]

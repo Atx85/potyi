@@ -268,6 +268,7 @@ mod tests {
                 .map(|(name, directory)| OutputEntry {
                     range: 0..0,
                     location: None,
+                    location_base: None,
                     commit: None,
                     git_status: None,
                     path: cwd.join(name),
@@ -362,6 +363,7 @@ mod tests {
             cache.extend(&[OutputEntry {
                 range: 0..0,
                 location: None,
+                location_base: None,
                 commit: None,
                 git_status: None,
                 path: cwd.join(format!("{i}.txt")),
@@ -375,6 +377,7 @@ mod tests {
             cache.extend(&[OutputEntry {
                 range: 0..0,
                 location: None,
+                location_base: None,
                 commit: None,
                 git_status: None,
                 path: cwd.join("x".repeat(1000)),
