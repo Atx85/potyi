@@ -93,6 +93,7 @@ jobs:
           cargo +stable test --release --locked --target "$BUILD_TARGET" mouse_interactions -- --include-ignored --test-threads=1
           cargo +stable test --release --locked --target "$BUILD_TARGET" title_bar_stays_fixed -- --include-ignored --test-threads=1
           cargo +stable test --release --locked --target "$BUILD_TARGET" pane_keyboard_ -- --include-ignored --test-threads=1
+          cargo +stable test --release --locked --target "$BUILD_TARGET" vim_text_objects_ -- --include-ignored --test-threads=1
           cargo +stable test --release --locked --target "$BUILD_TARGET" setup_ui_ -- --include-ignored --test-threads=1
 
       - name: Check native Wayland startup and folder rendering

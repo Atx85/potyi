@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use super::{EntryKind, OutputEntry, SourceLocation, has_shell_operators, touch_arguments};
-use std::path::{Path, PathBuf};
+use std::{ops::Range, path::{Path, PathBuf}};
 
 const MAX_PENDING: usize = 64 * 1024;
 
@@ -80,15 +80,22 @@ impl Scanner {
                                 });
                             }
                         }
-                    } else if let Some((path, location)) = context.parse(line) {
-                        entries.push(OutputEntry {
-                            range: self.start..self.start + line.len(),
-                            path,
-                            kind: EntryKind::Text,
-                            location: Some(location),
-                            commit: None,
-                            git_status: None,
-                        });
+                    } else if entries.len() < super::git::MAX_LINKS {
+                        let parsed = rust_location(line).map(|(range, path, location)| {
+                            (range, context.cwd.join(path), location)
+                        }).or_else(|| context.parse(line).map(|(path, location)| {
+                            (0..line.len(), path, location)
+                        }));
+                        if let Some((range, path, location)) = parsed {
+                            entries.push(OutputEntry {
+                                range: self.start + range.start..self.start + range.end,
+                                path,
+                                kind: EntryKind::Text,
+                                location: Some(location),
+                                commit: None,
+                                git_status: None,
+                            });
+                        }
                     }
                 }
                 self.pending.clear();
@@ -96,6 +103,41 @@ impl Scanner {
             }
         }
     }
+}
+
+/// Rust's human diagnostics and panic messages place a location after a marker.
+/// Parse numeric suffixes from the right, preserving spaces, Unicode and drive
+/// letters in filenames. Only the location itself becomes an underlined link.
+fn rust_location(line: &str) -> Option<(Range<usize>, &str, SourceLocation)> {
+    let trimmed = line.trim_start();
+    let location = trimmed.strip_prefix("--> ")
+        .or_else(|| trimmed.strip_prefix("::: "))
+        .or_else(|| {
+            trimmed.starts_with("thread '").then(|| trimmed.split_once(" panicked at "))
+                .flatten().map(|(_, tail)| tail)
+        })?;
+    let location = location.trim_start();
+    let start = line.len() - location.len();
+    let location = location.trim_end().trim_end_matches(':');
+    let (path_line, column) = location.rsplit_once(':')?;
+    let column = positive_number(column)?;
+    let (path, line_number) = path_line.rsplit_once(':')?;
+    let line_number = positive_number(line_number)?;
+    if path.is_empty() || path.starts_with('<') {
+        return None;
+    }
+    Some((start..start + location.len(), path, SourceLocation {
+        line: line_number,
+        column: Some(column),
+        byte_column: false,
+    }))
+}
+
+fn positive_number(text: &str) -> Option<usize> {
+    if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok().filter(|value| *value > 0)
 }
 
 impl Context {
@@ -301,6 +343,96 @@ mod tests {
             scanner.append(&ch.to_string(), offset, &mut entries);
         }
         entries
+    }
+
+    #[test]
+    fn rust_diagnostic_links_preserve_paths_and_only_underline_locations() {
+        let output = "error[E0308]: mismatched types\r\n  --> src/my 東京 file.rs:42:7\r\n   |\r\n42 | let value: u8 = \"no\";\r\n   |                 ^^^^ expected `u8`\r\n  ::: C:\\work tree\\src\\lib.rs:10:4\r\nthread 'main' panicked at src/main.rs:12:3:\r\nboom\r\n";
+        let links = scan("cargo check", output);
+        assert_eq!(links.len(), 3);
+        for (entry, (token, path, line, column)) in links.iter().zip([
+            ("src/my 東京 file.rs:42:7", "src/my 東京 file.rs", 42, 7),
+            ("C:\\work tree\\src\\lib.rs:10:4", "C:\\work tree\\src\\lib.rs", 10, 4),
+            ("src/main.rs:12:3", "src/main.rs", 12, 3),
+        ]) {
+            assert_eq!(&output[entry.range.clone()], token);
+            assert_eq!(entry.path, Path::new("/project").join(path));
+            assert_eq!(entry.location, Some(SourceLocation { line, column: Some(column), byte_column: false }));
+        }
+        for invalid in [
+            " --> src/main.rs:0:1", " --> src/main.rs:1:0",
+            " --> src/main.rs:1:no", " --> <anon>:1:1",
+            " --> src/main.rs:999999999999999999999999:1",
+        ] {
+            assert!(rust_location(invalid).is_none(), "{invalid}");
+        }
+        let mut whole = Scanner::new("cargo check", Path::new("/project"));
+        let mut whole_entries = Vec::new();
+        whole.append(output, 0, &mut whole_entries);
+        for (whole, split) in whole_entries.iter().zip(&links) {
+            assert_eq!(whole.range, split.range);
+            assert_eq!(whole.action(), split.action());
+        }
+    }
+
+    #[test]
+    fn rust_links_wrap_keep_their_directory_and_trim_with_colors() {
+        use crate::terminal_layout::{TerminalLayout, WrapMetrics};
+        let mut terminal = Terminal::new(std::env::temp_dir()).unwrap();
+        terminal.clear().unwrap();
+        terminal.location_scanner = Scanner::new("cargo check", &terminal.cwd);
+        terminal.colors.begin("cargo check");
+        let text = "error[E0308]: mismatched types\n  --> src/very long 東京 filename.rs:42:7\n";
+        terminal.append_text(text).unwrap();
+        let entry = terminal.entries[0].clone();
+        let expected = entry.action();
+        terminal.cwd = terminal.cwd.join("elsewhere");
+        let mut layout = TerminalLayout::default();
+        layout.update(&terminal.output, terminal.output_generation(), WrapMetrics {
+            width: 8, cell_width: 1, tab_width: 4, font_size: 18,
+        }, |_| 1).unwrap();
+        let mut fragments = 0;
+        for row in 0..layout.len() {
+            let range = layout.row_range(row, &terminal.output).unwrap().unwrap();
+            if range.start < entry.range.end && range.end > entry.range.start {
+                let start = range.start.max(entry.range.start);
+                assert_eq!(terminal.action_at_output_offset(start).unwrap(), expected);
+                assert_eq!(terminal.output_color(start), Some(super::super::colors::Style::Hunk.rgb()));
+                fragments += 1;
+            }
+        }
+        assert!(fragments > 2);
+        assert_eq!(terminal.output_text().unwrap(), text);
+        terminal.append_text(&"x\n".repeat(super::super::MAX_OUTPUT_BYTES / 2)).unwrap();
+        assert!(terminal.entries.is_empty());
+        assert_eq!(terminal.output_color(0), None);
+    }
+
+    #[test]
+    fn source_link_metadata_has_a_fixed_limit() {
+        let mut scanner = Scanner::new("cargo check", Path::new("/project"));
+        let mut entries = Vec::new();
+        scanner.append(&"  --> src/main.rs:1:2\n".repeat(super::super::git::MAX_LINKS + 20), 0, &mut entries);
+        assert_eq!(entries.len(), super::super::git::MAX_LINKS);
+        entries.clear();
+        scanner.append("  --> src/main.rs:3:4\n", 1_000_000, &mut entries);
+        assert_eq!(entries.len(), 1);
+    }
+
+    #[test]
+    fn rust_column_opens_the_correct_character_after_unicode() {
+        // Location and source excerpt produced by rustc --color=never.
+        let source = "fn main() {\n    let café = \"test\"; let number: u8 = café;\n}\n";
+        let links = scan("cargo check", " --> src/example 東京.rs:2:41\n");
+        let location = links[0].location.unwrap();
+        let mut document = crate::piece_table::PieceTable::empty().unwrap();
+        document.insert(0, source).unwrap();
+        crate::app::navigation::move_to_terminal_location(
+            &mut document, location.line, location.column, location.byte_column,
+        ).unwrap();
+        assert_eq!(document.cursor_line_column().unwrap(), (1, 40));
+        let offset = source.rfind("café").unwrap();
+        assert_eq!(document.line_column_at(offset).unwrap(), (1, 40));
     }
 
     #[test]

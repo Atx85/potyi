@@ -8,6 +8,11 @@ use crate::clipboard::TextClipboard;
 use crate::piece_table::PieceTable;
 use crate::search::SearchResult;
 
+mod text_objects;
+#[cfg(test)]
+mod text_object_tests;
+use text_objects::Object as TextObject;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum VimMode {
     Normal,
@@ -37,6 +42,7 @@ enum Motion {
     DocumentStart,
     DocumentEnd,
     Line,
+    Object(TextObject),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -123,6 +129,8 @@ pub(crate) struct VimController {
     count: usize,
     pending_operator: Option<(Operator, usize)>,
     pending_g: bool,
+    pending_object: Option<bool>,
+    visual_object: Option<(TextObject, usize, usize)>,
     insert_session: Option<InsertSession>,
     last_change: Option<EditCommand>,
     last_search_backward: bool,
@@ -140,6 +148,8 @@ impl VimController {
             count: 0,
             pending_operator: None,
             pending_g: false,
+            pending_object: None,
+            visual_object: None,
             insert_session: None,
             last_change: None,
             last_search_backward: false,
@@ -172,6 +182,8 @@ impl VimController {
         self.count = 0;
         self.pending_operator = None;
         self.pending_g = false;
+        self.pending_object = None;
+        self.visual_object = None;
     }
 
     pub(crate) fn workspace_history_key(&self, key: Keycode, keymod: Mod) -> Option<bool> {
@@ -188,6 +200,7 @@ impl VimController {
     }
 
     pub(crate) fn handle_document_click(&mut self) {
+        self.visual_object = None;
         self.cancel_pending();
         if self.mode == VimMode::Visual {
             self.mode = VimMode::Normal;
@@ -202,6 +215,7 @@ impl VimController {
     }
 
     pub(crate) fn mouse_selection_changed(&mut self, editor: &Editor) {
+        self.visual_object = None;
         self.visual_lines = None;
         if self.mode != VimMode::Insert {
             self.mode = if editor.document.has_selection() { VimMode::Visual } else { VimMode::Normal };
@@ -294,9 +308,14 @@ impl VimController {
         repeat: bool,
         page_lines: usize,
     ) -> Result<VimOutcome, String> {
+        // SDL sends modifier keydown events before shifted delimiters.
+        if matches!(key, Keycode::LShift | Keycode::RShift) {
+            return Ok(VimOutcome::consumed(false));
+        }
         if self.mode != VimMode::Insert
             && let Some((forward, half)) = Self::page_motion(key, keymod)
         {
+            self.visual_object = None;
             let explicit_count = self.count;
             let count = self.take_count();
             self.cancel_pending();
@@ -344,6 +363,7 @@ impl VimController {
         }
 
         if key == Keycode::Escape {
+            self.visual_object = None;
             self.cancel_pending();
 
             if self.mode == VimMode::Visual {
@@ -366,6 +386,27 @@ impl VimController {
             && (digit != 0 || self.count > 0)
         {
             self.count = self.count.saturating_mul(10).saturating_add(digit);
+            return Ok(VimOutcome::consumed(false));
+        }
+
+        if let Some(around) = self.pending_object.take() {
+            let operator = self.pending_operator.take();
+            let count = self.take_count().saturating_mul(operator.map_or(1, |(_, count)| count));
+            self.suppress_text_input = true;
+            let Some(object) = text_objects::from_key(key, keymod, around) else {
+                self.cancel_pending();
+                return Ok(VimOutcome::consumed(false));
+            };
+            if let Some((operator, _)) = operator {
+                return self.apply_operator(editor, clipboard, operator, Motion::Object(object), count);
+            }
+            return self.select_object(editor, object, count);
+        }
+        if !shift_pressed(keymod) && matches!(key, Keycode::I | Keycode::A)
+            && (self.pending_operator.is_some() || self.mode == VimMode::Visual)
+        {
+            self.pending_object = Some(key == Keycode::A);
+            self.suppress_text_input = true;
             return Ok(VimOutcome::consumed(false));
         }
 
@@ -771,6 +812,7 @@ impl VimController {
             return Ok(VimOutcome::consumed(false));
         }
         if key == Keycode::V {
+            self.visual_object = None;
             if shift_pressed(keymod) && self.visual_lines.is_none() {
                 let anchor = editor.document.cursor.anchor;
                 let active = editor.document.cursor.position;
@@ -806,6 +848,14 @@ impl VimController {
             return Ok(VimOutcome::ignored());
         };
 
+        if let Some((object, count, origin)) = self.visual_object.take() {
+            if editor.read_only && operator != Operator::Yank { return Ok(VimOutcome::consumed(false)); }
+            editor.document.move_cursor(origin).map_err(|e| e.to_string())?;
+            self.mode = VimMode::Normal;
+            self.visual_lines = None;
+            self.suppress_text_input = true;
+            return self.apply_operator(editor, clipboard, operator, Motion::Object(object), count);
+        }
         let start = editor.document.selection_start();
         let end = editor.document.selection_end();
         if let Some((anchor, active)) = self.visual_lines {
@@ -880,7 +930,50 @@ impl VimController {
         }
     }
 
+    fn select_object(&mut self, editor: &mut Editor, mut object: TextObject, count: usize) -> Result<VimOutcome, String> {
+        let selection_start = editor.document.selection_start();
+        let selection_end = editor.document.selection_end();
+        let mut origin = if editor.document.cursor.position > editor.document.cursor.anchor {
+            editor.document.previous_char_boundary(editor.document.cursor.position).map_err(|e| e.to_string())?
+        } else { editor.document.cursor.position };
+        let mut count = count;
+        if let Some((previous, previous_count, previous_origin)) = self.visual_object {
+            origin = previous_origin;
+            if previous.kind == object.kind {
+                count = previous_count.saturating_add(count - 1);
+                if object.kind == text_objects::Kind::Tag && previous == object && !object.around {
+                    object.around = true;
+                } else if !matches!(object.kind, text_objects::Kind::Quote(_))
+                    && (previous == object || previous.around && !object.around) {
+                    count = count.saturating_add(1);
+                }
+            }
+        }
+        let initial = editor.document.next_char_boundary(selection_start).map_err(|e| e.to_string())? == selection_end;
+        let extend_quotes = !initial && object.around && matches!(object.kind, text_objects::Kind::Quote(_));
+        if extend_quotes { origin = selection_end; }
+        let Some((mut start, mut end, mut linewise)) = text_objects::range(&editor.document, origin, object, count)? else {
+            return Ok(VimOutcome::consumed(false));
+        };
+        let mut exact = !extend_quotes && (initial || self.visual_object.is_some());
+        if !exact && matches!(object.kind, text_objects::Kind::Pair(..) | text_objects::Kind::Tag) {
+            while start > selection_start || end < selection_end || start == selection_start && end == selection_end {
+                count = count.saturating_add(1);
+                let Some(range) = text_objects::range(&editor.document, origin, object, count)? else { return Ok(VimOutcome::consumed(false)); };
+                (start, end, linewise) = range;
+            }
+            exact = true;
+        }
+        if !exact { start = start.min(selection_start); end = end.max(selection_end); }
+        if start == end { return Ok(VimOutcome::consumed(false)); }
+        editor.set_cursor_and_anchor(end, start).map_err(|e| e.to_string())?;
+        self.visual_lines = if linewise { Some((start, editor.document.previous_char_boundary(end).map_err(|e| e.to_string())?)) } else { None };
+        self.visual_object = exact.then_some((object, count, origin));
+        Ok(VimOutcome::consumed(true))
+    }
+
     fn apply_motion(&mut self, editor: &mut Editor, motion: Motion) -> Result<VimOutcome, String> {
+        self.visual_object = None;
         let count = self.take_count();
         if self.mode == VimMode::Visual && let Some((_, active)) = self.visual_lines {
             editor.document.move_cursor(active).map_err(|error| error.to_string())?;
@@ -945,9 +1038,11 @@ impl VimController {
             motion
         };
 
-        let (start, mut end, linewise) = motion_range(&mut editor.document, motion, count)?;
+        let Some((start, mut end, linewise)) = motion_range(&mut editor.document, motion, count)? else {
+            return Ok(VimOutcome::consumed(false));
+        };
 
-        if start == end {
+        if start == end && !(operator == Operator::Change && matches!(motion, Motion::Object(_))) {
             return Ok(VimOutcome::consumed(false));
         }
 
@@ -967,6 +1062,7 @@ impl VimController {
         }
 
         if operator == Operator::Change {
+            let empty_linewise = linewise && start == end;
             if linewise
                 && end > start
                 && editor
@@ -976,12 +1072,19 @@ impl VimController {
                     == Some(b'\n')
             {
                 end -= 1;
+                if end > start && editor.document.byte_at(end - 1).map_err(|e| e.to_string())? == Some(b'\r') { end -= 1; }
             }
 
             let history_start = editor.begin_history_group();
+            if empty_linewise {
+                editor.document.move_cursor(start).map_err(|e| e.to_string())?;
+                let newline = object_newline(&editor.document, start)?;
+                editor.insert(newline).map_err(|e| e.to_string())?;
+            }
             editor
                 .delete_range(start, end - start)
                 .map_err(|error| error.to_string())?;
+            editor.document.move_cursor(start).map_err(|e| e.to_string())?;
             self.mode = VimMode::Insert;
             self.insert_session = Some(InsertSession {
                 history_start,
@@ -1077,7 +1180,7 @@ impl VimController {
 
         match command {
             EditCommand::Delete { motion, count } => {
-                let (start, end, linewise) = motion_range(&mut editor.document, *motion, *count)?;
+                let Some((start, end, linewise)) = motion_range(&mut editor.document, *motion, *count)? else { return Ok(false); };
                 if start == end {
                     return Ok(false);
                 }
@@ -1094,8 +1197,9 @@ impl VimController {
                 count,
                 text,
             } => {
-                let (start, mut end, linewise) =
-                    motion_range(&mut editor.document, *motion, *count)?;
+                let Some((start, mut end, linewise)) =
+                    motion_range(&mut editor.document, *motion, *count)? else { return Ok(false); };
+                let empty_linewise = linewise && start == end;
                 if linewise
                     && end > start
                     && editor
@@ -1105,13 +1209,15 @@ impl VimController {
                         == Some(b'\n')
                 {
                     end -= 1;
+                    if end > start && editor.document.byte_at(end - 1).map_err(|e| e.to_string())? == Some(b'\r') { end -= 1; }
                 }
-                if start == end {
+                if start == end && !matches!(motion, Motion::Object(_)) {
                     return Ok(false);
                 }
                 let group = editor.begin_history_group();
+                let replacement = if empty_linewise { format!("{text}{}", object_newline(&editor.document, start)?) } else { text.clone() };
                 editor
-                    .replace_range(SearchResult { start, end }, text)
+                    .replace_range(SearchResult { start, end }, &replacement)
                     .map_err(|error| error.to_string())?;
                 editor.end_history_group(group);
                 settle_normal_cursor(editor)?;
@@ -1181,6 +1287,12 @@ impl EditCommand {
         }
         self
     }
+}
+
+fn object_newline(table: &PieceTable, position: usize) -> Result<&'static str, String> {
+    let crlf = position >= 2 && table.byte_at(position - 2).map_err(|e| e.to_string())? == Some(b'\r')
+        && table.byte_at(position - 1).map_err(|e| e.to_string())? == Some(b'\n');
+    Ok(if crlf { "\r\n" } else { "\n" })
 }
 
 fn changed_outcome(changed: bool) -> VimOutcome {
@@ -1339,7 +1451,7 @@ fn motion_target(table: &mut PieceTable, motion: Motion, count: usize) -> Result
             };
             position = first_nonblank(table, line)?;
         }
-        Motion::Line => {}
+        Motion::Line | Motion::Object(_) => {}
     }
 
     Ok(position)
@@ -1349,9 +1461,12 @@ fn motion_range(
     table: &mut PieceTable,
     motion: Motion,
     count: usize,
-) -> Result<(usize, usize, bool), String> {
+) -> Result<Option<(usize, usize, bool)>, String> {
+    if let Motion::Object(object) = motion {
+        return text_objects::range(table, table.cursor.position, object, count);
+    }
     if motion == Motion::Line {
-        return linewise_range(table, table.cursor.line, count);
+        return linewise_range(table, table.cursor.line, count).map(Some);
     }
 
     if matches!(motion, Motion::Up | Motion::Down) {
@@ -1367,7 +1482,7 @@ fn motion_range(
         };
         let first = table.cursor.line.min(target_line);
         let number = table.cursor.line.max(target_line) - first + 1;
-        return linewise_range(table, first, number);
+        return linewise_range(table, first, number).map(Some);
     }
 
     if matches!(motion, Motion::DocumentStart | Motion::DocumentEnd) {
@@ -1381,7 +1496,7 @@ fn motion_range(
         .min(lines.saturating_sub(1));
         let first = table.cursor.line.min(target_line);
         let number = table.cursor.line.max(target_line) - first + 1;
-        return linewise_range(table, first, number);
+        return linewise_range(table, first, number).map(Some);
     }
 
     let origin = table.cursor.position;
@@ -1398,7 +1513,7 @@ fn motion_range(
             .map_err(|error| error.to_string())?;
     }
 
-    Ok((start, end, false))
+    Ok(Some((start, end, false)))
 }
 
 fn linewise_range(
@@ -1805,7 +1920,7 @@ mod tests {
     use std::cell::RefCell;
 
     #[derive(Default)]
-    struct Clipboard(RefCell<String>);
+    pub(super) struct Clipboard(RefCell<String>);
 
     impl TextClipboard for Clipboard {
         fn set_text(&self, text: &str) -> Result<(), String> {
@@ -1818,7 +1933,7 @@ mod tests {
         }
     }
 
-    fn editor(text: &str) -> Editor {
+    pub(super) fn editor(text: &str) -> Editor {
         let mut editor = Editor::new(EditorConfig {
             tab_width: 2,
             insert_spaces: false,

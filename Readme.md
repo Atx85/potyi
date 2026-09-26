@@ -135,6 +135,44 @@ operators including `dd`, `cc`, and `yy`. `x`, `u`, `Ctrl+R`, `p`, `P`,
 `D`, `C`, `Y`, `s`, `S`, `X`, and semantic `.` repeat are also available.
 The title bar shows the current Vim mode.
 
+Text objects work with `c` (change), `d` (delete), and `y` (yank), or after
+`v` to select them visually. `i` selects the inside; `a` includes the surrounding
+pair or adjacent whitespace:
+
+| Object | Inside | Around |
+| --- | --- | --- |
+| Word | `iw` | `aw` |
+| Whitespace-separated WORD | `iW` | `aW` |
+| Parentheses | `i(`, `i)`, `ib` | `a(`, `a)`, `ab` |
+| Braces | `i{`, `i}`, `iB` | `a{`, `a}`, `aB` |
+| Square brackets | `i[`, `i]` | `a[`, `a]` |
+| Angle brackets | `i<`, `i>` | `a<`, `a>` |
+| Quotes | `i"`, `i'`, i followed by a backtick | `a"`, `a'`, a followed by a backtick |
+| Sentence | `is` | `as` |
+| Paragraph | `ip` | `ap` |
+| HTML/XML tag pair | `it` | `at` |
+
+Examples: `ciw` replaces the word under the cursor, `ci{` replaces a block's
+contents, `di(` deletes inside parentheses, and `da"` removes a quoted string
+with adjacent spacing. Quotes stay on one line and respect backslash escapes;
+bracket pairs can nest and span lines. Counts work before or after the operator:
+`2di(` selects the next outer pair, while `d2aw` deletes two words. Inner-word,
+inner-sentence, and inner-paragraph counts include intervening whitespace.
+`2i"` includes the quotes without the extra whitespace of `a"`.
+
+Changes and their replacement typing undo together. `.` repeats operator-based
+object changes at the new cursor. Repeating a block object in Visual mode expands
+outward; repeated `it` alternates between contents and enclosing tags. Missing
+or unmatched objects leave the document unchanged. Empty quotes and pairs can
+be filled with `ci"` and `ci(`.
+
+Object searches run only on demand, using an 8 KiB read buffer rather than
+copying the document or maintaining a background parser. Paragraphs use blank
+lines as boundaries; sentences use punctuation and paragraph boundaries. Tag
+matching is a lightweight, case-insensitive HTML/XML scan, skipping comments,
+CDATA, self-closing tags, and standard HTML void elements. Searches stop without
+editing if tag nesting exceeds 256 levels or a tag name exceeds 256 bytes.
+
 In Normal or Visual mode, press `Ctrl+W`, then `W` to focus the other pane,
 `H` to focus the left pane, or `L` to focus the right pane. You can keep Ctrl
 held for the second key. These shortcuts also work from a terminal pane;
@@ -442,7 +480,9 @@ Pipelines, redirects, and command lists use the system shell, even when they sta
 
 Search results with locations are underlined and clickable across the whole result row, including wrapped text. For example, `grep -nH 'fn main' src/main.rs` opens the reported file and line. Single-file output from `grep -n 'fn main' src/main.rs` also works: the terminal remembers the command's filename. Links keep their original directory when you later use `cd`, and dragging selects text without opening it. Standard grep reports lines without columns, so those links land at the start of the line. Output with columns, such as `rg --column 'fn main' src/main.rs`, jumps to the reported column; ripgrep's byte columns are converted correctly for Unicode text. Omitted filenames are inferred only for an unambiguous standalone command with one literal file argument.
 
-Pötyi does not bundle `grep`: it must be available on the shell's PATH (including on Windows). GNU and BSD grep have different flag sets. Supply files, a pipe, or input redirection when searching; interactive standard input is unavailable. The terminal displays plain text and strips ANSI colors and control bytes such as NUL; pipe or redirect output when those bytes need to be preserved.
+Compiler diagnostics are highlighted automatically: errors are red, warnings amber, notes and source locations blue, and help or suggested additions green. Rust's `--> file:line:column` and `::: file:line:column` locations, and panic locations, are underlined links to the exact line and column. Plain-click opens the file in the current pane; Ctrl/Cmd-click opens it in the other pane. Paths with spaces and Unicode work across wrapped lines. Colors are computed only as output arrives, with bounded metadata and no background parser. Copying output preserves the original text.
+
+Pötyi does not bundle `grep`: it must be available on the shell's PATH (including on Windows). GNU and BSD grep have different flag sets. Supply files, a pipe, or input redirection when searching; interactive standard input is unavailable. The terminal strips ANSI colors and control bytes such as NUL, then applies its own Git and diagnostic highlighting; pipe or redirect output when those bytes need to be preserved.
 
 A text-file path on its own, such as `Cargo.lock`, `./Cargo.lock`, or
 `"notes with spaces.txt"`, opens that file in the editor. Existing unsaved

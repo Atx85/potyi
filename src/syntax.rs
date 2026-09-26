@@ -372,6 +372,52 @@ mod tests {
     }
 
     #[test]
+    fn rust_labels_and_lifetimes_preserve_following_highlights() {
+        let syntax = embedded_for_extension("rs");
+        for (line, token) in [
+            ("'running: loop {}", "'running"),
+            ("'outer: loop { break 'outer; }", "'outer"),
+            ("break 'running; let done = true;", "'running"),
+            ("continue 'running; let done = true;", "'running"),
+            ("fn borrow<'a>(value: &'a str) -> &'a str {}", "'a"),
+            ("let value: &'static str = \"text\";", "'static"),
+            ("let value: Thing<'_> = make();", "'_"),
+        ] {
+            let start = line.find(token).unwrap();
+            assert!(syntax.matches_line(line).iter().any(|span|
+                span.start == start && span.end == start + token.len()
+                    && span.color == parse_color("#D7BA7D")), "{line}");
+        }
+        for (line, token, color) in [
+            ("'running: loop {}", "loop", "#569CD6"),
+            ("'running: loop { break 'running; }", "break", "#569CD6"),
+            ("break 'running; let count = 42;", "let", "#569CD6"),
+            ("break 'running; let count = 42;", "42", "#B5CEA8"),
+            ("fn borrow<'a>(value: &'a str) -> &'a str {}", "str", "#4EC9B0"),
+        ] {
+            assert_token(&syntax, line, token, color);
+        }
+    }
+
+    #[test]
+    fn rust_character_literals_end_before_following_code() {
+        let syntax = embedded_for_extension("rs");
+        for literal in ["'a'", "'é'", "'🦀'", r"'\n'", r"'\\'", r"'\''",
+            r"'\x7f'", r"'\u{1F980}'", r"'\u{1_F9_80}'", "b'a'", r"b'\xFF'"] {
+            let line = format!("let character = {literal}; let count = 42;");
+            let start = line.find(literal).unwrap();
+            assert!(syntax.matches_line(&line).iter().any(|span|
+                span.start == start && span.end == start + literal.len()
+                    && span.color == parse_color("#CE9178")), "{line}");
+            assert_token(&syntax, &line, "42", "#B5CEA8");
+        }
+        assert_token(&syntax, "'running: loop { let ch = 'x'; }", "loop", "#569CD6");
+        assert_token(&syntax, "// 'running: loop {}", "// 'running: loop {}", "#6A9955");
+        assert_token(&syntax, r#"let text = "'running: loop {}";"#,
+            r#""'running: loop {}""#, "#CE9178");
+    }
+
+    #[test]
     fn common_languages_keep_strings_and_comments_distinct() {
         for (extension, line, token) in [
             ("cs", "var url = \"https://example.test\";", "\"https://example.test\""),

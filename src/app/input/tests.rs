@@ -265,6 +265,47 @@ fn vim_events_preserve_insert_suppression_and_undo_groups() {
 }
 
 #[test]
+#[ignore = "Headless SDL text-object routing; run with SDL_VIDEODRIVER=dummy in a separate process"]
+fn vim_text_objects_handle_shift_text_events_and_undo() {
+    with_fixture(|app| {
+        app.editor.insert("before {old} after").unwrap();
+        app.editor.undo_stack.clear();
+        app.editor.document.move_cursor(9).unwrap();
+        app.mode(KeybindingMode::Vim);
+        app.key(Keycode::C, Mod::NOMOD);
+        app.text("c");
+        app.key(Keycode::I, Mod::NOMOD);
+        app.text("i");
+        app.key(Keycode::LShift, Mod::LSHIFTMOD);
+        app.key(Keycode::LeftBracket, Mod::LSHIFTMOD);
+        app.text("{");
+        assert_eq!(app.vim.mode(), vim::VimMode::Insert);
+        assert_eq!(app.editor.document.text().unwrap(), "before {} after");
+        app.key(Keycode::N, Mod::NOMOD);
+        app.text("new");
+        app.key(Keycode::Escape, Mod::NOMOD);
+        assert_eq!(app.editor.document.text().unwrap(), "before {new} after");
+        assert_eq!(app.editor.undo_stack.len(), 1);
+        app.key(Keycode::U, Mod::NOMOD);
+        app.text("u");
+        assert_eq!(app.editor.document.text().unwrap(), "before {old} after");
+        app.key(Keycode::R, Mod::LCTRLMOD);
+        assert_eq!(app.editor.document.text().unwrap(), "before {new} after");
+        app.editor.document.move_cursor(9).unwrap();
+        app.key(Keycode::V, Mod::NOMOD);
+        app.text("v");
+        app.key(Keycode::I, Mod::NOMOD);
+        app.text("i");
+        app.key(Keycode::W, Mod::NOMOD);
+        app.text("w");
+        app.key(Keycode::Y, Mod::NOMOD);
+        app.text("y");
+        assert_eq!(app.clipboard.clipboard_text().unwrap(), "new");
+        assert_eq!(app.editor.document.text().unwrap(), "before {new} after");
+    });
+}
+
+#[test]
 #[ignore = "Headless SDL event routing; run with SDL_VIDEODRIVER=dummy in a separate process"]
 fn emacs_events_preserve_prefixes_text_suppression_and_cancellation() {
     with_fixture(|app| {

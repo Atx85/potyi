@@ -21,7 +21,8 @@ color = "#CE9178"
 
 [[syntax.rules]]
 name = "character"
-pattern = ''''([^'\\]|\\.)*'''
+# Require one character or escape and a closing quote; labels/lifetimes stay separate.
+pattern = '''b?'(?:[^'\\\r\n\t]|\\(?:['"\\nrt0]|x[0-9a-fA-F]{2}|u\{[0-9a-fA-F_]+\}))''''
 color = "#CE9178"
 
 [[syntax.rules]]
