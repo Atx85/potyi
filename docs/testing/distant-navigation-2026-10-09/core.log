@@ -1,0 +1,201 @@
+   Compiling potyi v0.1.8 (/Users/abanko/Desktop/untitled folder/potyi)
+warning: variable does not need to be mutable
+   --> src/tests.rs:742:9
+    |
+742 |     let mut table = PieceTable::open(
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:829:9
+    |
+829 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:841:9
+    |
+841 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:852:9
+    |
+852 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:868:9
+    |
+868 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/tests.rs:1234:9
+     |
+1234 |     let mut table =
+     |         ----^^^^^
+     |         |
+     |         help: remove this `mut`
+
+warning: function `setup_script` is never used
+   --> src/experimental_terminal/bridge.rs:424:15
+    |
+424 | pub(crate) fn setup_script() -> String {
+    |               ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `take_error` is never used
+   --> src/experimental_terminal/transcript.rs:100:19
+    |
+ 64 | impl Transcript {
+    | --------------- method in this implementation
+...
+100 |     pub(crate) fn take_error(&mut self) -> Option<String> {
+    |                   ^^^^^^^^^^
+
+warning: method `freeze` is never used
+   --> src/experimental_terminal/output_source.rs:161:19
+    |
+134 | impl Source<'_> {
+    | --------------- method in this implementation
+...
+161 |     pub(super) fn freeze(&self, cancelled: Arc<AtomicBool>) -> FrozenSource {
+    |                   ^^^^^^
+
+warning: associated function `start` is never used
+  --> src/experimental_terminal/copy_job.rs:23:19
+   |
+22 | impl CopyJob {
+   | ------------ associated function in this implementation
+23 |     pub(super) fn start(source: &Source<'_>, selection: &Selection, all: bool, yank: bool, wake: Wake) -> io::Result<Self> {
+   |                   ^^^^^
+
+warning: variant `Apply` is never constructed
+  --> src/experimental_terminal/navigation_job.rs:14:5
+   |
+12 | pub(super) enum Work {
+   |                 ---- variant in this enum
+13 |     Motion(Motion, bool),
+14 |     Apply(Anchor, bool),
+   |     ^^^^^
+   |
+   = note: `Work` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: associated function `start` is never used
+  --> src/experimental_terminal/navigation_job.rs:31:19
+   |
+30 | impl NavigationJob {
+   | ------------------ associated function in this implementation
+31 |     pub(super) fn start(source: &Source<'_>, selection: &Selection, work: Work, wake: Wake) -> io::Result<Self> {
+   |                   ^^^^^
+
+warning: method `prompt_view` is never used
+   --> src/experimental_terminal/pane.rs:294:19
+    |
+101 | impl Pane {
+    | --------- method in this implementation
+...
+294 |     pub(crate) fn prompt_view(&self, columns: usize) -> (String, usize) {
+    |                   ^^^^^^^^^^^
+
+warning: associated function `new` is never used
+   --> src/experimental_terminal/layout.rs:257:8
+    |
+256 | impl Loaded {
+    | ----------- associated function in this implementation
+257 |     fn new(record: Record) -> io::Result<Self> {
+    |        ^^^
+
+warning: methods `line_text_from_start` and `cursor_line_column` are never used
+    --> src/piece_table.rs:1317:12
+     |
+ 374 | impl Document {
+     | ------------- methods in this implementation
+...
+1317 |     pub fn line_text_from_start(
+     |            ^^^^^^^^^^^^^^^^^^^^
+...
+1717 |     pub fn cursor_line_column(
+     |            ^^^^^^^^^^^^^^^^^^
+
+warning: methods `debug`, `line_text_from_start`, and `replace_ranges` are never used
+   --> src/piece_table/view.rs:133:12
+    |
+ 42 | impl PieceTable {
+    | --------------- methods in this implementation
+...
+133 |     pub fn debug(&mut self) {
+    |            ^^^^^
+...
+227 |     pub fn line_text_from_start(&mut self, start: usize) -> io::Result<(String, usize)> {
+    |            ^^^^^^^^^^^^^^^^^^^^
+...
+357 |     pub(crate) fn replace_ranges<I>(
+    |                   ^^^^^^^^^^^^^^
+
+warning: associated function `search_bar_reserved_height` is never used
+    --> src/renderer.rs:1816:8
+     |
+ 195 | impl<'a> Renderer<'a> {
+     | --------------------- associated function in this implementation
+...
+1816 |     fn search_bar_reserved_height(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `search_origin` is never read
+  --> src/search.rs:68:5
+   |
+65 | pub struct Searcher {
+   |            -------- field in this struct
+...
+68 |     search_origin: usize,
+   |     ^^^^^^^^^^^^^
+
+warning: field `pattern` is never read
+  --> src/syntax.rs:49:9
+   |
+47 | pub struct SyntaxRule {
+   |            ---------- field in this struct
+48 |     pub name: String,
+49 |     pub pattern: String,
+   |         ^^^^^^^
+   |
+   = note: `SyntaxRule` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `test_file` is never used
+   --> src/tests.rs:139:4
+    |
+139 | fn test_file(contents: &[u8]) -> PathBuf {
+    |    ^^^^^^^^^
+
+warning: `potyi` (bin "potyi" test) generated 20 warnings (run `cargo fix --bin "potyi" -p potyi --tests` to apply 6 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 26.03s
+     Running unittests src/main.rs (target/debug/deps/potyi-cf67d6e7694987cc)
+
+running 933 tests
+.iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii.ii.i...................... 87/933
+..............................................................................ii....... 174/933
+....................................................................................... 261/933
+............................i.......................................................... 348/933
+....i..........ii............................................iiii..............ii..i..i 435/933
+.ii...iiii..............................................i......i....................... 522/933
+...........i....................iiiiiiiiiiii........................................... 609/933
+...................................................................................i... 696/933
+...................................................ii.................................. 783/933
+......................i................................................................ 870/933
+...............................................................
+test result: ok. 832 passed; 0 failed; 101 ignored; 0 measured; 0 filtered out; finished in 71.68s
+

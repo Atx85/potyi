@@ -1,0 +1,14 @@
+
+running 1 test
+test app::input::tests::terminal_clicks_open_shared_views_and_edit_undo_save_from_either_pane ... PieceTable::open(/private/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-folder-split-33301-1791557325930304000/sample.txt): 8.309ms
+PieceTable::open(/private/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-folder-split-33301-1791557325930304000/sample.txt): 8.566458ms
+NO syntax definition found supporting .txt
+NO syntax definition found supporting .txt
+NO syntax definition found supporting .txt
+NO syntax definition found supporting .txt
+NO syntax definition found supporting .txt
+NO syntax definition found supporting .txt
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 932 filtered out; finished in 0.48s
+

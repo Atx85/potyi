@@ -1,0 +1,3198 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-10-09T14:33:03.440372+00:00",
+  "source": {
+    "before_build": "e7932d5ae12e9a8a345f241ea92580d51978d6fbb1d7fd5424da6e9f2cd2e8ec",
+    "after_build": "e7932d5ae12e9a8a345f241ea92580d51978d6fbb1d7fd5424da6e9f2cd2e8ec",
+    "stable_during_build": true,
+    "binary_sha256": "f80f11118fb8c7acc58a64511d3e5328e8a48fc97db76f8855a269da75286441"
+  },
+  "git_commit": "1094e9139fdab36b2da787b0874964dbceae4b0d",
+  "working_tree_dirty": true,
+  "environment": {
+    "os": "macOS-15.8.1-arm64-arm-64bit-Mach-O",
+    "cpu": "arm",
+    "logical_cpus": 10,
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6",
+    "profile": "release",
+    "sdl_video_driver": "dummy",
+    "window": "800x600"
+  },
+  "settings": {
+    "samples": 3,
+    "warmups": 1,
+    "iterations": 4,
+    "timeout_seconds": 20.0,
+    "suite": "full"
+  },
+  "cases": [
+    {
+      "config": {
+        "history_entries": 0,
+        "fragmented_edits": 0,
+        "panes": 1,
+        "recovery": false,
+        "render": true,
+        "iterations": 4,
+        "name": "1000000000b-line64-pos99",
+        "bytes": 1000000000,
+        "line_bytes": 64,
+        "position_percent": 99
+      },
+      "runs": [
+        {
+          "status": "complete",
+          "exit_code": 0,
+          "seconds": 9.494453416991746,
+          "last_phase": "editing",
+          "events": [
+            {
+              "name": "graphics",
+              "type": "phase"
+            },
+            {
+              "name": "fixture",
+              "type": "phase"
+            },
+            {
+              "bytes": 1000000000,
+              "line_bytes": 64,
+              "line_count": 15625001,
+              "rust_arch": "x86_64",
+              "type": "fixture"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": null,
+              "milliseconds": 1601.718625,
+              "stage": "open",
+              "type": "measurement"
+            },
+            {
+              "name": "prepare_history",
+              "type": "phase"
+            },
+            {
+              "name": "prepare_fragmentation",
+              "type": "phase"
+            },
+            {
+              "name": "navigation",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 15468751,
+                "read_bytes": 990052354,
+                "read_calls": 15109
+              },
+              "iteration": null,
+              "milliseconds": 3627.246791,
+              "stage": "navigation",
+              "type": "measurement"
+            },
+            {
+              "name": "initial_draw",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1701,
+                "read_calls": 27
+              },
+              "iteration": null,
+              "milliseconds": 4.185375,
+              "stage": "initial_draw",
+              "type": "measurement"
+            },
+            {
+              "name": "editing",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 0,
+              "milliseconds": 0.107291,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 0,
+              "milliseconds": 2.172334,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 0,
+              "milliseconds": 0.045042,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 0,
+              "milliseconds": 0.00325,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 0,
+              "milliseconds": 0.013209,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 1,
+              "milliseconds": 0.011459,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 1,
+              "milliseconds": 2.159125,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 1,
+              "milliseconds": 0.003417,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 1,
+              "milliseconds": 0.002125,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 1,
+              "milliseconds": 0.008083,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 2,
+              "milliseconds": 0.012,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 2,
+              "milliseconds": 2.1434159999999998,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 2,
+              "milliseconds": 0.003333,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 2,
+              "milliseconds": 0.002208,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 2,
+              "milliseconds": 0.008416,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 3,
+              "milliseconds": 0.011708999999999999,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 3,
+              "milliseconds": 2.364709,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 3,
+              "milliseconds": 0.0055,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 3,
+              "milliseconds": 0.002833,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 3,
+              "milliseconds": 0.009541000000000001,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "final_cached_lines": 15468751,
+              "final_history_entries": 8,
+              "final_pieces": 2,
+              "iterations": 4,
+              "line_index_metadata": [
+                4096,
+                1888,
+                131072
+              ],
+              "type": "complete"
+            }
+          ],
+          "sampled_peak_rss_kib": null,
+          "memory_unavailable": null,
+          "log": "case00-run00.log",
+          "warmup": true,
+          "repetition": 0
+        },
+        {
+          "status": "complete",
+          "exit_code": 0,
+          "seconds": 6.252767583006062,
+          "last_phase": "editing",
+          "events": [
+            {
+              "name": "graphics",
+              "type": "phase"
+            },
+            {
+              "name": "fixture",
+              "type": "phase"
+            },
+            {
+              "bytes": 1000000000,
+              "line_bytes": 64,
+              "line_count": 15625001,
+              "rust_arch": "x86_64",
+              "type": "fixture"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": null,
+              "milliseconds": 1584.82725,
+              "stage": "open",
+              "type": "measurement"
+            },
+            {
+              "name": "prepare_history",
+              "type": "phase"
+            },
+            {
+              "name": "prepare_fragmentation",
+              "type": "phase"
+            },
+            {
+              "name": "navigation",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 15468751,
+                "read_bytes": 990052354,
+                "read_calls": 15109
+              },
+              "iteration": null,
+              "milliseconds": 3666.90075,
+              "stage": "navigation",
+              "type": "measurement"
+            },
+            {
+              "name": "initial_draw",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1701,
+                "read_calls": 27
+              },
+              "iteration": null,
+              "milliseconds": 3.9280419999999996,
+              "stage": "initial_draw",
+              "type": "measurement"
+            },
+            {
+              "name": "editing",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 0,
+              "milliseconds": 0.083583,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.4e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 0,
+              "milliseconds": 2.34125,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 0,
+              "milliseconds": 0.052375,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.4e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 0,
+              "milliseconds": 0.003875,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 0,
+              "milliseconds": 0.011791,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 1,
+              "milliseconds": 0.013125000000000001,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 8.4e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 1,
+              "milliseconds": 2.250625,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 1,
+              "milliseconds": 0.004084,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 1,
+              "milliseconds": 0.002458,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 1,
+              "milliseconds": 0.008208,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 4.1e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 2,
+              "milliseconds": 0.013375,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 2,
+              "milliseconds": 2.168709,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 2,
+              "milliseconds": 0.003458,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 2,
+              "milliseconds": 0.002166,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 2,
+              "milliseconds": 0.007958000000000002,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 3,
+              "milliseconds": 0.011625,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 3,
+              "milliseconds": 2.144708,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 3,
+              "milliseconds": 0.003375,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 3,
+              "milliseconds": 0.0020829999999999998,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 4.1e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 3,
+              "milliseconds": 0.008042,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "final_cached_lines": 15468751,
+              "final_history_entries": 8,
+              "final_pieces": 2,
+              "iterations": 4,
+              "line_index_metadata": [
+                4096,
+                1888,
+                131072
+              ],
+              "type": "complete"
+            }
+          ],
+          "sampled_peak_rss_kib": null,
+          "memory_unavailable": null,
+          "log": "case00-run01.log",
+          "warmup": false,
+          "repetition": 1
+        },
+        {
+          "status": "complete",
+          "exit_code": 0,
+          "seconds": 6.269237083004555,
+          "last_phase": "editing",
+          "events": [
+            {
+              "name": "graphics",
+              "type": "phase"
+            },
+            {
+              "name": "fixture",
+              "type": "phase"
+            },
+            {
+              "bytes": 1000000000,
+              "line_bytes": 64,
+              "line_count": 15625001,
+              "rust_arch": "x86_64",
+              "type": "fixture"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": null,
+              "milliseconds": 1620.0165,
+              "stage": "open",
+              "type": "measurement"
+            },
+            {
+              "name": "prepare_history",
+              "type": "phase"
+            },
+            {
+              "name": "prepare_fragmentation",
+              "type": "phase"
+            },
+            {
+              "name": "navigation",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 15468751,
+                "read_bytes": 990052354,
+                "read_calls": 15109
+              },
+              "iteration": null,
+              "milliseconds": 3635.363208,
+              "stage": "navigation",
+              "type": "measurement"
+            },
+            {
+              "name": "initial_draw",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1701,
+                "read_calls": 27
+              },
+              "iteration": null,
+              "milliseconds": 4.042583,
+              "stage": "initial_draw",
+              "type": "measurement"
+            },
+            {
+              "name": "editing",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 0,
+              "milliseconds": 0.103625,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 0,
+              "milliseconds": 2.3265830000000003,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 0,
+              "milliseconds": 0.057833,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 0,
+              "milliseconds": 0.0037500000000000003,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 0,
+              "milliseconds": 0.011291,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 1,
+              "milliseconds": 0.012583,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 4.1e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 1,
+              "milliseconds": 2.143125,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 1,
+              "milliseconds": 0.003375,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 1,
+              "milliseconds": 0.002125,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 1,
+              "milliseconds": 0.008167,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 2,
+              "milliseconds": 0.012,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.1e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 2,
+              "milliseconds": 2.2148749999999997,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 2,
+              "milliseconds": 0.003333,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.1e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 2,
+              "milliseconds": 0.002084,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 2,
+              "milliseconds": 0.007916,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 3,
+              "milliseconds": 0.011292,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 3,
+              "milliseconds": 2.1787080000000003,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 3,
+              "milliseconds": 0.004,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 8.4e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 3,
+              "milliseconds": 0.0025,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 8.4e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 3,
+              "milliseconds": 0.008666,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "final_cached_lines": 15468751,
+              "final_history_entries": 8,
+              "final_pieces": 2,
+              "iterations": 4,
+              "line_index_metadata": [
+                4096,
+                1888,
+                131072
+              ],
+              "type": "complete"
+            }
+          ],
+          "sampled_peak_rss_kib": null,
+          "memory_unavailable": null,
+          "log": "case00-run02.log",
+          "warmup": false,
+          "repetition": 2
+        },
+        {
+          "status": "complete",
+          "exit_code": 0,
+          "seconds": 6.446056750020944,
+          "last_phase": "editing",
+          "events": [
+            {
+              "name": "graphics",
+              "type": "phase"
+            },
+            {
+              "name": "fixture",
+              "type": "phase"
+            },
+            {
+              "bytes": 1000000000,
+              "line_bytes": 64,
+              "line_count": 15625001,
+              "rust_arch": "x86_64",
+              "type": "fixture"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": null,
+              "milliseconds": 1751.448209,
+              "stage": "open",
+              "type": "measurement"
+            },
+            {
+              "name": "prepare_history",
+              "type": "phase"
+            },
+            {
+              "name": "prepare_fragmentation",
+              "type": "phase"
+            },
+            {
+              "name": "navigation",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 15468751,
+                "read_bytes": 990052354,
+                "read_calls": 15109
+              },
+              "iteration": null,
+              "milliseconds": 3640.484833,
+              "stage": "navigation",
+              "type": "measurement"
+            },
+            {
+              "name": "initial_draw",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1701,
+                "read_calls": 27
+              },
+              "iteration": null,
+              "milliseconds": 3.952042,
+              "stage": "initial_draw",
+              "type": "measurement"
+            },
+            {
+              "name": "editing",
+              "type": "phase"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 0,
+              "milliseconds": 0.077917,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.4e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 0,
+              "milliseconds": 2.171792,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 0,
+              "milliseconds": 0.039667,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 4.1e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 0,
+              "milliseconds": 0.003167,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.4e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 0,
+              "milliseconds": 0.01025,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 0,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 1,
+              "milliseconds": 0.011875,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 1,
+              "milliseconds": 2.1277079999999997,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 1,
+              "milliseconds": 0.0035,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 4.1e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 1,
+              "milliseconds": 0.002125,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 1,
+              "milliseconds": 0.008,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 1,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 2,
+              "milliseconds": 0.012041999999999999,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 2,
+              "milliseconds": 2.333959,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 2,
+              "milliseconds": 0.006666,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.1e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 2,
+              "milliseconds": 0.003209,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 2,
+              "milliseconds": 0.015042,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 2,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 325,
+                "read_calls": 9
+              },
+              "iteration": 3,
+              "milliseconds": 0.020665999999999997,
+              "stage": "insert",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1767,
+                "read_calls": 31
+              },
+              "iteration": 3,
+              "milliseconds": 2.339167,
+              "stage": "redraw",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 2,
+                "read_calls": 2
+              },
+              "iteration": 3,
+              "milliseconds": 0.0052499999999999995,
+              "stage": "undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 4.2e-05,
+              "stage": "synchronize_undo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 1,
+                "read_calls": 1
+              },
+              "iteration": 3,
+              "milliseconds": 0.0027080000000000003,
+              "stage": "redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 8.3e-05,
+              "stage": "synchronize_redo",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 1,
+                "read_bytes": 266,
+                "read_calls": 9
+              },
+              "iteration": 3,
+              "milliseconds": 0.009125,
+              "stage": "backspace",
+              "type": "measurement"
+            },
+            {
+              "counters": {
+                "copied_history_entries": 0,
+                "copied_line_records": 0,
+                "copied_piece_records": 0,
+                "line_discoveries": 0,
+                "read_bytes": 0,
+                "read_calls": 0
+              },
+              "iteration": 3,
+              "milliseconds": 4.1e-05,
+              "stage": "synchronize_backspace",
+              "type": "measurement"
+            },
+            {
+              "final_cached_lines": 15468751,
+              "final_history_entries": 8,
+              "final_pieces": 2,
+              "iterations": 4,
+              "line_index_metadata": [
+                4096,
+                1888,
+                131072
+              ],
+              "type": "complete"
+            }
+          ],
+          "sampled_peak_rss_kib": null,
+          "memory_unavailable": null,
+          "log": "case00-run03.log",
+          "warmup": false,
+          "repetition": 3
+        }
+      ],
+      "summary": [
+        {
+          "stage": "backspace",
+          "bucket": "first",
+          "samples": 3,
+          "median_ms": 0.011291,
+          "p95_ms": 0.011791,
+          "p99_ms": 0.011791,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 1,
+              "max": 1
+            },
+            "read_bytes": {
+              "median": 266,
+              "max": 266
+            },
+            "read_calls": {
+              "median": 9,
+              "max": 9
+            }
+          }
+        },
+        {
+          "stage": "backspace",
+          "bucket": "later",
+          "samples": 9,
+          "median_ms": 0.008167,
+          "p95_ms": 0.015042,
+          "p99_ms": 0.015042,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 1,
+              "max": 1
+            },
+            "read_bytes": {
+              "median": 266,
+              "max": 266
+            },
+            "read_calls": {
+              "median": 9,
+              "max": 9
+            }
+          }
+        },
+        {
+          "stage": "initial_draw",
+          "bucket": "setup",
+          "samples": 3,
+          "median_ms": 3.952042,
+          "p95_ms": 4.042583,
+          "p99_ms": 4.042583,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 1701,
+              "max": 1701
+            },
+            "read_calls": {
+              "median": 27,
+              "max": 27
+            }
+          }
+        },
+        {
+          "stage": "insert",
+          "bucket": "first",
+          "samples": 3,
+          "median_ms": 0.083583,
+          "p95_ms": 0.103625,
+          "p99_ms": 0.103625,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 1,
+              "max": 1
+            },
+            "read_bytes": {
+              "median": 325,
+              "max": 325
+            },
+            "read_calls": {
+              "median": 9,
+              "max": 9
+            }
+          }
+        },
+        {
+          "stage": "insert",
+          "bucket": "later",
+          "samples": 9,
+          "median_ms": 0.012041999999999999,
+          "p95_ms": 0.020665999999999997,
+          "p99_ms": 0.020665999999999997,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 1,
+              "max": 1
+            },
+            "read_bytes": {
+              "median": 325,
+              "max": 325
+            },
+            "read_calls": {
+              "median": 9,
+              "max": 9
+            }
+          }
+        },
+        {
+          "stage": "navigation",
+          "bucket": "setup",
+          "samples": 3,
+          "median_ms": 3640.484833,
+          "p95_ms": 3666.90075,
+          "p99_ms": 3666.90075,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 15468751,
+              "max": 15468751
+            },
+            "read_bytes": {
+              "median": 990052354,
+              "max": 990052354
+            },
+            "read_calls": {
+              "median": 15109,
+              "max": 15109
+            }
+          }
+        },
+        {
+          "stage": "open",
+          "bucket": "setup",
+          "samples": 3,
+          "median_ms": 1620.0165,
+          "p95_ms": 1751.448209,
+          "p99_ms": 1751.448209,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 0,
+              "max": 0
+            },
+            "read_calls": {
+              "median": 0,
+              "max": 0
+            }
+          }
+        },
+        {
+          "stage": "redo",
+          "bucket": "first",
+          "samples": 3,
+          "median_ms": 0.0037500000000000003,
+          "p95_ms": 0.003875,
+          "p99_ms": 0.003875,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 1,
+              "max": 1
+            },
+            "read_calls": {
+              "median": 1,
+              "max": 1
+            }
+          }
+        },
+        {
+          "stage": "redo",
+          "bucket": "later",
+          "samples": 9,
+          "median_ms": 0.002166,
+          "p95_ms": 0.003209,
+          "p99_ms": 0.003209,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 1,
+              "max": 1
+            },
+            "read_calls": {
+              "median": 1,
+              "max": 1
+            }
+          }
+        },
+        {
+          "stage": "redraw",
+          "bucket": "first",
+          "samples": 3,
+          "median_ms": 2.3265830000000003,
+          "p95_ms": 2.34125,
+          "p99_ms": 2.34125,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 1767,
+              "max": 1767
+            },
+            "read_calls": {
+              "median": 31,
+              "max": 31
+            }
+          }
+        },
+        {
+          "stage": "redraw",
+          "bucket": "later",
+          "samples": 9,
+          "median_ms": 2.1787080000000003,
+          "p95_ms": 2.339167,
+          "p99_ms": 2.339167,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 1767,
+              "max": 1767
+            },
+            "read_calls": {
+              "median": 31,
+              "max": 31
+            }
+          }
+        },
+        {
+          "stage": "synchronize",
+          "bucket": "first",
+          "samples": 3,
+          "median_ms": 8.4e-05,
+          "p95_ms": 8.4e-05,
+          "p99_ms": 8.4e-05,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 0,
+              "max": 0
+            },
+            "read_calls": {
+              "median": 0,
+              "max": 0
+            }
+          }
+        },
+        {
+          "stage": "synchronize",
+          "bucket": "later",
+          "samples": 9,
+          "median_ms": 4.2e-05,
+          "p95_ms": 8.4e-05,
+          "p99_ms": 8.4e-05,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 0,
+              "max": 0
+            },
+            "read_calls": {
+              "median": 0,
+              "max": 0
+            }
+          }
+        },
+        {
+          "stage": "synchronize_backspace",
+          "bucket": "first",
+          "samples": 3,
+          "median_ms": 8.3e-05,
+          "p95_ms": 8.3e-05,
+          "p99_ms": 8.3e-05,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 0,
+              "max": 0
+            },
+            "read_calls": {
+              "median": 0,
+              "max": 0
+            }
+          }
+        },
+        {
+          "stage": "synchronize_backspace",
+          "bucket": "later",
+          "samples": 9,
+          "median_ms": 4.2e-05,
+          "p95_ms": 8.3e-05,
+          "p99_ms": 8.3e-05,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 0,
+              "max": 0
+            },
+            "read_calls": {
+              "median": 0,
+              "max": 0
+            }
+          }
+        },
+        {
+          "stage": "synchronize_redo",
+          "bucket": "first",
+          "samples": 3,
+          "median_ms": 8.3e-05,
+          "p95_ms": 8.4e-05,
+          "p99_ms": 8.4e-05,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 0,
+              "max": 0
+            },
+            "read_calls": {
+              "median": 0,
+              "max": 0
+            }
+          }
+        },
+        {
+          "stage": "synchronize_redo",
+          "bucket": "later",
+          "samples": 9,
+          "median_ms": 4.2e-05,
+          "p95_ms": 8.4e-05,
+          "p99_ms": 8.4e-05,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 0,
+              "max": 0
+            },
+            "read_calls": {
+              "median": 0,
+              "max": 0
+            }
+          }
+        },
+        {
+          "stage": "synchronize_undo",
+          "bucket": "first",
+          "samples": 3,
+          "median_ms": 8.3e-05,
+          "p95_ms": 8.4e-05,
+          "p99_ms": 8.4e-05,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 0,
+              "max": 0
+            },
+            "read_calls": {
+              "median": 0,
+              "max": 0
+            }
+          }
+        },
+        {
+          "stage": "synchronize_undo",
+          "bucket": "later",
+          "samples": 9,
+          "median_ms": 4.2e-05,
+          "p95_ms": 8.4e-05,
+          "p99_ms": 8.4e-05,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 0,
+              "max": 0
+            },
+            "read_calls": {
+              "median": 0,
+              "max": 0
+            }
+          }
+        },
+        {
+          "stage": "undo",
+          "bucket": "first",
+          "samples": 3,
+          "median_ms": 0.052375,
+          "p95_ms": 0.057833,
+          "p99_ms": 0.057833,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 2,
+              "max": 2
+            },
+            "read_calls": {
+              "median": 2,
+              "max": 2
+            }
+          }
+        },
+        {
+          "stage": "undo",
+          "bucket": "later",
+          "samples": 9,
+          "median_ms": 0.0035,
+          "p95_ms": 0.006666,
+          "p99_ms": 0.006666,
+          "counters": {
+            "copied_history_entries": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_line_records": {
+              "median": 0,
+              "max": 0
+            },
+            "copied_piece_records": {
+              "median": 0,
+              "max": 0
+            },
+            "line_discoveries": {
+              "median": 0,
+              "max": 0
+            },
+            "read_bytes": {
+              "median": 2,
+              "max": 2
+            },
+            "read_calls": {
+              "median": 2,
+              "max": 2
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Local measurements with freshly written, warm filesystem fixtures; no cold-disk or other-editor comparison.",
+    "Headless rendering measures SDL draw work, not native desktop presentation, input dispatch or LSP work.",
+    "RSS is sampled about every 100ms across fixture/setup/editing, not true peak memory or an allocation budget; ps may be unavailable.",
+    "Read counters count successful positional file reads in the piece table, including rereads; not physical disk I/O or recovery writes.",
+    "Line discoveries count discovery calls, including reconstructed evicted entries and EOF handling; not unique lines.",
+    "Copy counters count top-level records at view/history cloning sites, not bytes or deep allocations in undo snapshots.",
+    "p95/p99 use nearest ranks; small sample counts and correlated operations limit tail claims.",
+    "The first edit and later edits are reported separately. Timeout includes fixture and setup; partial timings remain in raw events.",
+    "Unfinished warmups stop that case's remaining runs; no timing threshold determines correctness.",
+    "Concurrent checkout changes after building cannot alter the saved probe. Different before/after build hashes make source provenance inconclusive."
+  ]
+}

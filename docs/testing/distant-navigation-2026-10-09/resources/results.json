@@ -1,0 +1,224 @@
+{
+  "platform": "macOS-15.8.1-arm64-arm-64bit-Mach-O",
+  "binary_sha256": {
+    "before": "f80f11118fb8c7acc58a64511d3e5328e8a48fc97db76f8855a269da75286441",
+    "after": "15fad839170547f85ea105a38f90aa5415ac267b44f3050c4f4c5bd87584c6c2"
+  },
+  "case": {
+    "bytes": 1000000000,
+    "line_bytes": 64,
+    "position_percent": 99,
+    "panes": 1,
+    "history_entries": 0,
+    "fragmented_edits": 0,
+    "recovery": false,
+    "render": true,
+    "iterations": 4
+  },
+  "runs": [
+    {
+      "variant": "before",
+      "repetition": 0,
+      "warmup": true,
+      "navigation_ms": 3637.2529170000003,
+      "cpu_seconds": 4.53,
+      "wall_seconds": 6.28,
+      "peak_rss_bytes": 14872576,
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 15468751,
+        "read_bytes": 990052354,
+        "read_calls": 15109
+      },
+      "index_metadata": [
+        4096,
+        1888,
+        131072
+      ],
+      "log": "pair0-before.log"
+    },
+    {
+      "variant": "after",
+      "repetition": 0,
+      "warmup": true,
+      "navigation_ms": 775.7335840000001,
+      "cpu_seconds": 1.6600000000000001,
+      "wall_seconds": 3.31,
+      "peak_rss_bytes": 14905344,
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 15468751,
+        "read_bytes": 990052354,
+        "read_calls": 15109
+      },
+      "index_metadata": [
+        4096,
+        1888,
+        131072
+      ],
+      "log": "pair0-after.log"
+    },
+    {
+      "variant": "after",
+      "repetition": 1,
+      "warmup": false,
+      "navigation_ms": 789.400167,
+      "cpu_seconds": 1.68,
+      "wall_seconds": 3.34,
+      "peak_rss_bytes": 14606336,
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 15468751,
+        "read_bytes": 990052354,
+        "read_calls": 15109
+      },
+      "index_metadata": [
+        4096,
+        1888,
+        131072
+      ],
+      "log": "pair1-after.log"
+    },
+    {
+      "variant": "before",
+      "repetition": 1,
+      "warmup": false,
+      "navigation_ms": 3613.893,
+      "cpu_seconds": 4.53,
+      "wall_seconds": 6.2,
+      "peak_rss_bytes": 14618624,
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 15468751,
+        "read_bytes": 990052354,
+        "read_calls": 15109
+      },
+      "index_metadata": [
+        4096,
+        1888,
+        131072
+      ],
+      "log": "pair1-before.log"
+    },
+    {
+      "variant": "before",
+      "repetition": 2,
+      "warmup": false,
+      "navigation_ms": 3638.2174579999996,
+      "cpu_seconds": 4.55,
+      "wall_seconds": 6.25,
+      "peak_rss_bytes": 14823424,
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 15468751,
+        "read_bytes": 990052354,
+        "read_calls": 15109
+      },
+      "index_metadata": [
+        4096,
+        1888,
+        131072
+      ],
+      "log": "pair2-before.log"
+    },
+    {
+      "variant": "after",
+      "repetition": 2,
+      "warmup": false,
+      "navigation_ms": 796.315417,
+      "cpu_seconds": 1.68,
+      "wall_seconds": 3.38,
+      "peak_rss_bytes": 15249408,
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 15468751,
+        "read_bytes": 990052354,
+        "read_calls": 15109
+      },
+      "index_metadata": [
+        4096,
+        1888,
+        131072
+      ],
+      "log": "pair2-after.log"
+    },
+    {
+      "variant": "after",
+      "repetition": 3,
+      "warmup": false,
+      "navigation_ms": 808.208083,
+      "cpu_seconds": 1.79,
+      "wall_seconds": 5.41,
+      "peak_rss_bytes": 15343616,
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 15468751,
+        "read_bytes": 990052354,
+        "read_calls": 15109
+      },
+      "index_metadata": [
+        4096,
+        1888,
+        131072
+      ],
+      "log": "pair3-after.log"
+    },
+    {
+      "variant": "before",
+      "repetition": 3,
+      "warmup": false,
+      "navigation_ms": 3771.810334,
+      "cpu_seconds": 4.76,
+      "wall_seconds": 6.64,
+      "peak_rss_bytes": 14987264,
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 15468751,
+        "read_bytes": 990052354,
+        "read_calls": 15109
+      },
+      "index_metadata": [
+        4096,
+        1888,
+        131072
+      ],
+      "log": "pair3-before.log"
+    }
+  ],
+  "limits": [
+    "Freshly written warm fixtures; headless SDL, not native input/display latency.",
+    "Whole-process CPU and peak RSS include fixture creation, SDL initialization, navigation and four edit cycles.",
+    "One discarded pair and three measured pairs, alternating order; no concurrent builds or tests.",
+    "RSS differences near a few pages are noise, not an allocation budget or universal guarantee."
+  ],
+  "medians": {
+    "before": {
+      "navigation_ms": 3638.2174579999996,
+      "cpu_seconds": 4.55,
+      "wall_seconds": 6.25,
+      "peak_rss_bytes": 14823424
+    },
+    "after": {
+      "navigation_ms": 796.315417,
+      "cpu_seconds": 1.68,
+      "wall_seconds": 3.38,
+      "peak_rss_bytes": 15249408
+    }
+  }
+}
