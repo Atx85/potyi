@@ -20,9 +20,14 @@ use std::path::PathBuf;
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=POTYI_RELEASE_VERSION");
-    let version = env::var("POTYI_RELEASE_VERSION").ok().filter(|v| !v.is_empty())
+    let version = env::var("POTYI_RELEASE_VERSION")
+        .ok()
+        .filter(|v| !v.is_empty())
         .unwrap_or_else(|| env::var("CARGO_PKG_VERSION").unwrap());
-    println!("cargo:rustc-env=POTYI_DISPLAY_VERSION=v{}", version.trim_start_matches('v'));
+    println!(
+        "cargo:rustc-env=POTYI_DISPLAY_VERSION=v{}",
+        version.trim_start_matches('v')
+    );
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         println!("cargo:rerun-if-changed=windows/potyi.ico");
         println!("cargo:rerun-if-changed=Cargo.toml");
@@ -47,7 +52,7 @@ fn main() {
     println!("cargo:rerun-if-changed={}", info_plist.display(),);
 
     println!(
-        "cargo:rustc-link-arg=-Wl,-sectcreate,__TEXT,__info_plist,{}",
+        "cargo:rustc-link-arg-bin=potyi=-Wl,-sectcreate,__TEXT,__info_plist,{}",
         info_plist.display(),
     );
 }

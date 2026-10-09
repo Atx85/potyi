@@ -126,3 +126,27 @@ The report generator is tailored to the recorded acceptance run and its six
 probe types. It is not a CI gate for arbitrary future test counts. A future
 release test run must update the plan and outstanding environment checks rather
 than inheriting the historical acceptance claims.
+
+## Embedded terminal timing
+
+`terminal-resources.py` compares the original and embedded terminals with the
+same release test executable and explicit helper. `terminal-startup.py` runs a
+separate timing experiment: ten alternating fresh processes per variant, with
+one first command and five warm commands each. It records pane-open return,
+session readiness, viewport settlement, submission and completed-command time.
+Do not run builds, resource samplers or other benchmarks at the same time.
+
+```sh
+python3 tools/qa/terminal-startup.py --config /absolute/path/variants.json --output /absolute/path/new-results --repetitions 10
+```
+
+The configuration contains a `variants` array. Each variant has a unique
+`label` and absolute `source_root`, `binary`, `helper` and `build_provenance`
+paths. Use immutable release copies, with the same startup probe in each source
+tree. Each build manifest must attest matching before/after source digests,
+test/helper SHA-256 hashes, release profile and target architecture; the runner
+checks these identities before and after execution. The dated example and
+retained results are in `docs/terminal-experiment/performance-2026-10-09/`.
+Fresh copied executables do not prove cold OS caches. Timings end after output,
+layout and rendering settle in dummy SDL; native keyboard/display delivery and
+whole-process SDL/font startup are outside that scope.

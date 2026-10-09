@@ -1,0 +1,13 @@
+$ ls -l
+d          160 ../
+-            7 .hidden
+-           20 árvíz 東京.rs
+d           64 folder with spaces/
+-           10 é_combining.txt
+-            6 README.md
+-           13 source.rs
+-           11 space name.txt
+-           21 ́
+-            5 ́leading.txt
+-            3 binary.bin
+

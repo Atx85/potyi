@@ -1,0 +1,129 @@
+{
+  "observed_utc": "2026-10-09T12:38:40.371345+00:00",
+  "measured_source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+  "owned_files": [
+    {
+      "path": "src/app/input/terminal_startup_probe.rs",
+      "before_sha256": null,
+      "after_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+    },
+    {
+      "path": "src/app/input/tests.rs",
+      "before_sha256": "2d8d19158f5d9d0f26a3aad3a801f0ff4e09c68273d2179adcd040cf9332e178",
+      "after_sha256": "cd076aef871afd78d6c1c33a8ab81dd282c24ef27fe843ba7b09506c9d93f2f0"
+    },
+    {
+      "path": "src/experimental_terminal/bridge.rs",
+      "before_sha256": "5603021b7295f1a46c1208301328c200395cb709e51debc8737fedb2fedc7941",
+      "after_sha256": "8baf46a25e800df464c1a269a8ffbd4ac39a13a59aa41b3ca46233daed9e3d32"
+    },
+    {
+      "path": "src/experimental_terminal/bridge_tests.rs",
+      "before_sha256": null,
+      "after_sha256": "05c7461cd44d16480dd1ef19b5677c318abb464fd2588e1003e87ceb187f04eb"
+    },
+    {
+      "path": "src/experimental_terminal/layout.rs",
+      "before_sha256": "68a2670545f6d692b0177e0fc5a6f09119355990bec47091a0aeca1c41999e3b",
+      "after_sha256": "8a18e59a58de656319b2c43a5341d4512754a88b668d758581529c919c1c7ee2"
+    },
+    {
+      "path": "src/experimental_terminal/layout_tests.rs",
+      "before_sha256": "1be93cf8ad0e9d7fb6761368646b70e42f6c867794af971ef13bf6df8bd560e5",
+      "after_sha256": "b84eed4575df4664ede7116bd10767f559fa1535481f8afd3228caebbd554014"
+    },
+    {
+      "path": "src/experimental_terminal/lifecycle.rs",
+      "before_sha256": "8e3e13be881f0cc7767ffb45802262b509bfa636ef8832463f485985fe5ac97d",
+      "after_sha256": "a7184b463027b97dcbb265fbb31662e2db2c600650b5ac0e7e9a8c73d749afa0"
+    },
+    {
+      "path": "src/experimental_terminal/lifecycle_tests.rs",
+      "before_sha256": null,
+      "after_sha256": "0025904f1101456bc657911db39725abdf7a2d6d092e0a8580c79b2d32bbce0c"
+    },
+    {
+      "path": "src/experimental_terminal/literal_output.rs",
+      "before_sha256": "8e6aab2822f613d78e4b0f7fa2dd89571c770177f39c5af1a375703b870ad845",
+      "after_sha256": "029de8f2a106bdbb7b55155957f6ae289265d612c3f8b1264a434aacadef8311"
+    },
+    {
+      "path": "src/experimental_terminal/literal_output_tests.rs",
+      "before_sha256": "5cae592d9a2497556d3493588fb5430f00df0429401e63068b1f10dfefefcf05",
+      "after_sha256": "6c740713b33802b2a4f3228915cd90848585f7702f2a112d4e16a247b94dfca9"
+    },
+    {
+      "path": "src/experimental_terminal/pane.rs",
+      "before_sha256": "f603bc6ac358eda7d0d4684da5d41aaf0c3343e57bb2729328de21e70e5d66d8",
+      "after_sha256": "7278362dbf9069eb8b533eccc1c9ce1e19d41d5b7487aa122167c362ab69fa32"
+    },
+    {
+      "path": "src/experimental_terminal/pane_git.rs",
+      "before_sha256": "6f0c78188bc861396d53e40fe1ad81c51bb4d9e30a44b0ef9dbcd4f34c60bcf7",
+      "after_sha256": "f4e52641ab0fde31c8e9ea91e3f81eb0dd14b37e0d2abb16bcd326316894c60c"
+    },
+    {
+      "path": "src/experimental_terminal/pane_output.rs",
+      "before_sha256": "4efa948244025741e804f2acaf9247fde899222c2e19a4521ef8db2263b3d7a5",
+      "after_sha256": "be191b52a0760d615dc45d9183228593da29214240c67d7d4f75d42865dd3ef2"
+    },
+    {
+      "path": "src/experimental_terminal/session.rs",
+      "before_sha256": "c72d47d598d2f2f2d43671b0b15f86da2a394f9ad0039e0fae5f57c2e742f340",
+      "after_sha256": "ad88d807aa332b9c401c5488d492ce0fcdcd6db4bf60a455f394235f14715946"
+    }
+  ],
+  "original_terminal": [
+    {
+      "path": "src/terminal.rs",
+      "sha256": "b7a32ae5a6e9e1a306057fea7fef45ad657b5161e3c98d10f97617c217647dac"
+    },
+    {
+      "path": "src/terminal_layout.rs",
+      "sha256": "57a3ca5b1eb56f7765fbf50cfb652380318ec9233118d8ca7c4a6717c79a6ac7"
+    },
+    {
+      "path": "src/terminal_text_cache.rs",
+      "sha256": "803ecfad146f13b73894910a53100108c0c844b8bd238d8e2e328786df64740b"
+    },
+    {
+      "path": "src/app/input/keyboard/terminal.rs",
+      "sha256": "56403617fb7f9c66cdc45267d60b3ec80c8a600d7f3aa0a82f665b62689ba7d6"
+    },
+    {
+      "path": "src/terminal/colors.rs",
+      "sha256": "c6437ceeab809c6aa236edca765732e92776533c4518645297277f1b3741dfd5"
+    },
+    {
+      "path": "src/terminal/completion.rs",
+      "sha256": "c2c2e29e42abe58c4cd70934024627214587777ab6dec8eb37bec8ef8734eee0"
+    },
+    {
+      "path": "src/terminal/frame.rs",
+      "sha256": "2fa25a7524c914a2509841fdc165314e0ffb4d36df0d13ae42c49bf5719331f0"
+    },
+    {
+      "path": "src/terminal/git.rs",
+      "sha256": "1b26e2fb8e14dcc1b99d696fde3fe79e54f28ea60c42f39a33cd728cded8910e"
+    },
+    {
+      "path": "src/terminal/git_status.rs",
+      "sha256": "05013df9ab495d870146d3bd2b18c176b803fdb35b05adbcb9cbabd4f101ce5e"
+    },
+    {
+      "path": "src/terminal/listing.rs",
+      "sha256": "2a12928d702e7051be923249cb6a86cc6837f758b02852e2167cfae4ebab89b8"
+    },
+    {
+      "path": "src/terminal/locations.rs",
+      "sha256": "3c63e93a559d629550a6f65600b5b9373a0f18368d190071152acf48e7a3ca87"
+    },
+    {
+      "path": "src/terminal/selection.rs",
+      "sha256": "59769abc09edde068d353f91a89a3363defbb6afb6893ac251e80b601a8fca49"
+    }
+  ],
+  "original_terminal_unchanged": true,
+  "all_compiled_inputs_match_frozen_source": true,
+  "git_index_unchanged": true
+}

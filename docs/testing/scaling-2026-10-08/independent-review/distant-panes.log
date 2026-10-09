@@ -1,0 +1,127 @@
+   Compiling potyi v0.1.8 (/private/tmp/potyi-line-budget-20261008)
+warning: variable does not need to be mutable
+   --> src/tests.rs:742:9
+    |
+742 |     let mut table = PieceTable::open(
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:829:9
+    |
+829 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:841:9
+    |
+841 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:852:9
+    |
+852 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:868:9
+    |
+868 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/tests.rs:1234:9
+     |
+1234 |     let mut table =
+     |         ----^^^^^
+     |         |
+     |         help: remove this `mut`
+
+warning: methods `line_text_from_start` and `cursor_line_column` are never used
+    --> src/piece_table.rs:1350:12
+     |
+ 376 | impl Document {
+     | ------------- methods in this implementation
+...
+1350 |     pub fn line_text_from_start(
+     |            ^^^^^^^^^^^^^^^^^^^^
+...
+1750 |     pub fn cursor_line_column(
+     |            ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: methods `debug`, `line_text_from_start`, and `replace_ranges` are never used
+   --> src/piece_table/view.rs:133:12
+    |
+ 42 | impl PieceTable {
+    | --------------- methods in this implementation
+...
+133 |     pub fn debug(&mut self) {
+    |            ^^^^^
+...
+227 |     pub fn line_text_from_start(&mut self, start: usize) -> io::Result<(String, usize)> {
+    |            ^^^^^^^^^^^^^^^^^^^^
+...
+357 |     pub(crate) fn replace_ranges<I>(
+    |                   ^^^^^^^^^^^^^^
+
+warning: associated function `search_bar_reserved_height` is never used
+    --> src/renderer.rs:1807:8
+     |
+ 191 | impl<'a> Renderer<'a> {
+     | --------------------- associated function in this implementation
+...
+1807 |     fn search_bar_reserved_height(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `search_origin` is never read
+  --> src/search.rs:68:5
+   |
+65 | pub struct Searcher {
+   |            -------- field in this struct
+...
+68 |     search_origin: usize,
+   |     ^^^^^^^^^^^^^
+
+warning: field `pattern` is never read
+  --> src/syntax.rs:49:9
+   |
+47 | pub struct SyntaxRule {
+   |            ---------- field in this struct
+48 |     pub name: String,
+49 |     pub pattern: String,
+   |         ^^^^^^^
+   |
+   = note: `SyntaxRule` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `test_file` is never used
+   --> src/tests.rs:139:4
+    |
+139 | fn test_file(contents: &[u8]) -> PathBuf {
+    |    ^^^^^^^^^
+
+warning: `potyi` (bin "potyi" test) generated 12 warnings (run `cargo fix --bin "potyi" -p potyi --tests` to apply 6 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 17.33s
+     Running unittests src/main.rs (target/debug/deps/potyi-540762392aa91646)
+
+running 1 test
+test piece_table::line_budget_tests::alternating_distant_panes_report_reconstruction_cost ... PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-pane-budget-probe-81631-1): 116.543833ms
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-pane-budget-probe-81631-1): 116.591333ms
+POTYI_LINE_BUDGET_REVIEW {"arch":"x86_64","fixture_bytes":67108864,"full_scan_ms":317.15625,"line_index_metadata":[551,2048,131072],"lines":1048577,"samples":[{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":88,"read_bytes":136112,"read_calls":82},"iteration":0,"left_line":517,"milliseconds":0.20925,"right_line":786947},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":88,"read_bytes":136112,"read_calls":82},"iteration":1,"left_line":517,"milliseconds":0.181459,"right_line":786947},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":88,"read_bytes":136112,"read_calls":82},"iteration":2,"left_line":517,"milliseconds":0.17758300000000002,"right_line":786947},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":88,"read_bytes":136112,"read_calls":82},"iteration":3,"left_line":517,"milliseconds":0.17825,"right_line":786947},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":88,"read_bytes":136112,"read_calls":82},"iteration":4,"left_line":517,"milliseconds":0.178666,"right_line":786947},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":88,"read_bytes":136112,"read_calls":82},"iteration":5,"left_line":517,"milliseconds":0.176125,"right_line":786947},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":88,"read_bytes":136112,"read_calls":82},"iteration":6,"left_line":517,"milliseconds":0.174209,"right_line":786947},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":88,"read_bytes":136112,"read_calls":82},"iteration":7,"left_line":517,"milliseconds":0.17575,"right_line":786947},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":88,"read_bytes":136112,"read_calls":82},"iteration":8,"left_line":517,"milliseconds":0.1725,"right_line":786947},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":590,"read_bytes":136112,"read_calls":82},"iteration":0,"left_line":767,"milliseconds":0.32879200000000003,"right_line":787199},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":590,"read_bytes":136112,"read_calls":82},"iteration":1,"left_line":767,"milliseconds":0.32937500000000003,"right_line":787199},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":590,"read_bytes":136112,"read_calls":82},"iteration":2,"left_line":767,"milliseconds":0.338542,"right_line":787199},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":590,"read_bytes":136112,"read_calls":82},"iteration":3,"left_line":767,"milliseconds":0.338042,"right_line":787199},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":590,"read_bytes":136112,"read_calls":82},"iteration":4,"left_line":767,"milliseconds":0.33754199999999995,"right_line":787199},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":590,"read_bytes":136112,"read_calls":82},"iteration":5,"left_line":767,"milliseconds":0.34,"right_line":787199},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":590,"read_bytes":136112,"read_calls":82},"iteration":6,"left_line":767,"milliseconds":0.35724999999999996,"right_line":787199},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":590,"read_bytes":136112,"read_calls":82},"iteration":7,"left_line":767,"milliseconds":0.334959,"right_line":787199},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":590,"read_bytes":136112,"read_calls":82},"iteration":8,"left_line":767,"milliseconds":0.3365,"right_line":787199},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":1102,"read_bytes":136112,"read_calls":82},"iteration":0,"left_line":1023,"milliseconds":0.482125,"right_line":787455},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":1102,"read_bytes":136112,"read_calls":82},"iteration":1,"left_line":1023,"milliseconds":0.46775,"right_line":787455},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":1102,"read_bytes":136112,"read_calls":82},"iteration":2,"left_line":1023,"milliseconds":0.46575,"right_line":787455},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":1102,"read_bytes":136112,"read_calls":82},"iteration":3,"left_line":1023,"milliseconds":0.472208,"right_line":787455},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":1102,"read_bytes":136112,"read_calls":82},"iteration":4,"left_line":1023,"milliseconds":0.468667,"right_line":787455},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":1102,"read_bytes":136112,"read_calls":82},"iteration":5,"left_line":1023,"milliseconds":0.48970800000000003,"right_line":787455},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":1102,"read_bytes":136112,"read_calls":82},"iteration":6,"left_line":1023,"milliseconds":0.465541,"right_line":787455},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":1102,"read_bytes":136112,"read_calls":82},"iteration":7,"left_line":1023,"milliseconds":0.465792,"right_line":787455},{"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":1102,"read_bytes":136112,"read_calls":82},"iteration":8,"left_line":1023,"milliseconds":0.471667,"right_line":787455}],"two_panes_visible_rows":40}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 690 filtered out; finished in 0.46s
+

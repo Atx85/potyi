@@ -340,7 +340,7 @@ impl Controller {
         let kill_line = ctrl && key == Keycode::K;
         let kill_word = meta && matches!(key, Keycode::D | Keycode::Backspace | Keycode::Delete);
         if copy || kill_region || kill_line || kill_word {
-            if !copy && editor.read_only {
+            if !copy && editor.is_read_only() {
                 return Err("This file is open for viewing".into());
             }
             let point = editor.document.cursor.position;
@@ -435,7 +435,7 @@ impl Controller {
             });
         }
         if ctrl && key == Keycode::Y || meta && key == Keycode::Y {
-            if editor.read_only {
+            if editor.is_read_only() {
                 return Err("This file is open for viewing".into());
             }
             let (start, end, index, text) = if meta {
@@ -481,7 +481,7 @@ impl Controller {
             _ => None,
         };
         if let Some(command) = command {
-            if editor.read_only {
+            if editor.is_read_only() {
                 return Err("This file is open for viewing".into());
             }
             let history = editor.begin_history_group();
@@ -498,7 +498,7 @@ impl Controller {
             });
         }
         if ctrl && key == Keycode::O {
-            if editor.read_only {
+            if editor.is_read_only() {
                 return Err("This file is open for viewing".into());
             }
             let point = editor.document.cursor.position;
@@ -674,7 +674,7 @@ mod tests {
         e.document.move_cursor(0).unwrap();
         e.undo_stack.clear();
         e.redo_stack.clear();
-        e.dirty = false;
+        e.set_dirty(false);
         e
     }
     fn key(c: &mut Controller, e: &mut Editor, b: &Clipboard, k: Keycode, m: Mod) -> Outcome {
@@ -789,7 +789,7 @@ mod tests {
         let mut other = editor("");
         key(&mut c, &mut other, &b, Keycode::Y, C);
         assert_eq!(other.document.text().unwrap(), "word");
-        e.read_only = true;
+        e.set_read_only(true);
         let before = e.document.text().unwrap();
         let clip = b.text().unwrap();
         assert!(c.key(&mut e, &b, Keycode::K, C, 3).is_err());

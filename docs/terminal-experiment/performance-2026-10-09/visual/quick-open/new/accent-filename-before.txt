@@ -1,0 +1,13 @@
+$ ls -1
+../
+.hidden
+árvíz 東京.rs
+folder with spaces/
+é_combining.txt
+README.md
+source.rs
+space name.txt
+́
+́leading.txt
+binary.bin
+

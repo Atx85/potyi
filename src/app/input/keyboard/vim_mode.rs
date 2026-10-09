@@ -2,13 +2,13 @@
 use super::*;
 
 pub(super) fn handle(
-    context: InputContext<'_, '_>,
+    context: EditContext<'_, '_>,
     key: Keycode,
     keymod: Mod,
     repeat: bool,
     bound_command: Option<Command>,
 ) -> KeyResult {
-    let InputContext {
+    let EditContext {
         editor,
         renderer,
         vim,
@@ -22,7 +22,7 @@ pub(super) fn handle(
     if *vim_enabled && bound_command == Some(Command::SelectNextOccurrence) {
         // Ctrl+D still reaches Vim's half-page motion; Cmd+D has no Vim action.
         if VimController::page_motion(key, keymod).is_none() {
-            return Ok(Some(EventFlow::Continue));
+            return Ok(KeyFlow::Handled);
         }
     }
     if *vim_enabled {
@@ -95,9 +95,9 @@ pub(super) fn handle(
 
         if outcome.consumed {
             *dirty = true;
-            return Ok(Some(EventFlow::Continue));
+            return Ok(KeyFlow::Handled);
         }
     }
 
-    Ok(None)
+    Ok(KeyFlow::Pass)
 }

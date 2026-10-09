@@ -1,0 +1,48 @@
+{
+  "created_at": "2026-10-08T15:44:03.714760+00:00",
+  "repository": "/Users/abanko/Desktop/untitled folder/potyi",
+  "output": "/private/tmp/potyi-fragment-review-20261008-qkzzxea3",
+  "variants": {
+    "fixed64": {
+      "description": "64 KiB refill after invalidation",
+      "original_path": "/Users/abanko/Desktop/untitled folder/potyi/target/qa/scaling-bounded-20261008",
+      "binary_path": "/private/tmp/potyi-fragment-review-20261008-qkzzxea3/fixed64/probe",
+      "source": {
+        "before_build": "73f03fec46ce04a6af5a113b0bfcac89da58ef032cc8713bd3aeb88b6d268690",
+        "after_build": "73f03fec46ce04a6af5a113b0bfcac89da58ef032cc8713bd3aeb88b6d268690",
+        "stable_during_build": true,
+        "binary_sha256": "1ee8ec4c8e6b905a0f088bf8fa13f4354a20b6478a218dab5e5cc6282067f91d"
+      },
+      "environment": {
+        "os": "macOS-15.8.1-arm64-arm-64bit-Mach-O",
+        "cpu": "arm",
+        "logical_cpus": 10,
+        "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6",
+        "profile": "release",
+        "sdl_video_driver": "dummy",
+        "window": "800x600"
+      }
+    },
+    "adaptive": {
+      "description": "256-byte refill after invalidation, growing geometrically to 64 KiB",
+      "original_path": "/Users/abanko/Desktop/untitled folder/potyi/target/qa/scaling-final-20261008",
+      "binary_path": "/private/tmp/potyi-fragment-review-20261008-qkzzxea3/adaptive/probe",
+      "source": {
+        "before_build": "64c13ffb77afa2927702b00571558a8f7531cb189429ef3511e3fe0d0b6b5b96",
+        "after_build": "64c13ffb77afa2927702b00571558a8f7531cb189429ef3511e3fe0d0b6b5b96",
+        "stable_during_build": true,
+        "binary_sha256": "2f4f67f0ae82a12e359aad6775c5037ed8cbea0098aa8c560b01c884354d2356"
+      },
+      "environment": {
+        "os": "macOS-15.8.1-arm64-arm-64bit-Mach-O",
+        "cpu": "arm",
+        "logical_cpus": 10,
+        "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: x86_64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6",
+        "profile": "release",
+        "sdl_video_driver": "dummy",
+        "window": "800x600"
+      }
+    }
+  },
+  "harness_sha256": "d33f059e3f1c21468394413e73f6241cbbd4c2cf1d529fdc3c3fbc4fcd0d24cc"
+}

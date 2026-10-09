@@ -1,0 +1,437 @@
+{
+  "frames": [
+    {
+      "scene": "accent_end",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "accent_home",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "accent_selected",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "empty",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "git_back",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "git_detail",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "git_log",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "initial",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "leading-copy",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "listing",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "listing_narrow",
+      "size_old": [
+        420,
+        600
+      ],
+      "size_new": [
+        420,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "listing_wide",
+      "size_old": [
+        3200,
+        600
+      ],
+      "size_new": [
+        3200,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "long_listing",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "long_prompt",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "long_prompt_click",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "ls-copy",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "ls-long-copy",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "output",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "output_wide",
+      "size_old": [
+        3200,
+        600
+      ],
+      "size_new": [
+        3200,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "plain-copy",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "prompt",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "prompt_click",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "raw-copy",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "running",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "selection",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "stopped",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    },
+    {
+      "scene": "unicode-tab-copy",
+      "size_old": [
+        800,
+        600
+      ],
+      "size_new": [
+        800,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    }
+  ],
+  "clipboard": [
+    {
+      "scene": "accent-selected-copy",
+      "equal": true,
+      "bytes_old": 2,
+      "bytes_new": 2,
+      "sha256_old": "e98c7967e888003216eb80e03f53b6daac81b0d9e01bafa1a3959a10b143279e",
+      "sha256_new": "e98c7967e888003216eb80e03f53b6daac81b0d9e01bafa1a3959a10b143279e"
+    },
+    {
+      "scene": "git_back",
+      "equal": true,
+      "bytes_old": 108,
+      "bytes_new": 108,
+      "sha256_old": "37d5b214a28ee7be2b63ca8fdb7821c6b4f81b49c7a35975b83c5116e16ba54d",
+      "sha256_new": "37d5b214a28ee7be2b63ca8fdb7821c6b4f81b49c7a35975b83c5116e16ba54d"
+    },
+    {
+      "scene": "git_detail",
+      "equal": true,
+      "bytes_old": 526,
+      "bytes_new": 526,
+      "sha256_old": "f5eb88435750c05760f4aaa76b5f144b53593d7788cc3601581c7aed63262e7c",
+      "sha256_new": "f5eb88435750c05760f4aaa76b5f144b53593d7788cc3601581c7aed63262e7c"
+    },
+    {
+      "scene": "git_log",
+      "equal": true,
+      "bytes_old": 108,
+      "bytes_new": 108,
+      "sha256_old": "37d5b214a28ee7be2b63ca8fdb7821c6b4f81b49c7a35975b83c5116e16ba54d",
+      "sha256_new": "37d5b214a28ee7be2b63ca8fdb7821c6b4f81b49c7a35975b83c5116e16ba54d"
+    },
+    {
+      "scene": "leading-copy",
+      "equal": true,
+      "bytes_old": 50,
+      "bytes_new": 50,
+      "sha256_old": "60836c0da4173761e6db1f0a1fdca3e39c3bff8745f9b0fab046e07a766f0e24",
+      "sha256_new": "60836c0da4173761e6db1f0a1fdca3e39c3bff8745f9b0fab046e07a766f0e24"
+    },
+    {
+      "scene": "ls-copy",
+      "equal": true,
+      "bytes_old": 208,
+      "bytes_new": 208,
+      "sha256_old": "1c55c6ab48ca5558e4a6344784661420ceddd6db13f5add95d88aa5060292e9c",
+      "sha256_new": "1c55c6ab48ca5558e4a6344784661420ceddd6db13f5add95d88aa5060292e9c"
+    },
+    {
+      "scene": "ls-long-copy",
+      "equal": true,
+      "bytes_old": 305,
+      "bytes_new": 305,
+      "sha256_old": "2d7fd9319c68d6ce03585dfc1a21da1a3b10df9a97b0b6c0d5777344bd2bba73",
+      "sha256_new": "2d7fd9319c68d6ce03585dfc1a21da1a3b10df9a97b0b6c0d5777344bd2bba73"
+    },
+    {
+      "scene": "plain-copy",
+      "equal": true,
+      "bytes_old": 169,
+      "bytes_new": 169,
+      "sha256_old": "d354a9047abffcbced969ccd3ac42b7ec86c7ce0c6238f1d7f3452fff98db0ef",
+      "sha256_new": "d354a9047abffcbced969ccd3ac42b7ec86c7ce0c6238f1d7f3452fff98db0ef"
+    },
+    {
+      "scene": "raw-copy",
+      "equal": true,
+      "bytes_old": 48,
+      "bytes_new": 48,
+      "sha256_old": "d5bf0f74cf62e4d3e5fd9c3c30a9ad93c9e01e8201bfe7ee436946ec3be61a95",
+      "sha256_new": "d5bf0f74cf62e4d3e5fd9c3c30a9ad93c9e01e8201bfe7ee436946ec3be61a95"
+    },
+    {
+      "scene": "unicode-tab-copy",
+      "equal": true,
+      "bytes_old": 54,
+      "bytes_new": 54,
+      "sha256_old": "9361dfb27caee39b475a922213db14473f2735159f507d06a7bc6570f7f6f293",
+      "sha256_new": "9361dfb27caee39b475a922213db14473f2735159f507d06a7bc6570f7f6f293"
+    }
+  ]
+}

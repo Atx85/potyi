@@ -21,16 +21,16 @@ pub(super) fn terminal_toggle(
         command_bar.close();
         search_ui.close();
         if renderer.terminal_focused(terminal) {
-            terminal.toggle(editor.path.as_deref());
+            terminal.toggle(editor.path().as_deref());
         } else {
             renderer.place_terminal_in_active_pane();
-            terminal.open(editor.path.as_deref());
+            terminal.open(editor.path().as_deref());
         }
         *dirty = true;
-        return Ok(Some(EventFlow::Continue));
+        return Ok(KeyFlow::Handled);
     }
 
-    Ok(None)
+    Ok(KeyFlow::Pass)
 }
 
 pub(super) fn open_command(
@@ -94,8 +94,8 @@ pub(super) fn open_command(
         }
 
         *dirty = true;
-        return Ok(Some(EventFlow::Continue));
+        return Ok(KeyFlow::Handled);
     }
 
-    Ok(None)
+    Ok(KeyFlow::Pass)
 }

@@ -1,0 +1,65 @@
+{
+  "purpose": "Immutable second baseline before any further profiling or source changes",
+  "files": [
+    {
+      "path": "01-new-samples.jsonl",
+      "sha256": "6ea1ad27baf9fa38ac3dc5420311020fedeb5a3f550b47e1ce01a1723a46c9c1"
+    },
+    {
+      "path": "01-new.log",
+      "sha256": "2d6821b4f28535b513e37f51891d91fa43f82ade628924ec23c540e4a5b0f2c4"
+    },
+    {
+      "path": "01-old-samples.jsonl",
+      "sha256": "d4f34c20fea0ab28504ca05b9c45ca92e1c752878501e83cafc12f20b88b0446"
+    },
+    {
+      "path": "01-old.log",
+      "sha256": "b312d9b58efc4aa690fe0a5a6658b220b3821d68a19de42f11fd9660584d4ea0"
+    },
+    {
+      "path": "02-new-samples.jsonl",
+      "sha256": "6ee17cac4046946e56d4931b4860b449c29fcd3c6dbcd2a1e08dee208ddd9fde"
+    },
+    {
+      "path": "02-new.log",
+      "sha256": "e40b50275e51d370caabac3e2cf3ad011ca6e92c65450f0546498f3453f1b0bc"
+    },
+    {
+      "path": "02-old-samples.jsonl",
+      "sha256": "1312e6525397eafcb7b26fae2b578cd726b297b75da3bb147229c83d625c078b"
+    },
+    {
+      "path": "02-old.log",
+      "sha256": "77171e7a8bd17e67227075fef28455f790a59e3b9d4758587d80aed417b6932b"
+    },
+    {
+      "path": "03-new-samples.jsonl",
+      "sha256": "52fe2929fbadf1ad2eb66cfd1e2f4c907090c285c5a13358b9d5a49f340b4508"
+    },
+    {
+      "path": "03-new.log",
+      "sha256": "b28837e2810c0769dc5d3c2a66147b91d893e871b72bc284107c4f537ab167d6"
+    },
+    {
+      "path": "03-old-samples.jsonl",
+      "sha256": "c806930d186faa072a0eb211f18b3dce6a1615d7e61a352a9d5dd76a24040ae8"
+    },
+    {
+      "path": "03-old.log",
+      "sha256": "7ce9b94766c3ead6ef7d4b7b72d5e3b7788853a6e0c14be6f62a0de366b3f276"
+    },
+    {
+      "path": "producer.py",
+      "sha256": "64af623cba1df9ad62d21f403ef09bf7cb3a84f3041f90b1f5295b068bc3d264"
+    },
+    {
+      "path": "results.json",
+      "sha256": "b7478b09f6c1ff9b927904cbaf1f301ab6954176b86d1954dac36680a4bf4c5d"
+    },
+    {
+      "path": "summary.md",
+      "sha256": "0e538ff717042afe526b275901ff3b41a6575853638e23ea88bd24c30692467a"
+    }
+  ]
+}

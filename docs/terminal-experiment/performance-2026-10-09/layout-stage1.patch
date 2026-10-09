@@ -1,0 +1,367 @@
+--- a/src/experimental_terminal/layout.rs
++++ b/src/experimental_terminal/layout.rs
+@@ -640,6 +640,10 @@
+     start: Cursor,
+     hard: bool,
+     fragment: Fragment,
++    projected: bool,
++    text_bytes: usize,
++    segment_count: usize,
++    last_segment: Option<Segment>,
+     width: usize,
+     tab_column: usize,
+     wrap_pixels: usize,
+@@ -651,6 +655,7 @@
+     building: Option<Building>,
+     hard: bool,
+     output_hard: bool,
++    projected: bool,
+ }
+ impl Flow {
+     fn new(cursor: Cursor) -> Self {
+@@ -660,11 +665,25 @@
+             building: None,
+             hard: cursor.byte == 0,
+             output_hard: cursor.byte == 0,
+-        }
++            projected: true,
++        }
++    }
++    // Counting and sparse checkpoints need the exact wrapping state, not a
++    // second copy of the visible text and hit/style segments. Keep their byte
++    // and segment limits identical to the projecting traversal.
++    fn counting(cursor: Cursor) -> Self {
++        let mut flow = Self::new(cursor);
++        flow.projected = false;
++        flow
+     }
+     fn checkpoint(checkpoint: Checkpoint) -> Self {
+         let mut flow = Self::new(checkpoint.cursor);
+         flow.hard = checkpoint.hard;
++        flow
++    }
++    fn counting_checkpoint(checkpoint: Checkpoint) -> Self {
++        let mut flow = Self::checkpoint(checkpoint);
++        flow.projected = false;
+         flow
+     }
+     fn finish(&mut self, build: Building, hard: bool) -> Option<(Cursor, Fragment)> {
+@@ -752,6 +771,10 @@
+                     segments: Vec::new(),
+                     font_columns,
+                 },
++                projected: self.projected,
++                text_bytes: 0,
++                segment_count: 0,
++                last_segment: None,
+                 width: 0,
+                 tab_column: 0,
+                 wrap_pixels: 0,
+@@ -789,10 +812,10 @@
+                     return Ok(self.finish(build, false));
+                 }
+                 if padding != 0 {
+-                    build
+-                        .fragment
+-                        .text
+-                        .extend(std::iter::repeat_n(' ', padding));
++                    if build.projected {
++                        build.fragment.text.extend(std::iter::repeat_n(' ', padding));
++                    }
++                    build.text_bytes += padding;
+                     build.width += padding;
+                 }
+                 let anchor = Cursor {
+@@ -805,10 +828,11 @@
+                     byte: row.text.len(),
+                 }
+                 .anchor(epoch);
+-                let start = build.fragment.text.len();
+-                build.fragment.text.push_str(&row.text);
+-                build.fragment.segments.push(Segment {
+-                    range: start..build.fragment.text.len(),
++                let start = build.text_bytes;
++                build.text_bytes += row.text.len();
++                if build.projected { build.fragment.text.push_str(&row.text); }
++                let segment = Segment {
++                    range: start..build.text_bytes,
+                     start: anchor,
+                     end: end_anchor,
+                     column: build.width as u16,
+@@ -817,7 +841,10 @@
+                     native: row.native,
+                     color: native_segment_color(row, row.style(0)),
+                     style: row.style(0),
+-                });
++                };
++                build.segment_count += 1;
++                if build.projected { build.fragment.segments.push(segment.clone()); }
++                build.last_segment = Some(segment);
+                 build.fragment.end = end_anchor;
+                 build.width += width;
+                 *entries += 1;
+@@ -902,10 +929,15 @@
+                         last_break: Some((cursor, length)),
+                     } = &build.mode
+                     {
+-                        if *length != 0 && *length < build.fragment.text.len() {
++                        if *length != 0 && *length < build.text_bytes {
+                             self.cursor = *cursor;
+                             self.loaded = None;
+-                            build.fragment.trim(*length, cursor.anchor(epoch));
++                            if build.projected {
++                                build.fragment.trim(*length, cursor.anchor(epoch));
++                            } else {
++                                build.fragment.end = cursor.anchor(epoch);
++                            }
++                            build.text_bytes = *length;
+                         }
+                     }
+                     return Ok(self.finish(build, false));
+@@ -913,25 +945,27 @@
+                 // Legacy wrapping keeps separators on the preceding visual row.
+                 // Still bound very long runs of whitespace rather than buffering
+                 // a transcript-sized logical line.
+-                if build.fragment.text.len() >= MAX_FRAGMENT_BYTES - 4 {
++                if build.text_bytes >= MAX_FRAGMENT_BYTES - 4 {
+                     return Ok(self.finish(build, false));
+                 }
+             }
+             let style = row.style(self.cursor.byte);
+             let color = native_segment_color(row, style);
+-            if build.fragment.text.len() + character.len_utf8().max(width) > MAX_FRAGMENT_BYTES {
++            if build.text_bytes + character.len_utf8().max(width) > MAX_FRAGMENT_BYTES {
+                 return Ok(self.finish(build, false));
+             }
+-            let start = build.fragment.text.len();
++            let start = build.text_bytes;
+             if character == '\t' {
+-                build.fragment.text.extend(std::iter::repeat_n(' ', width));
++                if build.projected { build.fragment.text.extend(std::iter::repeat_n(' ', width)); }
++                build.text_bytes += width;
+             } else {
+-                build.fragment.text.push(character);
++                if build.projected { build.fragment.text.push(character); }
++                build.text_bytes += character.len_utf8();
+             }
+             self.cursor.byte += character.len_utf8();
+             let end_anchor = self.cursor.anchor(epoch);
+             let tab = character == '\t';
+-            let previous = build.fragment.segments.last_mut();
++            let previous = build.last_segment.as_mut();
+             if let Some(previous) = previous.filter(|previous| {
+                 !tab && previous.end == anchor
+                     && previous.style == style
+@@ -939,11 +973,16 @@
+                     && previous.range.end - previous.range.start
+                         == previous.end.utf8_byte_offset - previous.start.utf8_byte_offset
+             }) {
+-                previous.range.end = build.fragment.text.len();
++                previous.range.end = build.text_bytes;
+                 previous.end = end_anchor;
++                if build.projected {
++                    let projected = build.fragment.segments.last_mut().unwrap();
++                    projected.range.end = build.text_bytes;
++                    projected.end = end_anchor;
++                }
+             } else {
+-                build.fragment.segments.push(Segment {
+-                    range: start..build.fragment.text.len(),
++                let segment = Segment {
++                    range: start..build.text_bytes,
+                     start: anchor,
+                     end: end_anchor,
+                     column: build.width.min(u16::MAX as usize) as u16,
+@@ -952,7 +991,10 @@
+                     native: row.native,
+                     color,
+                     style,
+-                });
++                };
++                build.segment_count += 1;
++                if build.projected { build.fragment.segments.push(segment.clone()); }
++                build.last_segment = Some(segment);
+             }
+             build.fragment.end = end_anchor;
+             build.width = build.width.saturating_add(width);
+@@ -967,16 +1009,16 @@
+                     });
+             if character.is_whitespace() {
+                 if let Mode::Text { last_break } = &mut build.mode {
+-                    *last_break = Some((self.cursor, build.fragment.text.len()));
++                    *last_break = Some((self.cursor, build.text_bytes));
+                 }
+             }
+             characters += 1;
+-            if build.fragment.text.len() >= MAX_FRAGMENT_BYTES
+-                || build.fragment.segments.len() >= MAX_FRAGMENT_SEGMENTS
++            if build.text_bytes >= MAX_FRAGMENT_BYTES
++                || build.segment_count >= MAX_FRAGMENT_SEGMENTS
+                 || (characters % 64 == 0 && budget.exhausted())
+             {
+-                if build.fragment.text.len() >= MAX_FRAGMENT_BYTES
+-                    || build.fragment.segments.len() >= MAX_FRAGMENT_SEGMENTS
++                if build.text_bytes >= MAX_FRAGMENT_BYTES
++                    || build.segment_count >= MAX_FRAGMENT_SEGMENTS
+                 {
+                     return Ok(self.finish(build, false));
+                 }
+@@ -1083,7 +1125,7 @@
+             origin: 0,
+             rebase: None,
+             complete: base == end,
+-            flow: Flow::new(Cursor { id: base, byte: 0 }),
++            flow: Flow::counting(Cursor { id: base, byte: 0 }),
+             last_start: None,
+             last_hard: true,
+             checkpoints: Vec::with_capacity(CHECKPOINTS),
+@@ -1299,12 +1341,12 @@
+                 self.rows = self.rows.saturating_sub(1);
+                 self.checkpoints
+                     .retain(|checkpoint| checkpoint.row < self.rows);
+-                self.flow = Flow::new(start);
++                self.flow = Flow::counting(start);
+                 self.flow.hard = self.last_hard;
+                 self.complete = false;
+             }
+         } else {
+-            self.flow = Flow::new(Cursor {
++            self.flow = Flow::counting(Cursor {
+                 id: self.base,
+                 byte: 0,
+             });
+@@ -1328,7 +1370,7 @@
+             });
+         self.rows = checkpoint.row;
+         self.checkpoints.retain(|point| point.row < checkpoint.row);
+-        self.flow = Flow::checkpoint(checkpoint);
++        self.flow = Flow::counting_checkpoint(checkpoint);
+         self.last_start = None;
+         self.complete = self.flow.finished(self.end);
+         // Prefix queries keep their captured end and bounded screen snapshot.
+@@ -1340,7 +1382,7 @@
+         self.origin = 0;
+         self.rebase = None;
+         self.complete = self.base == self.end;
+-        self.flow = Flow::new(Cursor {
++        self.flow = Flow::counting(Cursor {
+             id: self.base,
+             byte: 0,
+         });
+@@ -1449,7 +1491,7 @@
+         self.base = base;
+         self.rebase = Some(Rebase {
+             target,
+-            flow: Flow::new(Cursor { id: base, byte: 0 }),
++            flow: Flow::counting(Cursor { id: base, byte: 0 }),
+             rows: 0,
+         });
+         self.checkpoints.retain(|point| point.row >= target.row);
+@@ -1462,7 +1504,7 @@
+         };
+         if !retained(&self.flow) {
+             self.rows = target.row;
+-            self.flow = Flow::checkpoint(target);
++            self.flow = Flow::counting_checkpoint(target);
+             self.last_start = None;
+             self.complete = false;
+         }
+--- a/src/experimental_terminal/layout_tests.rs
++++ b/src/experimental_terminal/layout_tests.rs
+@@ -64,6 +64,96 @@
+     }
+     drain(layout);
+     layout.row_at(anchor).unwrap()
++}
++
++fn assert_counting_matches_projection(
++    shared: &SharedTranscript,
++    metrics: Metrics,
++    font_columns: bool,
++    pixels: Option<PixelMetrics>,
++) {
++    let (epoch, base, end) = {
++        let store = shared.lock().unwrap();
++        (store.epoch(), store.base_id(), store.base_id() + store.len() as u64)
++    };
++    let source = Source { store: shared, disk_end: end, tail: None };
++    let mut projected = Flow::new(Cursor { id: base, byte: 0 });
++    let mut counted = Flow::counting(Cursor { id: base, byte: 0 });
++    let mut projected_widths = ScalarWidths::default();
++    let mut counted_widths = ScalarWidths::default();
++    let mut measure_projected = |character: char| if character == '\u{301}' { 3 } else { 7 };
++    let mut measure_counted = |character: char| if character == '\u{301}' { 3 } else { 7 };
++    let mut projected_measure: Option<&mut dyn FnMut(char) -> i32> = Some(&mut measure_projected);
++    let mut counted_measure: Option<&mut dyn FnMut(char) -> i32> = Some(&mut measure_counted);
++    let deadline = Instant::now() + Duration::from_secs(20);
++    let mut fragments = 0;
++    loop {
++        let mut projected_budget = Budget { deadline, reads: usize::MAX };
++        let mut counted_budget = Budget { deadline, reads: usize::MAX };
++        let full = projected.next(&source, end, epoch, metrics, font_columns, pixels,
++            &mut projected_widths, &mut projected_measure, &mut projected_budget).unwrap();
++        let shape = counted.next(&source, end, epoch, metrics, font_columns, pixels,
++            &mut counted_widths, &mut counted_measure, &mut counted_budget).unwrap();
++        assert_eq!(projected.cursor, counted.cursor);
++        assert_eq!(projected.output_hard, counted.output_hard);
++        match (full, shape) {
++            (Some((start, full)), Some((count_start, shape))) => {
++                assert_eq!((start, full.start, full.end), (count_start, shape.start, shape.end));
++                assert_eq!(shape.text.capacity(), 0, "Counting must not allocate rendered text");
++                assert_eq!(shape.segments.capacity(), 0, "Counting must not allocate hit/style spans");
++                fragments += 1;
++            }
++            (None, None) => {
++                assert!(projected.finished(end) && counted.finished(end));
++                break;
++            }
++            _ => panic!("Counting and projection disagreed on a visual row"),
++        }
++        assert!(Instant::now() < deadline);
++    }
++    assert!(fragments > 0);
++}
++
++#[test]
++fn shape_only_counting_matches_wrapping_styles_packing_and_source_boundaries() {
++    let shared = Transcript::shared().unwrap();
++    let cwd = cwd();
++    {
++        let mut store = shared.lock().unwrap();
++        store.append_header(&cwd, 1, "ls").unwrap();
++        for name in ["../", "á東京", "space name", "tail"] {
++            store.append_native(&cwd, 1, &native(name, Some(12))).unwrap();
++        }
++        store.append_plain(&cwd, 2, "error: 東京\ta\u{301} word  ", true).unwrap();
++        store.append_plain(&cwd, 2, "continued longwordwithoutspaces", false).unwrap();
++        store.append_plain(&cwd, 3, "source changes prevent joining", true).unwrap();
++        store.append_plain(&cwd, 4, "new source\n\nlast  ", false).unwrap();
++        store.append_terminal(&cwd, 4, 32, false, b"\x1b[31m-red\x1b[0m\tplain").unwrap();
++        store.append_result(&cwd, 4, 7, "Exit 7").unwrap();
++    }
++    for columns in [1, 7, 24, 80] {
++        for font_columns in [false, true] {
++            assert_counting_matches_projection(&shared,
++                Metrics { columns, tab_width: 4 }, font_columns, None);
++            assert_counting_matches_projection(&shared,
++                Metrics { columns, tab_width: 4 }, font_columns,
++                Some(PixelMetrics { width: usize::from(columns) * 7, cell: 7, font_key: 1 }));
++        }
++    }
++}
++
++#[test]
++fn shape_only_counting_keeps_fragment_byte_and_segment_boundaries() {
++    let shared = Transcript::shared().unwrap();
++    let cwd = cwd();
++    {
++        let mut store = shared.lock().unwrap();
++        store.append_plain(&cwd, 1, &"\t".repeat(MAX_FRAGMENT_SEGMENTS + 17), false).unwrap();
++        store.append_plain(&cwd, 1, &" ".repeat(MAX_FRAGMENT_BYTES), true).unwrap();
++        store.append_plain(&cwd, 1, " remainder\u{301} ", false).unwrap();
++    }
++    assert_counting_matches_projection(&shared,
++        Metrics { columns: u16::MAX, tab_width: 4 }, true, None);
+ }
+ 
+ #[test]

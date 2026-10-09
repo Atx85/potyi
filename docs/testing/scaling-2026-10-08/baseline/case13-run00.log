@@ -1,0 +1,11 @@
+
+running 1 test
+test benchmarks::scaling::sustained_editing_probe ... POTYI_SCALING {"name":"graphics","type":"phase"}
+POTYI_SCALING {"name":"fixture","type":"phase"}
+POTYI_SCALING {"bytes":1000000000,"line_bytes":64,"line_count":15625001,"rust_arch":"x86_64","type":"fixture"}
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-scaling-kt2wdsgb/fixture/fixture.txt): 1.9421895s
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-scaling-kt2wdsgb/fixture/fixture.txt): 1.942243041s
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":0,"read_bytes":0,"read_calls":0},"iteration":null,"milliseconds":1942.541834,"stage":"open","type":"measurement"}
+POTYI_SCALING {"name":"prepare_history","type":"phase"}
+POTYI_SCALING {"name":"prepare_fragmentation","type":"phase"}
+POTYI_SCALING {"name":"navigation","type":"phase"}

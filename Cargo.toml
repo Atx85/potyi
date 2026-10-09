@@ -6,12 +6,28 @@ authors = ["Attila Banko"]
 description = "A lightweight text editor built with Rust and SDL3"
 license = "GPL-3.0-or-later"
 readme = "Readme.md"
+default-run = "potyi"
+
+[[bin]]
+name = "potyi"
+path = "src/main.rs"
+
+[[bin]]
+name = "potyi-term-helper"
+path = "src/bin/potyi-term-helper.rs"
+test = false
+bench = false
 
 [dependencies]
+unicode-width = "0.2.2"
 sdl3 = { version = "0.18", features = ["build-from-source-static", "ttf"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.9"
 regex = "1"
+memchr = "2"
+portable-pty = "0.9"
+vt100 = "0.16"
+getrandom = "0.2"
 serde_json = "1"
 url = "2"
 zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
@@ -24,11 +40,12 @@ winresource = "0.1.31"
 
 # Preserve native library paths when the checkout contains spaces.
 [patch.crates-io]
+vt100 = { path = "vendor/vt100" }
 sdl3-sys = { path = "vendor/sdl3-sys" }
 sdl3-ttf-sys = { path = "vendor/sdl3-ttf-sys" }
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser", "namedpipeapi", "jobapi2", "handleapi"] }
+winapi = { version = "0.3", features = ["winuser", "winbase", "winnt", "processthreadsapi", "processenv", "synchapi", "fileapi", "namedpipeapi", "handleapi", "jobapi2", "stringapiset"] }
 
 [target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
 libc = "0.2"

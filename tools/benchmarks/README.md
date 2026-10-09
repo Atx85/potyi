@@ -1,5 +1,8 @@
 # Pötyi benchmark suite
 
+For full editor typing, undo/redo, shared panes and separate redraw measurements,
+see [sustained editing measurements](SCALING.md).
+
 Run from the repository root on macOS or Linux:
 
 ```sh

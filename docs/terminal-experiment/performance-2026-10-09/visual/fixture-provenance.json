@@ -1,0 +1,996 @@
+{
+  "prepared_utc": "2026-10-09T12:00:49.742218+00:00",
+  "template_paths": {
+    "common": "/private/tmp/potyi-terminal-visual/fixture",
+    "leading": "/private/tmp/potyi-terminal-visual/leading-fixture"
+  },
+  "templates_before": {
+    "common": [
+      {
+        "path": ".",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791530501604827264,
+        "bytes": 320
+      },
+      {
+        "path": ".hidden",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509899938577,
+        "bytes": 7,
+        "sha256": "e084a3683ef795d1cdbf5e9b253f2ca1f783ae0d0d6e47e419acbbc4fc80bbfa"
+      },
+      {
+        "path": "README.md",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509900755368,
+        "bytes": 6,
+        "sha256": "66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18"
+      },
+      {
+        "path": "binary.bin",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509901993825,
+        "bytes": 3,
+        "sha256": "ae4b3280e56e2faf83f414a6e3dabe9d5fbe18976544c05fed121accb85b53fc"
+      },
+      {
+        "path": "é_combining.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791530501605004806,
+        "bytes": 10,
+        "sha256": "3f982049886e92fac98906daaace338ac16d933be1a74d28d3cb0b667232750e"
+      },
+      {
+        "path": "folder with spaces",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791529509901570825,
+        "bytes": 64
+      },
+      {
+        "path": "source.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509897628912,
+        "bytes": 13,
+        "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+      },
+      {
+        "path": "space name.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509898435162,
+        "bytes": 11,
+        "sha256": "446f72dd97ede3ad34e1f6b48da1bc18e84b2f86566c0ef38acf68e62b7386be"
+      },
+      {
+        "path": "árvíz 東京.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509899513077,
+        "bytes": 20,
+        "sha256": "a8b72558c2d78da29e55c8cf990164a01933a42cf945874dc8c63fe2b7494a75"
+      }
+    ],
+    "leading": [
+      {
+        "path": ".",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791534070619372558,
+        "bytes": 384
+      },
+      {
+        "path": ".hidden",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070602866760,
+        "bytes": 7,
+        "sha256": "e084a3683ef795d1cdbf5e9b253f2ca1f783ae0d0d6e47e419acbbc4fc80bbfa"
+      },
+      {
+        "path": "README.md",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070613811639,
+        "bytes": 6,
+        "sha256": "66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18"
+      },
+      {
+        "path": "binary.bin",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070618720224,
+        "bytes": 3,
+        "sha256": "ae4b3280e56e2faf83f414a6e3dabe9d5fbe18976544c05fed121accb85b53fc"
+      },
+      {
+        "path": "é_combining.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070610859888,
+        "bytes": 10,
+        "sha256": "3f982049886e92fac98906daaace338ac16d933be1a74d28d3cb0b667232750e"
+      },
+      {
+        "path": "folder with spaces",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791529509901570825,
+        "bytes": 64
+      },
+      {
+        "path": "source.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070614790598,
+        "bytes": 13,
+        "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+      },
+      {
+        "path": "space name.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070617618599,
+        "bytes": 11,
+        "sha256": "446f72dd97ede3ad34e1f6b48da1bc18e84b2f86566c0ef38acf68e62b7386be"
+      },
+      {
+        "path": "árvíz 東京.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070606578636,
+        "bytes": 20,
+        "sha256": "a8b72558c2d78da29e55c8cf990164a01933a42cf945874dc8c63fe2b7494a75"
+      },
+      {
+        "path": "́",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070619446058,
+        "bytes": 21,
+        "sha256": "540c21cce4e9a4174f8c8c29a63231e923cad602ddf0034966bcc0bf07882e34"
+      },
+      {
+        "path": "́leading.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070619123308,
+        "bytes": 5,
+        "sha256": "b9e68e1bea3e5b19ca6b2f98b73a54b73daafaa250484902e09982e07a12e733"
+      }
+    ]
+  },
+  "templates_after": {
+    "common": [
+      {
+        "path": ".",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791530501604827264,
+        "bytes": 320
+      },
+      {
+        "path": ".hidden",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509899938577,
+        "bytes": 7,
+        "sha256": "e084a3683ef795d1cdbf5e9b253f2ca1f783ae0d0d6e47e419acbbc4fc80bbfa"
+      },
+      {
+        "path": "README.md",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509900755368,
+        "bytes": 6,
+        "sha256": "66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18"
+      },
+      {
+        "path": "binary.bin",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509901993825,
+        "bytes": 3,
+        "sha256": "ae4b3280e56e2faf83f414a6e3dabe9d5fbe18976544c05fed121accb85b53fc"
+      },
+      {
+        "path": "é_combining.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791530501605004806,
+        "bytes": 10,
+        "sha256": "3f982049886e92fac98906daaace338ac16d933be1a74d28d3cb0b667232750e"
+      },
+      {
+        "path": "folder with spaces",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791529509901570825,
+        "bytes": 64
+      },
+      {
+        "path": "source.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509897628912,
+        "bytes": 13,
+        "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+      },
+      {
+        "path": "space name.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509898435162,
+        "bytes": 11,
+        "sha256": "446f72dd97ede3ad34e1f6b48da1bc18e84b2f86566c0ef38acf68e62b7386be"
+      },
+      {
+        "path": "árvíz 東京.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509899513077,
+        "bytes": 20,
+        "sha256": "a8b72558c2d78da29e55c8cf990164a01933a42cf945874dc8c63fe2b7494a75"
+      }
+    ],
+    "leading": [
+      {
+        "path": ".",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791534070619372558,
+        "bytes": 384
+      },
+      {
+        "path": ".hidden",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070602866760,
+        "bytes": 7,
+        "sha256": "e084a3683ef795d1cdbf5e9b253f2ca1f783ae0d0d6e47e419acbbc4fc80bbfa"
+      },
+      {
+        "path": "README.md",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070613811639,
+        "bytes": 6,
+        "sha256": "66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18"
+      },
+      {
+        "path": "binary.bin",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070618720224,
+        "bytes": 3,
+        "sha256": "ae4b3280e56e2faf83f414a6e3dabe9d5fbe18976544c05fed121accb85b53fc"
+      },
+      {
+        "path": "é_combining.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070610859888,
+        "bytes": 10,
+        "sha256": "3f982049886e92fac98906daaace338ac16d933be1a74d28d3cb0b667232750e"
+      },
+      {
+        "path": "folder with spaces",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791529509901570825,
+        "bytes": 64
+      },
+      {
+        "path": "source.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070614790598,
+        "bytes": 13,
+        "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+      },
+      {
+        "path": "space name.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070617618599,
+        "bytes": 11,
+        "sha256": "446f72dd97ede3ad34e1f6b48da1bc18e84b2f86566c0ef38acf68e62b7386be"
+      },
+      {
+        "path": "árvíz 東京.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070606578636,
+        "bytes": 20,
+        "sha256": "a8b72558c2d78da29e55c8cf990164a01933a42cf945874dc8c63fe2b7494a75"
+      },
+      {
+        "path": "́",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070619446058,
+        "bytes": 21,
+        "sha256": "540c21cce4e9a4174f8c8c29a63231e923cad602ddf0034966bcc0bf07882e34"
+      },
+      {
+        "path": "́leading.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070619123308,
+        "bytes": 5,
+        "sha256": "b9e68e1bea3e5b19ca6b2f98b73a54b73daafaa250484902e09982e07a12e733"
+      }
+    ]
+  },
+  "historical_readonly_sha256": {
+    "/private/tmp/potyi-terminal-visual/run-performance-final-v2.py": "b8da92a885457b2575476d0b54b07b25e51f9e3dfe48726800474ebbda282266",
+    "/private/tmp/potyi-terminal-visual/compare_frames.py": "2ff7fc282db2e0d71eddb8220cdd3eb66359bdb6ec5581c47f1eb26e4b8cd972",
+    "/private/tmp/potyi-terminal-visual/finalize_evidence.py": "a7e37d6c04df2327da8cd7be784a64e3dd27eddfa6300f16e1370b3c039c5723",
+    "/private/tmp/potyi-terminal-performance-20261009-111723/baseline/docs/terminal-experiment/final-local-evidence/visual/common/capture-provenance.json": "01b1885695d1d92d034902fb26f09e69f7d0465a429fdaff49f0529e8534a90f",
+    "/private/tmp/potyi-terminal-performance-20261009-111723/baseline/docs/terminal-experiment/final-local-evidence/visual/leading/capture-provenance.json": "3330aedcdd9433dfeee483a7a09636d5c7320b71bf8a08ff2fafe46d6c841475",
+    "/private/tmp/potyi-terminal-performance-20261009-111723/baseline/docs/terminal-experiment/final-local-evidence/visual/quick-open/capture-provenance.json": "006fd02426a9d5a5b60ea67d307cd7078f6907504a90e557cb364242b8423caf"
+  },
+  "fixtures": {
+    "common": [
+      {
+        "path": ".",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791530501604827264,
+        "bytes": 320
+      },
+      {
+        "path": ".hidden",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509899938577,
+        "bytes": 7,
+        "sha256": "e084a3683ef795d1cdbf5e9b253f2ca1f783ae0d0d6e47e419acbbc4fc80bbfa"
+      },
+      {
+        "path": "README.md",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509900755368,
+        "bytes": 6,
+        "sha256": "66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18"
+      },
+      {
+        "path": "binary.bin",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509901993825,
+        "bytes": 3,
+        "sha256": "ae4b3280e56e2faf83f414a6e3dabe9d5fbe18976544c05fed121accb85b53fc"
+      },
+      {
+        "path": "é_combining.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791530501605004806,
+        "bytes": 10,
+        "sha256": "3f982049886e92fac98906daaace338ac16d933be1a74d28d3cb0b667232750e"
+      },
+      {
+        "path": "folder with spaces",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791529509901570825,
+        "bytes": 64
+      },
+      {
+        "path": "source.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509897628912,
+        "bytes": 13,
+        "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+      },
+      {
+        "path": "space name.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509898435162,
+        "bytes": 11,
+        "sha256": "446f72dd97ede3ad34e1f6b48da1bc18e84b2f86566c0ef38acf68e62b7386be"
+      },
+      {
+        "path": "árvíz 東京.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791529509899513077,
+        "bytes": 20,
+        "sha256": "a8b72558c2d78da29e55c8cf990164a01933a42cf945874dc8c63fe2b7494a75"
+      }
+    ],
+    "leading": [
+      {
+        "path": ".",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791534070619372558,
+        "bytes": 384
+      },
+      {
+        "path": ".hidden",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070602866760,
+        "bytes": 7,
+        "sha256": "e084a3683ef795d1cdbf5e9b253f2ca1f783ae0d0d6e47e419acbbc4fc80bbfa"
+      },
+      {
+        "path": "README.md",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070613811639,
+        "bytes": 6,
+        "sha256": "66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18"
+      },
+      {
+        "path": "binary.bin",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070618720224,
+        "bytes": 3,
+        "sha256": "ae4b3280e56e2faf83f414a6e3dabe9d5fbe18976544c05fed121accb85b53fc"
+      },
+      {
+        "path": "é_combining.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070610859888,
+        "bytes": 10,
+        "sha256": "3f982049886e92fac98906daaace338ac16d933be1a74d28d3cb0b667232750e"
+      },
+      {
+        "path": "folder with spaces",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791529509901570825,
+        "bytes": 64
+      },
+      {
+        "path": "source.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070614790598,
+        "bytes": 13,
+        "sha256": "536e506bb90914c243a12b397b9a998f85ae2cbd9ba02dfd03a9e155ca5ca0f4"
+      },
+      {
+        "path": "space name.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070617618599,
+        "bytes": 11,
+        "sha256": "446f72dd97ede3ad34e1f6b48da1bc18e84b2f86566c0ef38acf68e62b7386be"
+      },
+      {
+        "path": "árvíz 東京.rs",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070606578636,
+        "bytes": 20,
+        "sha256": "a8b72558c2d78da29e55c8cf990164a01933a42cf945874dc8c63fe2b7494a75"
+      },
+      {
+        "path": "́",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070619446058,
+        "bytes": 21,
+        "sha256": "540c21cce4e9a4174f8c8c29a63231e923cad602ddf0034966bcc0bf07882e34"
+      },
+      {
+        "path": "́leading.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791534070619123308,
+        "bytes": 5,
+        "sha256": "b9e68e1bea3e5b19ca6b2f98b73a54b73daafaa250484902e09982e07a12e733"
+      }
+    ],
+    "git": [
+      {
+        "path": ".",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249486971140,
+        "bytes": 128
+      },
+      {
+        "path": ".git",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249617755430,
+        "bytes": 384
+      },
+      {
+        "path": ".git/COMMIT_EDITMSG",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791547249580138496,
+        "bytes": 20,
+        "sha256": "235f7e0649ceb2e26620b206648e30efdfc902bf4c993cedba4b20e23ca2a406"
+      },
+      {
+        "path": ".git/HEAD",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791547249455585868,
+        "bytes": 48,
+        "sha256": "d27da80e237c4b7f4a42e8156ad66e7557ba2ff6cd4aa79d1eed3509c0086538"
+      },
+      {
+        "path": ".git/config",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791547249486152515,
+        "bytes": 137,
+        "sha256": "cae33efdb02cf774435c1ff9cb16bcc1014606908530c6e1dc727615fe3e8cda"
+      },
+      {
+        "path": ".git/description",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791547249450881330,
+        "bytes": 73,
+        "sha256": "85ab6c163d43a17ea9cf7788308bca1466f1b0a8d1cc92e26e9bf63da4062aee"
+      },
+      {
+        "path": ".git/hooks",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249453336162,
+        "bytes": 512
+      },
+      {
+        "path": ".git/hooks/applypatch-msg.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249451982954,
+        "bytes": 478,
+        "sha256": "0223497a0b8b033aa58a3a521b8629869386cf7ab0e2f101963d328aa62193f7"
+      },
+      {
+        "path": ".git/hooks/commit-msg.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249451234371,
+        "bytes": 896,
+        "sha256": "1f74d5e9292979b573ebd59741d46cb93ff391acdd083d340b94370753d92437"
+      },
+      {
+        "path": ".git/hooks/fsmonitor-watchman.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249452230079,
+        "bytes": 4726,
+        "sha256": "e0549964e93897b519bd8e333c037e51fff0f88ba13e086a331592bf801fa1d0"
+      },
+      {
+        "path": ".git/hooks/post-update.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249452635412,
+        "bytes": 189,
+        "sha256": "81765af2daef323061dcbc5e61fc16481cb74b3bac9ad8a174b186523586f6c5"
+      },
+      {
+        "path": ".git/hooks/pre-applypatch.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249452998787,
+        "bytes": 424,
+        "sha256": "e15c5b469ea3e0a695bea6f2c82bcf8e62821074939ddd85b77e0007ff165475"
+      },
+      {
+        "path": ".git/hooks/pre-commit.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249451832829,
+        "bytes": 1649,
+        "sha256": "57185b7b9f05239d7ab52db045f5b89eb31348d7b2177eab214f5eb872e1971b"
+      },
+      {
+        "path": ".git/hooks/pre-merge-commit.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249452765162,
+        "bytes": 416,
+        "sha256": "d3825a70337940ebbd0a5c072984e13245920cdf8898bd225c8d27a6dfc9cb53"
+      },
+      {
+        "path": ".git/hooks/pre-push.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249453127287,
+        "bytes": 1374,
+        "sha256": "ecce9c7e04d3f5dd9d8ada81753dd1d549a9634b26770042b58dda00217d086a"
+      },
+      {
+        "path": ".git/hooks/pre-rebase.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249451492163,
+        "bytes": 4898,
+        "sha256": "4febce867790052338076f4e66cc47efb14879d18097d1d61c8261859eaaa7b3"
+      },
+      {
+        "path": ".git/hooks/pre-receive.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249452359704,
+        "bytes": 544,
+        "sha256": "a4c3d2b9c7bb3fd8d1441c31bd4ee71a595d66b44fcf49ddb310252320169989"
+      },
+      {
+        "path": ".git/hooks/prepare-commit-msg.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249452498704,
+        "bytes": 1492,
+        "sha256": "e9ddcaa4189fddd25ed97fc8c789eca7b6ca16390b2392ae3276f0c8e1aa4619"
+      },
+      {
+        "path": ".git/hooks/push-to-checkout.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249453396287,
+        "bytes": 2783,
+        "sha256": "a53d0741798b287c6dd7afa64aee473f305e65d3f49463bb9d7408ec3b12bf5f"
+      },
+      {
+        "path": ".git/hooks/sendemail-validate.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249451650913,
+        "bytes": 2308,
+        "sha256": "44ebfc923dc5466bc009602f0ecf067b9c65459abfe8868ddc49b78e6ced7a92"
+      },
+      {
+        "path": ".git/hooks/update.sample",
+        "kind": "file",
+        "mode": 493,
+        "mtime_ns": 1791547249453256287,
+        "bytes": 3650,
+        "sha256": "8d5f2fa83e103cf08b57eaa67521df9194f45cbdbcb37da52ad586097a14d106"
+      },
+      {
+        "path": ".git/index",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791547249617630138,
+        "bytes": 137,
+        "sha256": "e5bc60c824525574a0ef5363050a40ebf68de9aedefe9e31de9b131266b557a4"
+      },
+      {
+        "path": ".git/info",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249450442538,
+        "bytes": 96
+      },
+      {
+        "path": ".git/info/exclude",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791547249450662705,
+        "bytes": 240,
+        "sha256": "6671fe83b7a07c8932ee89164d1f2793b2318058eb8b98dc5c06ee0a5a3b0ec1"
+      },
+      {
+        "path": ".git/logs",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249520174160,
+        "bytes": 128
+      },
+      {
+        "path": ".git/logs/HEAD",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791547249581094620,
+        "bytes": 341,
+        "sha256": "3b168ca3baa48872f832a6b5d4f16e77d0084d266028f8dc1237b5bed4e3fd6b"
+      },
+      {
+        "path": ".git/logs/refs",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249520218702,
+        "bytes": 96
+      },
+      {
+        "path": ".git/logs/refs/heads",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249520261660,
+        "bytes": 96
+      },
+      {
+        "path": ".git/logs/refs/heads/feature",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249520305618,
+        "bytes": 96
+      },
+      {
+        "path": ".git/logs/refs/heads/feature/terminal-visual-fixture",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791547249581129579,
+        "bytes": 341,
+        "sha256": "3b168ca3baa48872f832a6b5d4f16e77d0084d266028f8dc1237b5bed4e3fd6b"
+      },
+      {
+        "path": ".git/objects",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249585314784,
+        "bytes": 320
+      },
+      {
+        "path": ".git/objects/08",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249502813296,
+        "bytes": 96
+      },
+      {
+        "path": ".git/objects/08/fe2720d8e3fe3a5f81fbb289bc4c7a522f13da",
+        "kind": "file",
+        "mode": 292,
+        "mtime_ns": 1791547249502423630,
+        "bytes": 27,
+        "sha256": "4044a187f2e7ac865dea0f4dc5a9fff8eabec3a6886194a4a7a7010944fcdd37"
+      },
+      {
+        "path": ".git/objects/5f",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249580730204,
+        "bytes": 96
+      },
+      {
+        "path": ".git/objects/5f/bf44f1b6d113f53a3c084cbf741e0146f5a3bf",
+        "kind": "file",
+        "mode": 292,
+        "mtime_ns": 1791547249580395204,
+        "bytes": 170,
+        "sha256": "914e1342424eaab89842015c151f95c7c1a3646ea1f33338dfc1a1daf9419606"
+      },
+      {
+        "path": ".git/objects/75",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249562831841,
+        "bytes": 96
+      },
+      {
+        "path": ".git/objects/75/bf0dfc70ed7e1818da8ff526e5a02077cd7be3",
+        "kind": "file",
+        "mode": 292,
+        "mtime_ns": 1791547249562439299,
+        "bytes": 33,
+        "sha256": "a63de3055fbf033aca3f7484a7b0b70bcdd6c7ed33347d2359cdb88b278d22c9"
+      },
+      {
+        "path": ".git/objects/7c",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249518446411,
+        "bytes": 96
+      },
+      {
+        "path": ".git/objects/7c/c79c512727a1ff53a75dc8c8c7241f16e8bdb9",
+        "kind": "file",
+        "mode": 292,
+        "mtime_ns": 1791547249518062745,
+        "bytes": 53,
+        "sha256": "01818b784747a61235c71c8832fc381e152a602580c153272a1fe38b17430510"
+      },
+      {
+        "path": ".git/objects/a6",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249519607410,
+        "bytes": 96
+      },
+      {
+        "path": ".git/objects/a6/a8bb5592c859a5e56ac38b99f75fd0d15cd29e",
+        "kind": "file",
+        "mode": 292,
+        "mtime_ns": 1791547249519246369,
+        "bytes": 138,
+        "sha256": "b75d38df7c338a200235252204c09b1e4ac7b3c54f8a7539758c233a649fc700"
+      },
+      {
+        "path": ".git/objects/e4",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249579531538,
+        "bytes": 96
+      },
+      {
+        "path": ".git/objects/e4/ec16d6679bc0b2aa6ba9b1f0385c70c672ab82",
+        "kind": "file",
+        "mode": 292,
+        "mtime_ns": 1791547249579154955,
+        "bytes": 53,
+        "sha256": "124971d6ae8313282d75a64e10cd9d5f75c3655b637748ab623f65bd122fc194"
+      },
+      {
+        "path": ".git/objects/info",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249455809368,
+        "bytes": 64
+      },
+      {
+        "path": ".git/objects/pack",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249455760368,
+        "bytes": 64
+      },
+      {
+        "path": ".git/refs",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249455459743,
+        "bytes": 128
+      },
+      {
+        "path": ".git/refs/heads",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249519770827,
+        "bytes": 96
+      },
+      {
+        "path": ".git/refs/heads/feature",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249581208829,
+        "bytes": 96
+      },
+      {
+        "path": ".git/refs/heads/feature/terminal-visual-fixture",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791547249581058079,
+        "bytes": 41,
+        "sha256": "27706fd2cdbf458792dc853e8ae6c7f78078081148c4725db2d927610469cc03"
+      },
+      {
+        "path": ".git/refs/tags",
+        "kind": "directory",
+        "mode": 493,
+        "mtime_ns": 1791547249455458035,
+        "bytes": 64
+      },
+      {
+        "path": "note.txt",
+        "kind": "file",
+        "mode": 420,
+        "mtime_ns": 1791533558177910458,
+        "bytes": 24,
+        "sha256": "ae9669b7bf041a3b0ddbb979e0e94d7ed567cff3e28c465e91ef243324938327"
+      }
+    ]
+  },
+  "deterministic_git_commits": [
+    "a6a8bb5592c859a5e56ac38b99f75fd0d15cd29e",
+    "5fbf44f1b6d113f53a3c084cbf741e0146f5a3bf"
+  ],
+  "expected_files": {
+    "common": {
+      "frames": [
+        "accent_end.bmp",
+        "accent_home.bmp",
+        "accent_selected.bmp",
+        "empty.bmp",
+        "git_back.bmp",
+        "git_detail.bmp",
+        "git_log.bmp",
+        "initial.bmp",
+        "leading-copy.bmp",
+        "listing.bmp",
+        "listing_narrow.bmp",
+        "listing_wide.bmp",
+        "long_listing.bmp",
+        "long_prompt.bmp",
+        "long_prompt_click.bmp",
+        "ls-copy.bmp",
+        "ls-long-copy.bmp",
+        "output.bmp",
+        "output_wide.bmp",
+        "plain-copy.bmp",
+        "prompt.bmp",
+        "prompt_click.bmp",
+        "raw-copy.bmp",
+        "running.bmp",
+        "selection.bmp",
+        "stopped.bmp",
+        "unicode-tab-copy.bmp"
+      ],
+      "clipboard": [
+        "accent-selected-copy.txt",
+        "git_back.txt",
+        "git_detail.txt",
+        "git_log.txt",
+        "leading-copy.txt",
+        "ls-copy.txt",
+        "ls-long-copy.txt",
+        "plain-copy.txt",
+        "raw-copy.txt",
+        "unicode-tab-copy.txt"
+      ]
+    },
+    "leading": {
+      "frames": [
+        "accent_end.bmp",
+        "accent_home.bmp",
+        "accent_selected.bmp",
+        "empty.bmp",
+        "git_back.bmp",
+        "git_detail.bmp",
+        "git_log.bmp",
+        "initial.bmp",
+        "leading-copy.bmp",
+        "listing.bmp",
+        "listing_narrow.bmp",
+        "listing_wide.bmp",
+        "long_listing.bmp",
+        "long_prompt.bmp",
+        "long_prompt_click.bmp",
+        "ls-copy.bmp",
+        "ls-long-copy.bmp",
+        "output.bmp",
+        "output_wide.bmp",
+        "plain-copy.bmp",
+        "prompt.bmp",
+        "prompt_click.bmp",
+        "raw-copy.bmp",
+        "running.bmp",
+        "selection.bmp",
+        "stopped.bmp",
+        "unicode-tab-copy.bmp"
+      ],
+      "clipboard": [
+        "accent-selected-copy.txt",
+        "git_back.txt",
+        "git_detail.txt",
+        "git_log.txt",
+        "leading-copy.txt",
+        "ls-copy.txt",
+        "ls-long-copy.txt",
+        "plain-copy.txt",
+        "raw-copy.txt",
+        "unicode-tab-copy.txt"
+      ]
+    },
+    "quick-open": {
+      "frames": [
+        "accent-filename-before.bmp"
+      ],
+      "clipboard": [
+        "accent-filename-before.txt"
+      ]
+    }
+  },
+  "fixture_algorithm": "Sorted relative paths with lstat mode, size, mtime_ns and file SHA256; no atime.",
+  "notes": [
+    "Fresh common/leading copies preserve filenames, bytes, directory geometry, modes and timestamps.",
+    "Git uses the exact archived trees, author, committer, messages and timestamps. Branch uses feature/ prefix.",
+    "Captured path text changes with fresh fixture root; compare old/new in the same fresh root, not historical image bytes."
+  ]
+}

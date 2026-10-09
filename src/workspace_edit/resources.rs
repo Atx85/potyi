@@ -554,12 +554,12 @@ fn stage_disks(plan: &Plan, redo: bool) -> Result<Vec<Write>, String> {
         .collect()
 }
 fn same(pane: &Editor, path: &Path) -> bool {
-    pane.path
+    pane.path()
         .as_ref()
         .and_then(|p| p.canonicalize().ok())
         .as_deref()
         == Some(path)
-        || pane.path.as_deref() == Some(path)
+        || pane.path().as_deref() == Some(path)
 }
 
 pub(super) fn apply(
@@ -585,7 +585,7 @@ pub(super) fn apply(
             } else {
                 &mut *other
             };
-            if pane.read_only || content(pane)? != read(&b.before)? {
+            if pane.is_read_only() || content(pane)? != read(&b.before)? {
                 return Err("A buffer changed or is read-only; request the action again".into());
             }
             let bytes = read(&b.after)?;
@@ -600,8 +600,8 @@ pub(super) fn apply(
             }
             let state = BufferHistory {
                 index: i,
-                before_dirty: pane.dirty,
-                after_dirty: pane.dirty || snapshot.is_some() || b.after_path.is_none(),
+                before_dirty: pane.is_dirty(),
+                after_dirty: pane.is_dirty() || snapshot.is_some() || b.after_path.is_none(),
             };
             staged.push((pane_index, snapshot, before, after, state));
         }
@@ -621,8 +621,8 @@ pub(super) fn apply(
         if let Some(s) = &mut snapshot {
             pane.document.swap_snapshot(s);
         }
-        pane.path = plan.buffers[state.index].after_path.clone();
-        pane.dirty = state.after_dirty;
+        pane.set_path(plan.buffers[state.index].after_path.clone());
+        pane.set_dirty(state.after_dirty);
         pane.restore_cursor(after.clone());
         pane.multi_edit_group = None;
         pane.undo_stack.push(HistoryEntry {
@@ -667,12 +667,13 @@ pub(super) fn history(
         } else {
             &pane.undo_stack
         };
-        let state = stack
+        let entries = stack.entries();
+        let state = entries
             .last()
             .and_then(marker)
             .filter(|m| Arc::ptr_eq(&m.record, &record));
         if let Some(m) = state {
-            if pane.read_only {
+            if pane.is_read_only() {
                 return Err("Cannot undo in a read-only pane".into());
             }
             if let Some(h) = &m.resource {
@@ -682,7 +683,7 @@ pub(super) fn history(
                 } else {
                     b.after_path.clone()
                 };
-                if pane.path != expected_path
+                if pane.path() != expected_path
                     || content(pane)? != read(if redo { &b.before } else { &b.after })?
                 {
                     return Err("Buffer path or text changed since this action".into());
@@ -690,6 +691,7 @@ pub(super) fn history(
                 found.insert(h.index);
             }
         } else if stack
+            .entries()
             .iter()
             .filter_map(marker)
             .any(|m| Arc::ptr_eq(&m.record, &record))
@@ -720,6 +722,7 @@ pub(super) fn history(
             &mut pane.undo_stack
         };
         if stack
+            .entries()
             .last()
             .and_then(marker)
             .is_none_or(|m| !Arc::ptr_eq(&m.record, &record))
@@ -733,12 +736,12 @@ pub(super) fn history(
             }
             if let Some(h) = &m.resource {
                 let b = &plan.buffers[h.index];
-                pane.path = if redo {
+                pane.set_path(if redo {
                     b.after_path.clone()
                 } else {
                     Some(b.before_path.clone())
-                };
-                pane.dirty = if redo { h.after_dirty } else { h.before_dirty };
+                });
+                pane.set_dirty(if redo { h.after_dirty } else { h.before_dirty });
             }
         }
         pane.restore_cursor(if redo {

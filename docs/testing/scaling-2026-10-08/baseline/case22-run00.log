@@ -1,0 +1,32 @@
+
+running 1 test
+test benchmarks::scaling::sustained_editing_probe ... POTYI_SCALING {"name":"graphics","type":"phase"}
+POTYI_SCALING {"name":"fixture","type":"phase"}
+POTYI_SCALING {"bytes":1048576,"line_bytes":64,"line_count":16385,"rust_arch":"x86_64","type":"fixture"}
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-scaling-ebkm9cq7/fixture/fixture.txt): 86.022791ms
+PieceTable::open(/var/folders/57/qr8y5fz57j36q1ddx4z5212c0000gp/T/potyi-scaling-ebkm9cq7/fixture/fixture.txt): 86.078375ms
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":0,"read_bytes":0,"read_calls":0},"iteration":null,"milliseconds":96.374125,"stage":"open","type":"measurement"}
+POTYI_SCALING {"name":"prepare_history","type":"phase"}
+POTYI_SCALING {"name":"prepare_fragmentation","type":"phase"}
+POTYI_SCALING {"name":"navigation","type":"phase"}
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":8193,"read_bytes":536936450,"read_calls":1032350},"iteration":null,"milliseconds":967.10225,"stage":"navigation","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":1000,"copied_line_records":8193,"copied_piece_records":2002,"line_discoveries":0,"read_bytes":0,"read_calls":0},"iteration":null,"milliseconds":0.496791,"stage":"duplicate_view","type":"measurement"}
+POTYI_SCALING {"name":"initial_draw","type":"phase"}
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":0,"read_bytes":3342,"read_calls":60},"iteration":null,"milliseconds":15.164125,"stage":"initial_draw","type":"measurement"}
+POTYI_SCALING {"name":"editing","type":"phase"}
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":8193,"read_bytes":536936517,"read_calls":1034399},"iteration":0,"milliseconds":1211.041458,"stage":"insert","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":1001,"copied_line_records":8193,"copied_piece_records":2004,"line_discoveries":0,"read_bytes":2,"read_calls":2},"iteration":0,"milliseconds":0.7208330000000001,"stage":"synchronize","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":0,"read_bytes":3408,"read_calls":64},"iteration":0,"milliseconds":5.492084,"stage":"redraw","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":0,"read_bytes":2,"read_calls":2},"iteration":0,"milliseconds":16.742666,"stage":"undo","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":1001,"copied_line_records":0,"copied_piece_records":2003,"line_discoveries":8193,"read_bytes":536936450,"read_calls":1033373},"iteration":0,"milliseconds":910.92125,"stage":"synchronize_undo","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":0,"read_bytes":1,"read_calls":1},"iteration":0,"milliseconds":17.959958,"stage":"redo","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":1001,"copied_line_records":0,"copied_piece_records":2004,"line_discoveries":8193,"read_bytes":536936450,"read_calls":1034394},"iteration":0,"milliseconds":824.449416,"stage":"synchronize_redo","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":8193,"read_bytes":536936458,"read_calls":1033379},"iteration":0,"milliseconds":902.811375,"stage":"backspace","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":1002,"copied_line_records":8193,"copied_piece_records":2003,"line_discoveries":0,"read_bytes":2,"read_calls":2},"iteration":0,"milliseconds":0.38608400000000004,"stage":"synchronize_backspace","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":8193,"read_bytes":536936517,"read_calls":1034399},"iteration":1,"milliseconds":790.12375,"stage":"insert","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":1003,"copied_line_records":8193,"copied_piece_records":2004,"line_discoveries":0,"read_bytes":2,"read_calls":2},"iteration":1,"milliseconds":0.349666,"stage":"synchronize","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":0,"read_bytes":3408,"read_calls":64},"iteration":1,"milliseconds":3.198,"stage":"redraw","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":0,"read_bytes":2,"read_calls":2},"iteration":1,"milliseconds":12.6765,"stage":"undo","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":1003,"copied_line_records":0,"copied_piece_records":2003,"line_discoveries":8193,"read_bytes":536936450,"read_calls":1033373},"iteration":1,"milliseconds":690.183958,"stage":"synchronize_undo","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":0,"copied_line_records":0,"copied_piece_records":0,"line_discoveries":0,"read_bytes":1,"read_calls":1},"iteration":1,"milliseconds":11.255332999999998,"stage":"redo","type":"measurement"}
+POTYI_SCALING {"counters":{"copied_history_entries":1003,"copied_line_records":0,"copied_piece_records":2004,"line_discoveries":8193,"read_bytes":536936450,"read_calls":1034394},"iteration":1,"milliseconds":683.558542,"stage":"synchronize_redo","type":"measurement"}

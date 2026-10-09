@@ -1,0 +1,9 @@
+{
+  "stage": "unified transcript",
+  "app_tests": 76,
+  "independent_checks": 20,
+  "builder_store_checks": 22,
+  "builder_session_checks": 57,
+  "legacy_unchanged": 12,
+  "snapshot": "/private/tmp/potyi-term-stage1-verified"
+}

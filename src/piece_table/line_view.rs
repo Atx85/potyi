@@ -1,7 +1,7 @@
 // Pötyi - Lightweight text editor
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Bounded viewport reads and sparse position checkpoints; no retained line text.
-use super::{LineInfo, PieceTable};
+use super::{Document as PieceTable, LineInfo};
 use std::{collections::VecDeque, io};
 
 const BLOCK: usize = 4096;
@@ -48,6 +48,13 @@ pub(super) struct LineViewCache {
     entries: VecDeque<Entry>,
     #[cfg(test)]
     bytes_read: usize,
+}
+
+impl LineViewCache {
+    pub(super) fn invalidate_from(&mut self, start: usize, revision: u64) {
+        self.entries.retain(|entry| entry.start < start);
+        self.revision = revision;
+    }
 }
 
 pub(crate) struct LineWindow {
@@ -422,6 +429,57 @@ mod tests {
         assert_eq!(
             table.line_window(0, 999_900, 999_980, 4).unwrap().text,
             expected
+        );
+    }
+
+    #[test]
+    fn later_edits_preserve_earlier_long_line_checkpoints() {
+        let long = "ab\té".repeat(25_000);
+        let mut table = table(&format!("{long}\nnext\ntail"));
+        let expected = table.line_window(0, 99_900, 99_980, 4).unwrap().text;
+        let later = table.line_start(1).unwrap();
+        table.insert(later, "changed ").unwrap();
+        table.line_views.borrow_mut().bytes_read = 0;
+        assert_eq!(
+            table.line_window(0, 99_900, 99_980, 4).unwrap().text,
+            expected
+        );
+        assert!(table.line_views.borrow().bytes_read <= BLOCK);
+        // An edit within that line must still discard its checkpoints.
+        table.insert(0, "XYZ").unwrap();
+        assert!(
+            table
+                .line_window(0, 0, 8, 4)
+                .unwrap()
+                .text
+                .starts_with("XYZab")
+        );
+    }
+
+    #[test]
+    fn shared_refresh_keeps_unchanged_checkpoints_and_discards_changed_lines() {
+        let long = "ab\té".repeat(25_000);
+        let mut active = super::super::PieceTable::empty().unwrap();
+        active.insert(0, &format!("{long}\nnext\ntail")).unwrap();
+        let mut peer = active.duplicate_view();
+        let expected = peer.line_window(0, 99_900, 99_980, 4).unwrap().text;
+        let later = active.line_start(1).unwrap();
+        active.insert(later, "changed ").unwrap();
+        active.insert(active.len(), " end").unwrap();
+        peer.refresh_view_from(&active).unwrap();
+        peer.storage.borrow_mut().line_views.get_mut().bytes_read = 0;
+        assert_eq!(
+            peer.line_window(0, 99_900, 99_980, 4).unwrap().text,
+            expected
+        );
+        assert!(peer.storage.borrow_mut().line_views.get_mut().bytes_read <= BLOCK);
+        active.insert(0, "XYZ").unwrap();
+        peer.refresh_view_from(&active).unwrap();
+        assert!(
+            peer.line_window(0, 0, 8, 4)
+                .unwrap()
+                .text
+                .starts_with("XYZab")
         );
     }
 

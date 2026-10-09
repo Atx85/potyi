@@ -1,0 +1,552 @@
+{
+  "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+  "lifecycle_sha256": "a7184b463027b97dcbb265fbb31662e2db2c600650b5ac0e7e9a8c73d749afa0",
+  "bridge_sha256": "8baf46a25e800df464c1a269a8ffbd4ac39a13a59aa41b3ca46233daed9e3d32",
+  "source_root": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+  "helper": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized-bin/potyi",
+  "commands": [
+    {
+      "id": 1,
+      "wall_ms": 130.43462502537295
+    },
+    {
+      "id": 2,
+      "wall_ms": 93.13212501001544
+    },
+    {
+      "id": 3,
+      "wall_ms": 99.47212500264868
+    },
+    {
+      "id": 4,
+      "wall_ms": 101.81266700965352
+    },
+    {
+      "id": 5,
+      "wall_ms": 99.70970900030807
+    },
+    {
+      "id": 6,
+      "wall_ms": 88.85862500756048
+    }
+  ],
+  "events": [
+    {
+      "time": 1791549743.8033879,
+      "id": 1,
+      "stage": "parent_submit"
+    },
+    {
+      "time": 1791549743.80463,
+      "id": 1,
+      "stage": "dispatch_read"
+    },
+    {
+      "time": 1791549743.813074,
+      "id": 1,
+      "stage": "after_mv"
+    },
+    {
+      "time": 1791549743.81338,
+      "id": 1,
+      "stage": "before_command_stty"
+    },
+    {
+      "time": 1791549743.819152,
+      "id": 1,
+      "stage": "after_command_stty"
+    },
+    {
+      "time": 1791549743.822714,
+      "id": 1,
+      "stage": "after_directory"
+    },
+    {
+      "time": 1791549743.825477,
+      "id": 1,
+      "stage": "before_cat"
+    },
+    {
+      "time": 1791549743.830915,
+      "id": 1,
+      "stage": "before_child_exec"
+    },
+    {
+      "time": 1791549743.844825,
+      "id": 1,
+      "stage": "after_child"
+    },
+    {
+      "time": 1791549743.845142,
+      "id": 1,
+      "stage": "before_rm"
+    },
+    {
+      "time": 1791549743.856196,
+      "id": 1,
+      "stage": "after_rm"
+    },
+    {
+      "time": 1791549743.859583,
+      "id": 1,
+      "stage": "before_complete_stty"
+    },
+    {
+      "time": 1791549743.867059,
+      "id": 1,
+      "stage": "after_complete_stty"
+    },
+    {
+      "time": 1791549743.871019,
+      "id": 1,
+      "stage": "before_helper"
+    },
+    {
+      "time": 1791549743.933457,
+      "id": 1,
+      "stage": "server_request"
+    },
+    {
+      "time": 1791549743.933799,
+      "id": 1,
+      "stage": "parent_boundary_read"
+    },
+    {
+      "time": 1791549743.9338229,
+      "id": 2,
+      "stage": "parent_submit"
+    },
+    {
+      "time": 1791549743.934842,
+      "id": 1,
+      "stage": "after_helper"
+    },
+    {
+      "time": 1791549743.937729,
+      "id": 2,
+      "stage": "dispatch_read"
+    },
+    {
+      "time": 1791549743.943495,
+      "id": 2,
+      "stage": "after_mv"
+    },
+    {
+      "time": 1791549743.946328,
+      "id": 2,
+      "stage": "before_command_stty"
+    },
+    {
+      "time": 1791549743.952246,
+      "id": 2,
+      "stage": "after_command_stty"
+    },
+    {
+      "time": 1791549743.954055,
+      "id": 2,
+      "stage": "after_directory"
+    },
+    {
+      "time": 1791549743.95737,
+      "id": 2,
+      "stage": "before_cat"
+    },
+    {
+      "time": 1791549743.96346,
+      "id": 2,
+      "stage": "before_child_exec"
+    },
+    {
+      "time": 1791549743.971883,
+      "id": 2,
+      "stage": "after_child"
+    },
+    {
+      "time": 1791549743.976474,
+      "id": 2,
+      "stage": "before_rm"
+    },
+    {
+      "time": 1791549743.982994,
+      "id": 2,
+      "stage": "after_rm"
+    },
+    {
+      "time": 1791549743.985375,
+      "id": 2,
+      "stage": "before_complete_stty"
+    },
+    {
+      "time": 1791549743.991032,
+      "id": 2,
+      "stage": "after_complete_stty"
+    },
+    {
+      "time": 1791549743.994148,
+      "id": 2,
+      "stage": "before_helper"
+    },
+    {
+      "time": 1791549744.0266209,
+      "id": 2,
+      "stage": "server_request"
+    },
+    {
+      "time": 1791549744.026954,
+      "id": 2,
+      "stage": "parent_boundary_read"
+    },
+    {
+      "time": 1791549744.026956,
+      "id": 3,
+      "stage": "parent_submit"
+    },
+    {
+      "time": 1791549744.027997,
+      "id": 2,
+      "stage": "after_helper"
+    },
+    {
+      "time": 1791549744.02839,
+      "id": 3,
+      "stage": "dispatch_read"
+    },
+    {
+      "time": 1791549744.035225,
+      "id": 3,
+      "stage": "after_mv"
+    },
+    {
+      "time": 1791549744.038552,
+      "id": 3,
+      "stage": "before_command_stty"
+    },
+    {
+      "time": 1791549744.044189,
+      "id": 3,
+      "stage": "after_command_stty"
+    },
+    {
+      "time": 1791549744.048171,
+      "id": 3,
+      "stage": "after_directory"
+    },
+    {
+      "time": 1791549744.051986,
+      "id": 3,
+      "stage": "before_cat"
+    },
+    {
+      "time": 1791549744.05775,
+      "id": 3,
+      "stage": "before_child_exec"
+    },
+    {
+      "time": 1791549744.066255,
+      "id": 3,
+      "stage": "after_child"
+    },
+    {
+      "time": 1791549744.07181,
+      "id": 3,
+      "stage": "before_rm"
+    },
+    {
+      "time": 1791549744.078256,
+      "id": 3,
+      "stage": "after_rm"
+    },
+    {
+      "time": 1791549744.081453,
+      "id": 3,
+      "stage": "before_complete_stty"
+    },
+    {
+      "time": 1791549744.088262,
+      "id": 3,
+      "stage": "after_complete_stty"
+    },
+    {
+      "time": 1791549744.091666,
+      "id": 3,
+      "stage": "before_helper"
+    },
+    {
+      "time": 1791549744.126104,
+      "id": 3,
+      "stage": "server_request"
+    },
+    {
+      "time": 1791549744.126427,
+      "id": 3,
+      "stage": "parent_boundary_read"
+    },
+    {
+      "time": 1791549744.12643,
+      "id": 4,
+      "stage": "parent_submit"
+    },
+    {
+      "time": 1791549744.127593,
+      "id": 3,
+      "stage": "after_helper"
+    },
+    {
+      "time": 1791549744.131243,
+      "id": 4,
+      "stage": "dispatch_read"
+    },
+    {
+      "time": 1791549744.137683,
+      "id": 4,
+      "stage": "after_mv"
+    },
+    {
+      "time": 1791549744.139892,
+      "id": 4,
+      "stage": "before_command_stty"
+    },
+    {
+      "time": 1791549744.145643,
+      "id": 4,
+      "stage": "after_command_stty"
+    },
+    {
+      "time": 1791549744.147867,
+      "id": 4,
+      "stage": "after_directory"
+    },
+    {
+      "time": 1791549744.15375,
+      "id": 4,
+      "stage": "before_cat"
+    },
+    {
+      "time": 1791549744.162123,
+      "id": 4,
+      "stage": "before_child_exec"
+    },
+    {
+      "time": 1791549744.173145,
+      "id": 4,
+      "stage": "after_child"
+    },
+    {
+      "time": 1791549744.178353,
+      "id": 4,
+      "stage": "before_rm"
+    },
+    {
+      "time": 1791549744.184659,
+      "id": 4,
+      "stage": "after_rm"
+    },
+    {
+      "time": 1791549744.187508,
+      "id": 4,
+      "stage": "before_complete_stty"
+    },
+    {
+      "time": 1791549744.192717,
+      "id": 4,
+      "stage": "after_complete_stty"
+    },
+    {
+      "time": 1791549744.195765,
+      "id": 4,
+      "stage": "before_helper"
+    },
+    {
+      "time": 1791549744.227943,
+      "id": 4,
+      "stage": "server_request"
+    },
+    {
+      "time": 1791549744.228242,
+      "id": 4,
+      "stage": "parent_boundary_read"
+    },
+    {
+      "time": 1791549744.228244,
+      "id": 5,
+      "stage": "parent_submit"
+    },
+    {
+      "time": 1791549744.22927,
+      "id": 4,
+      "stage": "after_helper"
+    },
+    {
+      "time": 1791549744.233462,
+      "id": 5,
+      "stage": "dispatch_read"
+    },
+    {
+      "time": 1791549744.239632,
+      "id": 5,
+      "stage": "after_mv"
+    },
+    {
+      "time": 1791549744.246779,
+      "id": 5,
+      "stage": "before_command_stty"
+    },
+    {
+      "time": 1791549744.252825,
+      "id": 5,
+      "stage": "after_command_stty"
+    },
+    {
+      "time": 1791549744.25663,
+      "id": 5,
+      "stage": "after_directory"
+    },
+    {
+      "time": 1791549744.260414,
+      "id": 5,
+      "stage": "before_cat"
+    },
+    {
+      "time": 1791549744.266662,
+      "id": 5,
+      "stage": "before_child_exec"
+    },
+    {
+      "time": 1791549744.275267,
+      "id": 5,
+      "stage": "after_child"
+    },
+    {
+      "time": 1791549744.278355,
+      "id": 5,
+      "stage": "before_rm"
+    },
+    {
+      "time": 1791549744.2851,
+      "id": 5,
+      "stage": "after_rm"
+    },
+    {
+      "time": 1791549744.288408,
+      "id": 5,
+      "stage": "before_complete_stty"
+    },
+    {
+      "time": 1791549744.293547,
+      "id": 5,
+      "stage": "after_complete_stty"
+    },
+    {
+      "time": 1791549744.296706,
+      "id": 5,
+      "stage": "before_helper"
+    },
+    {
+      "time": 1791549744.327745,
+      "id": 5,
+      "stage": "server_request"
+    },
+    {
+      "time": 1791549744.327952,
+      "id": 5,
+      "stage": "parent_boundary_read"
+    },
+    {
+      "time": 1791549744.327955,
+      "id": 6,
+      "stage": "parent_submit"
+    },
+    {
+      "time": 1791549744.329019,
+      "id": 5,
+      "stage": "after_helper"
+    },
+    {
+      "time": 1791549744.329409,
+      "id": 6,
+      "stage": "dispatch_read"
+    },
+    {
+      "time": 1791549744.336098,
+      "id": 6,
+      "stage": "after_mv"
+    },
+    {
+      "time": 1791549744.342382,
+      "id": 6,
+      "stage": "before_command_stty"
+    },
+    {
+      "time": 1791549744.348257,
+      "id": 6,
+      "stage": "after_command_stty"
+    },
+    {
+      "time": 1791549744.351661,
+      "id": 6,
+      "stage": "after_directory"
+    },
+    {
+      "time": 1791549744.354841,
+      "id": 6,
+      "stage": "before_cat"
+    },
+    {
+      "time": 1791549744.360863,
+      "id": 6,
+      "stage": "before_child_exec"
+    },
+    {
+      "time": 1791549744.36949,
+      "id": 6,
+      "stage": "after_child"
+    },
+    {
+      "time": 1791549744.372719,
+      "id": 6,
+      "stage": "before_rm"
+    },
+    {
+      "time": 1791549744.378895,
+      "id": 6,
+      "stage": "after_rm"
+    },
+    {
+      "time": 1791549744.381905,
+      "id": 6,
+      "stage": "before_complete_stty"
+    },
+    {
+      "time": 1791549744.387065,
+      "id": 6,
+      "stage": "after_complete_stty"
+    },
+    {
+      "time": 1791549744.388386,
+      "id": 6,
+      "stage": "before_helper"
+    },
+    {
+      "time": 1791549744.416555,
+      "id": 6,
+      "stage": "server_request"
+    },
+    {
+      "time": 1791549744.416812,
+      "id": 6,
+      "stage": "parent_boundary_read"
+    },
+    {
+      "time": 1791549744.41766,
+      "id": 6,
+      "stage": "after_helper"
+    }
+  ],
+  "clock": "Shared host wall seconds, command wall_ms monotonic",
+  "limitations": [
+    "Instrumented standalone zsh PTY, no application reader/SDL/layout stages.",
+    "Warm command excludes initial driver readiness.",
+    "Private mock ACK bridge; helper is exact real executable.",
+    "No cold-cache or stage timing acceptance claim."
+  ]
+}

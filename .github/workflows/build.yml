@@ -97,10 +97,10 @@ jobs:
           BUILD_TARGET: ${{ matrix.target }}
         run: rustup toolchain install stable --profile minimal --no-self-update --target "$BUILD_TARGET"
 
-      - name: Build release executable
+      - name: Build release executables
         env:
           BUILD_TARGET: ${{ matrix.target }}
-        run: cargo +stable build --release --locked --target "$BUILD_TARGET"
+        run: cargo +stable build --release --locked --bins --target "$BUILD_TARGET"
 
       - name: Check native Wayland window startup
         if: runner.os == 'Linux'
@@ -197,20 +197,24 @@ jobs:
               app="$stage/Potyi.app/Contents"
               mkdir -p "$app/MacOS" "$app/Resources"
               cp "target/$BUILD_TARGET/release/potyi" "$app/MacOS/potyi"
+              cp "target/$BUILD_TARGET/release/potyi-term-helper" "$app/MacOS/potyi-term-helper"
               cp macos/Info.plist "$app/Info.plist"
               cp macos/Potyi.icns "$app/Resources/"
-              chmod +x "$app/MacOS/potyi"
+              chmod +x "$app/MacOS/potyi" "$app/MacOS/potyi-term-helper"
+              codesign --force --sign - "$app/MacOS/potyi-term-helper"
               codesign --force --sign - "$stage/Potyi.app"
               ditto -c -k --sequesterRsrc --keepParent "$stage" "dist/$package.zip"
               ;;
             Windows)
               cp "target/$BUILD_TARGET/release/potyi.exe" "$stage/"
+              cp "target/$BUILD_TARGET/release/potyi-term-helper.exe" "$stage/"
               7z a -tzip "dist/$package.zip" "$stage"
               ;;
             Linux)
               cp "target/$BUILD_TARGET/release/potyi" "$stage/"
+              cp "target/$BUILD_TARGET/release/potyi-term-helper" "$stage/"
               cp linux/potyi.desktop linux/potyi.png "$stage/"
-              chmod +x "$stage/potyi"
+              chmod +x "$stage/potyi" "$stage/potyi-term-helper"
               tar -czf "dist/$package.tar.gz" -C "$RUNNER_TEMP" "$package"
               ;;
           esac

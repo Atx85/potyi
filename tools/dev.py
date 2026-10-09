@@ -44,6 +44,13 @@ def main(argv=None):
     try:
         # Argument lists preserve spaces and shell characters in paths. Always
         # build from the repository root, even when invoked from elsewhere.
+        if args.action == "run":
+            helper = ["cargo", "build", "--locked", "--bin", "potyi-term-helper"]
+            if args.release:
+                helper.append("--release")
+            result = subprocess.run(helper, cwd=ROOT).returncode
+            if result:
+                return result
         return subprocess.run(command, cwd=ROOT).returncode
     except FileNotFoundError:
         print(f"Cannot find {command[0]}. Install Rust/Cargo and put it on PATH.", file=sys.stderr)

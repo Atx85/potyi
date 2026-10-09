@@ -29,18 +29,31 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod background;
 pub(crate) mod commands;
+mod events;
+mod experimental;
 mod input;
-mod recovery_prompt;
 pub(crate) mod navigation;
+mod recovery_prompt;
 pub(crate) mod search;
 use commands::*;
 use navigation::*;
 use search::*;
 
 pub(crate) fn run() -> Result<(), String> {
+    run_impl(None)
+}
+pub(crate) fn run_experimental(command: Option<String>) -> Result<(), String> {
+    run_impl(Some(command))
+}
+fn run_impl(experiment: Option<Option<String>>) -> Result<(), String> {
     piece_table::recovery::enable_for_application();
-    let argument = std::env::args().nth(1);
+    let argument = if experiment.is_some() {
+        None
+    } else {
+        std::env::args().nth(1)
+    };
     let launch = startup::LaunchTarget::resolve(
         argument.as_deref(),
         &std::env::current_dir().map_err(|error| error.to_string())?,
@@ -76,7 +89,9 @@ pub(crate) fn run() -> Result<(), String> {
     let mut vim_enabled = editor.config.keybinding_mode == KeybindingMode::Vim;
 
     if let startup::LaunchTarget::File { path, location } = &launch {
-        editor.open(path).map_err(|e| format!("Could not open file {path}: {e}"))?;
+        editor
+            .open(path)
+            .map_err(|e| format!("Could not open file {path}: {e}"))?;
         if let Some((line, column)) = location {
             editor
                 .document
@@ -94,14 +109,20 @@ pub(crate) fn run() -> Result<(), String> {
     sdl3::hint::set("SDL_APP_ID", "potyi");
     let sdl = sdl3::init().map_err(|e| e.to_string())?;
 
-    let video = sdl.video().map_err(|e| format!("Could not initialize the display: {e}"))?;
+    let video = sdl
+        .video()
+        .map_err(|e| format!("Could not initialize the display: {e}"))?;
 
     let clipboard = video.clipboard();
     let keyboard = sdl.keyboard();
 
     let driver = video.current_video_driver();
-    let (window, window_hit_test) = window::create_window(
-        &video, crate::APP_TITLE, 800, 600)
+    let title = if experiment.is_some() {
+        format!("{} · Terminal preview", crate::APP_TITLE)
+    } else {
+        crate::APP_TITLE.into()
+    };
+    let (window, window_hit_test) = window::create_window(&video, &title, 800, 600)
         .map_err(|e| format!("Could not create the window ({driver}): {e}"))?;
 
     video.text_input().start(&window);
@@ -155,7 +176,7 @@ pub(crate) fn run() -> Result<(), String> {
 
     renderer.set_line_number_mode(editor.config.line_numbers);
 
-    if let Some(path) = editor.path.as_deref() {
+    if let Some(path) = editor.path().as_deref() {
         renderer.set_file_path(Some(path));
     }
     let mut search_ui = SearchUi::new();
@@ -169,7 +190,7 @@ pub(crate) fn run() -> Result<(), String> {
     renderer.set_mode_label(editor_mode_label(&editor, &vim));
 
     let terminal_directory = editor
-        .path
+        .path()
         .as_deref()
         .and_then(|path| path.parent())
         .map(std::path::Path::to_path_buf)
@@ -184,12 +205,20 @@ pub(crate) fn run() -> Result<(), String> {
         .map_err(|error| error.to_string())?;
 
     terminal.set_events(event_subsystem.clone());
+    renderer.experimental_events(&event_subsystem)?;
     let mut split_mode = false;
     let mut active_pane = 0usize;
     if let Some(root) = launch.workspace_root() {
         open_folder_workspace(
-            root, &mut split_mode, &mut active_pane, &mut editor, &mut other_editor,
-            &mut vim, &mut other_vim, &mut renderer, &mut terminal,
+            root,
+            &mut split_mode,
+            &mut active_pane,
+            &mut editor,
+            &mut other_editor,
+            &mut vim,
+            &mut other_vim,
+            &mut renderer,
+            &mut terminal,
         )?;
     }
     event_subsystem
@@ -200,6 +229,12 @@ pub(crate) fn run() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     let mut lsp_ui = lsp_ui::LspUi::new(event_subsystem.clone());
 
+    if let Some(command) = experiment {
+        renderer.open_experimental(
+            &terminal_directory_for_experiment(&editor),
+            command.as_deref(),
+        )?;
+    }
     let mut event_pump = sdl.event_pump().map_err(|e| e.to_string())?;
 
     if !renderer.window_mut().show() {
@@ -218,7 +253,7 @@ pub(crate) fn run() -> Result<(), String> {
     let mut terminal_frames = terminal::FrameSchedule::default();
     'event_loop: loop {
         pending_events.clear();
-        if !renderer.terminal_visible(&terminal) {
+        if !renderer.terminal_visible(&terminal) && !renderer.experimental_visible() {
             terminal_frames.clear();
         }
         if terminal
@@ -229,79 +264,51 @@ pub(crate) fn run() -> Result<(), String> {
             terminal_frames.changed();
         }
 
+        if experimental::poll(&mut renderer, &mut vim, &mut other_vim) {
+            if renderer.experimental_visible() {
+                terminal_frames.changed();
+            } else {
+                dirty = true;
+            }
+        }
+        while let Some(link) = renderer.experimental_request() {
+            experimental::open_link(
+                link,
+                &mut editor,
+                &mut other_editor,
+                &mut renderer,
+                &mut terminal,
+                &mut active_pane,
+                split_mode,
+                &mut vim,
+                &mut other_vim,
+            );
+            dirty = true;
+        }
         if !dirty
-            && let Some(event) = event_pump.wait_event_timeout(terminal_frames.wait(
-                Instant::now(),
-                dirty,
-                terminal.has_pending_work(),
-            ).min(mouse_state.wait_timeout()).min(recovery_prompt.wait_timeout()))
+            && let Some(event) = event_pump.wait_event_timeout({
+                let timeout = terminal_frames
+                    .wait(
+                        Instant::now(),
+                        dirty,
+                        terminal.has_pending_work() || renderer.experimental_pending(),
+                    )
+                    .min(mouse_state.wait_timeout())
+                    .min(recovery_prompt.wait_timeout());
+                if renderer.experimental_visible() {
+                    experimental::wait_timeout(timeout)
+                } else {
+                    timeout
+                }
+            })
         {
             pending_events.push(event);
         }
 
         pending_events.extend(event_pump.poll_iter().take(64));
 
-        for mut event in pending_events.drain(..) {
-            command_bar.refresh_formatters(editor.path.as_deref());
-            if let Some(terminal_event) = event.as_user_event_type::<TerminalEvent>() {
-                if terminal
-                    .handle_event(terminal_event)
-                    .map_err(|error| error.to_string())?
-                    && renderer.terminal_visible(&terminal)
-                {
-                    terminal_frames.changed();
-                }
-                continue;
-            }
-
-            if let Some(event) = event.as_user_event_type::<lsp_setup::Event>() {
-                lsp_ui.accept_setup(event, &editor, &other_editor, &mut command_bar);
-                dirty = true;
-                continue;
-            }
-            if let Some(event) = event.as_user_event_type::<lsp::Event>() {
-                lsp_ui.validate_completion(
-                    &editor,
-                    &other_editor,
-                    !renderer.terminal_focused(&terminal)
-                        && !command_bar.is_active()
-                        && (!vim_enabled || vim.mode() == vim::VimMode::Insert),
-                );
-                let outcome =
-                    lsp_ui.accept(event, &mut editor, &mut other_editor, &mut command_bar);
-                synchronize_pane_views(&mut editor, &mut other_editor, &mut renderer).map_err(|e| e.to_string())?;
-                if outcome.document_changed && vim_enabled {
-                    vim.finish_formatting(&mut editor);
-                }
-                if outcome.focus_other {
-                    focus_pane(
-                        1 - active_pane,
-                        &mut active_pane,
-                        &mut editor,
-                        &mut other_editor,
-                        &mut vim,
-                        &mut other_vim,
-                        &mut renderer,
-                    );
-                }
-                if outcome.cursor_changed {
-                    search_ui.close();
-                    if vim_enabled && outcome.document_reloaded {
-                        vim.reset();
-                    }
-                    renderer.set_file_path(editor.path.as_deref());
-                    renderer.set_mode_label(editor_mode_label(&editor, &vim));
-                    renderer.invalidate_scroll_cache();
-                    renderer.update_cursor(&editor.document);
-                    renderer.ensure_cursor_visible(&mut editor.document);
-                }
-                dirty = true;
-                continue;
-            }
-
-            let coordinates_converted = renderer.convert_event_coordinates(&mut event);
-
-            if input::dispatch(
+        for event in pending_events.drain(..) {
+            if events::dispatch(
                 input::InputContext {
                     pane_keys: &mut pane_keys,
                     mouse_state: &mut mouse_state,
@@ -325,14 +332,20 @@ pub(crate) fn run() -> Result<(), String> {
                     vim_enabled: &mut vim_enabled,
                 },
                 event,
-                coordinates_converted,
+                &mut terminal_frames,
             )? == input::EventFlow::Quit
             {
                 break 'event_loop;
             }
         }
 
-        dirty |= mouse_state.tick(&mut editor, &mut renderer, &mut vim, vim_enabled, active_pane)?;
+        dirty |= mouse_state.tick(
+            &mut editor,
+            &mut renderer,
+            &mut vim,
+            vim_enabled,
+            active_pane,
+        )?;
         dirty |= recovery_prompt.update(&mut command_bar);
 
         for document in [&mut editor.document, &mut other_editor.document] {
@@ -347,21 +360,32 @@ pub(crate) fn run() -> Result<(), String> {
             &editor,
             &other_editor,
             !renderer.terminal_focused(&terminal)
+                && !renderer.experimental_focused()
                 && !command_bar.is_active()
                 && (!vim_enabled || vim.mode() == vim::VimMode::Insert),
         );
         lsp_ui.discard_dismissed_preview(&command_bar);
         lsp_ui.reconcile(&editor, &other_editor);
 
-        dirty |= renderer.terminal_visible(&terminal) && terminal_frames.due(Instant::now());
+        dirty |= (renderer.terminal_visible(&terminal) || renderer.experimental_visible())
+            && terminal_frames.due(Instant::now());
         if dirty {
-            command_bar.refresh_formatters(editor.path.as_deref());
+            command_bar.refresh_formatters(editor.path().as_deref());
             let start = Instant::now();
 
             renderer.update_window_size()?;
             renderer.set_completion(lsp_ui.completion_display());
 
-            if renderer.terminal_visible(&terminal) {
+            if renderer.experimental_visible() {
+                renderer.render_experimental(
+                    &mut editor.document,
+                    &mut other_editor.document,
+                    &mut terminal,
+                    &search_ui,
+                    &command_bar,
+                )?;
+                terminal_frames.rendered(Instant::now());
+            } else if renderer.terminal_visible(&terminal) {
                 if split_mode {
                     renderer.render_split_terminal(
                         &mut editor.document,
@@ -400,4 +424,13 @@ pub(crate) fn run() -> Result<(), String> {
     renderer.window_mut().hide();
     recovery_prompt.acknowledge();
     Ok(())
+}
+
+fn terminal_directory_for_experiment(editor: &Editor) -> PathBuf {
+    editor
+        .path()
+        .as_deref()
+        .and_then(|path| path.parent())
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
 }

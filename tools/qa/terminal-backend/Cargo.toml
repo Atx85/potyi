@@ -1,0 +1,35 @@
+[package]
+name = "potyi-terminal-backend-check"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[[example]]
+name = "production-helper"
+path = "../../../src/bin/potyi-term-helper.rs"
+test = false
+bench = false
+
+[dependencies]
+unicode-width = "0.2.2"
+portable-pty = "0.9"
+vt100 = "0.16"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dependencies.getrandom]
+version = "0.2"
+[dependencies.serde]
+version = "1"
+features = ["derive"]
+[dependencies.serde_json]
+version = "1"
+[dependencies.regex]
+version = "1"
+
+[patch.crates-io]
+vt100 = { path = "../../../vendor/vt100" }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winuser", "winbase", "winnt", "processthreadsapi", "processenv", "synchapi", "fileapi", "namedpipeapi", "handleapi", "jobapi2", "stringapiset"] }

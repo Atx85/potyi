@@ -284,11 +284,32 @@ pub(crate) fn execute_command_bar(
             outcome.keybinding_mode = Some(mode);
         }
 
+        Ok(ParsedCommand::TermNew { command }) => {
+            let directory = editor
+                .path()
+                .as_deref()
+                .and_then(|path| path.parent())
+                .map(std::path::Path::to_path_buf)
+                .or_else(|| std::env::current_dir().ok())
+                .unwrap_or_else(|| PathBuf::from("."));
+            if renderer.terminal_focused(terminal) {
+                terminal.close_to_editor();
+            }
+            match renderer.open_experimental(&directory, command.as_deref()) {
+                Ok(()) => command_bar.close(),
+                Err(error) => command_bar
+                    .set_status(format!("Could not open the experimental terminal: {error}")),
+            }
+        }
+
         Ok(ParsedCommand::Term { command }) => {
+            if renderer.experimental_focused() {
+                renderer.hide_experimental();
+            }
             command_bar.close();
             search_ui.close();
             renderer.place_terminal_in_active_pane();
-            terminal.open(editor.path.as_deref());
+            terminal.open(editor.path().as_deref());
             if let Some(command) = command {
                 terminal.set_listing_width(renderer.terminal_columns());
                 match terminal.run_command(&command) {
@@ -396,7 +417,7 @@ pub(crate) fn execute_command_bar(
 
         Ok(ParsedCommand::Formatters) => {
             match formatting::Formatters::load(std::path::Path::new("config/formatters.toml")) {
-                Ok(config) => command_bar.show_formatters(config.choices(editor.path.as_deref())),
+                Ok(config) => command_bar.show_formatters(config.choices(editor.path().as_deref())),
                 Err(error) => command_bar.set_status(error.to_string()),
             }
         }
@@ -454,7 +475,7 @@ pub(crate) fn execute_command_bar(
 
         Ok(ParsedCommand::Recover { number }) => {
             if let Some(number) = number {
-                if editor.dirty {
+                if editor.is_dirty() {
                     command_bar.show_info("Save the current document before opening recovered work, or switch to an empty pane.");
                 } else {
                     let result = piece_table::recovery::root()

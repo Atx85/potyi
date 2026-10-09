@@ -1,0 +1,74 @@
+
+running 1 test
+test app::input::tests::terminal_startup_probe::matched_terminal_startup_probe ... 
+POTYI_TERM_STARTUP {"command_source":"built-in small command","event":"context","fixture_setup_measured":false,"helper_trace_included":false,"kind":"new","pid":12448,"video_driver":"dummy","visible":false,"warm_commands":5}
+
+POTYI_TERM_STARTUP {"command_sequence":null,"draws":0,"duration_ms":null,"elapsed_ms":0.184708,"event":"phase","kind":"new","phase":"pane_create","pid":12448,"turns":0,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":null,"draws":0,"duration_ms":7.709458,"elapsed_ms":7.963375,"event":"open_return","kind":"new","phase":"pane_create","pid":12448,"turns":0,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":null,"draws":2,"duration_ms":null,"elapsed_ms":42.018042,"event":"session_ready","kind":"new","phase":"pane_create","pid":12448,"turns":3,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":null,"draws":4,"duration_ms":42.779708,"elapsed_ms":43.031042,"event":"viewport_settled","kind":"new","phase":"pane_create","pid":12448,"turns":4,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":null,"draws":4,"duration_ms":null,"elapsed_ms":43.071917,"event":"end","kind":"new","phase":"pane_create","pid":12448,"turns":4,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":null,"draws":4,"duration_ms":null,"elapsed_ms":43.123542,"event":"phase","kind":"new","phase":"clear","pid":12448,"turns":4,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":null,"draws":5,"duration_ms":0.7238330000000001,"elapsed_ms":43.891125,"event":"operation","kind":"new","phase":"clear","pid":12448,"turns":5,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":null,"draws":5,"duration_ms":null,"elapsed_ms":43.931333,"event":"end","kind":"new","phase":"clear","pid":12448,"turns":5,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":0,"draws":5,"duration_ms":null,"elapsed_ms":43.979292,"event":"phase","kind":"new","phase":"first_command","pid":12448,"turns":5,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":0,"draws":5,"duration_ms":1.3432089999999999,"elapsed_ms":45.378417,"event":"submitted","kind":"new","phase":"first_command","pid":12448,"turns":5,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":0,"draws":9,"duration_ms":209.005167,"elapsed_ms":253.04137500000002,"event":"operation","kind":"new","phase":"first_command","pid":12448,"turns":13,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":0,"draws":9,"duration_ms":null,"elapsed_ms":253.097792,"event":"end","kind":"new","phase":"first_command","pid":12448,"turns":13,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":1,"draws":9,"duration_ms":null,"elapsed_ms":253.32483300000004,"event":"phase","kind":"new","phase":"warm_command_01","pid":12448,"turns":13,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":1,"draws":9,"duration_ms":1.2087910000000002,"elapsed_ms":254.575667,"event":"submitted","kind":"new","phase":"warm_command_01","pid":12448,"turns":13,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":1,"draws":13,"duration_ms":152.548875,"elapsed_ms":405.917,"event":"operation","kind":"new","phase":"warm_command_01","pid":12448,"turns":22,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":1,"draws":13,"duration_ms":null,"elapsed_ms":405.96479200000005,"event":"end","kind":"new","phase":"warm_command_01","pid":12448,"turns":22,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":2,"draws":13,"duration_ms":null,"elapsed_ms":406.011375,"event":"phase","kind":"new","phase":"warm_command_02","pid":12448,"turns":22,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":2,"draws":13,"duration_ms":2.695791,"elapsed_ms":408.746083,"event":"submitted","kind":"new","phase":"warm_command_02","pid":12448,"turns":22,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":2,"draws":17,"duration_ms":143.39675,"elapsed_ms":549.448208,"event":"operation","kind":"new","phase":"warm_command_02","pid":12448,"turns":31,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":2,"draws":17,"duration_ms":null,"elapsed_ms":549.496667,"event":"end","kind":"new","phase":"warm_command_02","pid":12448,"turns":31,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":3,"draws":17,"duration_ms":null,"elapsed_ms":549.575917,"event":"phase","kind":"new","phase":"warm_command_03","pid":12448,"turns":31,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":3,"draws":17,"duration_ms":1.1919170000000001,"elapsed_ms":550.8095830000001,"event":"submitted","kind":"new","phase":"warm_command_03","pid":12448,"turns":31,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":3,"draws":21,"duration_ms":125.90837499999999,"elapsed_ms":675.5271670000001,"event":"operation","kind":"new","phase":"warm_command_03","pid":12448,"turns":40,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":3,"draws":21,"duration_ms":null,"elapsed_ms":675.57625,"event":"end","kind":"new","phase":"warm_command_03","pid":12448,"turns":40,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":4,"draws":21,"duration_ms":null,"elapsed_ms":675.650292,"event":"phase","kind":"new","phase":"warm_command_04","pid":12448,"turns":40,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":4,"draws":21,"duration_ms":1.260958,"elapsed_ms":676.9554169999999,"event":"submitted","kind":"new","phase":"warm_command_04","pid":12448,"turns":40,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":4,"draws":25,"duration_ms":149.705542,"elapsed_ms":825.4015420000001,"event":"operation","kind":"new","phase":"warm_command_04","pid":12448,"turns":49,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":4,"draws":25,"duration_ms":null,"elapsed_ms":825.449958,"event":"end","kind":"new","phase":"warm_command_04","pid":12448,"turns":49,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":5,"draws":25,"duration_ms":null,"elapsed_ms":825.5035419999999,"event":"phase","kind":"new","phase":"warm_command_05","pid":12448,"turns":49,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":5,"draws":25,"duration_ms":1.4519579999999999,"elapsed_ms":826.99625,"event":"submitted","kind":"new","phase":"warm_command_05","pid":12448,"turns":49,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":5,"draws":29,"duration_ms":141.394291,"elapsed_ms":966.939375,"event":"operation","kind":"new","phase":"warm_command_05","pid":12448,"turns":58,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":5,"draws":29,"duration_ms":null,"elapsed_ms":966.992542,"event":"end","kind":"new","phase":"warm_command_05","pid":12448,"turns":58,"visible":false}
+
+POTYI_TERM_STARTUP {"command_sequence":null,"draws":29,"duration_ms":null,"elapsed_ms":967.047875,"event":"done","kind":"new","phase":"done","pid":12448,"turns":58,"visible":false}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 907 filtered out; finished in 0.98s
+

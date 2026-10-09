@@ -33,7 +33,7 @@ fn prepare_all(root: &Path, paths: &[PathBuf], panes: &[&Editor]) -> PreparedRen
     let docs: Vec<_> = panes
         .iter()
         .map(|e| lsp::Document {
-            path: e.path.as_ref().unwrap().canonicalize().unwrap(),
+            path: e.path().as_ref().unwrap().canonicalize().unwrap(),
             text: text(e),
         })
         .collect();
@@ -83,7 +83,7 @@ fn stale_disk_buffer_and_readonly_fail_before_any_changes() {
         match cause {
             0 => fs::write(&paths[2], "external").unwrap(),
             1 => b.insert_text("draft").unwrap(),
-            _ => b.read_only = true,
+            _ => b.set_read_only(true),
         }
         let original_a = text(&a);
         let original_b = text(&b);
@@ -128,7 +128,7 @@ fn disk_only_edit_still_has_an_undo_anchor_and_preview_is_non_mutating() {
     assert_eq!(fs::read_to_string(&paths[1]).unwrap(), "old();\n");
     assert!(prepared.choices()[0].contains("writes file"));
     apply(Arc::new(prepared), &mut a, &mut b).unwrap();
-    assert!(!a.dirty);
+    assert!(!a.is_dirty());
     assert!(history(&mut a, &mut b, false).unwrap());
     assert_eq!(fs::read_to_string(&paths[1]).unwrap(), "old();\n");
 }
@@ -267,33 +267,45 @@ fn vim_insert_groups_cannot_swallow_a_workspace_undo_marker() {
     assert_eq!(text(&a), "old();\n");
 }
 
-
 #[test]
 fn extract_to_new_file_preserves_unsaved_source_and_has_atomic_undo_redo() {
     let (root, paths) = setup();
     let dest = root.0.join("moved.rs");
-    let mut active = editor(&paths[0]); let mut other = empty();
+    let mut active = editor(&paths[0]);
+    let mut other = empty();
     active.document.move_cursor(active.document.len()).unwrap();
     active.insert_text("// unsaved\n").unwrap();
     let before = text(&active);
-    let doc = lsp::Document { path: paths[0].canonicalize().unwrap(), text: before.clone() };
+    let doc = lsp::Document {
+        path: paths[0].canonicalize().unwrap(),
+        text: before.clone(),
+    };
     let workspace = json!({"documentChanges":[
         {"kind":"create","uri":lsp::file_uri(&dest).unwrap()},
         {"textDocument":{"uri":lsp::file_uri(&dest).unwrap(),"version":null},"edits":[edit(0,0,"pub fn moved() {}\n")]},
         {"textDocument":{"uri":lsp::file_uri(&paths[0]).unwrap(),"version":null},"edits":[edit(0,3,"moved")]}
     ]});
-    let preview = prepare(&workspace,&root.0,&[doc],&HashMap::new(),SystemTime::now()).unwrap();
+    let preview = prepare(
+        &workspace,
+        &root.0,
+        &[doc],
+        &HashMap::new(),
+        SystemTime::now(),
+    )
+    .unwrap();
     assert!(!dest.exists());
-    apply(Arc::new(preview),&mut active,&mut other).unwrap();
-    assert_eq!(text(&active),"moved();\n// unsaved\n");
-    assert_eq!(fs::read_to_string(&paths[0]).unwrap(),"old();\n");
-    assert_eq!(fs::read_to_string(&dest).unwrap(),"pub fn moved() {}\n");
-    history(&mut active,&mut other,false).unwrap();
-    assert!(!dest.exists()); assert_eq!(text(&active),before);
-    history(&mut active,&mut other,true).unwrap();
-    assert!(dest.exists()); assert!(text(&active).starts_with("moved"));
-    fs::write(&dest,"external change").unwrap();
-    assert!(history(&mut active,&mut other,false).is_err());
+    apply(Arc::new(preview), &mut active, &mut other).unwrap();
+    assert_eq!(text(&active), "moved();\n// unsaved\n");
+    assert_eq!(fs::read_to_string(&paths[0]).unwrap(), "old();\n");
+    assert_eq!(fs::read_to_string(&dest).unwrap(), "pub fn moved() {}\n");
+    history(&mut active, &mut other, false).unwrap();
+    assert!(!dest.exists());
+    assert_eq!(text(&active), before);
+    history(&mut active, &mut other, true).unwrap();
+    assert!(dest.exists());
+    assert!(text(&active).starts_with("moved"));
+    fs::write(&dest, "external change").unwrap();
+    assert!(history(&mut active, &mut other, false).is_err());
     assert!(text(&active).starts_with("moved"));
 }
 
@@ -301,80 +313,145 @@ fn extract_to_new_file_preserves_unsaved_source_and_has_atomic_undo_redo() {
 fn moving_an_open_file_preserves_dirty_text_and_reverses_paths() {
     let (root, paths) = setup();
     let dest = root.0.join("renamed.rs");
-    let mut active = editor(&paths[0]); let mut other = empty();
+    let mut active = editor(&paths[0]);
+    let mut other = empty();
     active.insert_text("// draft\n").unwrap();
     let before = text(&active);
     let workspace = json!({"documentChanges":[{"kind":"rename",
         "oldUri":lsp::file_uri(&paths[0]).unwrap(),"newUri":lsp::file_uri(&dest).unwrap()}]});
-    let preview = prepare(&workspace,&root.0,&[lsp::Document {path:paths[0].canonicalize().unwrap(),text:before.clone()}],
-        &HashMap::new(),SystemTime::now()).unwrap();
-    apply(Arc::new(preview),&mut active,&mut other).unwrap();
-    assert!(!paths[0].exists()); assert_eq!(active.path.as_ref().unwrap(),&dest.canonicalize().unwrap());
-    assert_eq!(text(&active),before); assert!(active.dirty);
-    assert_eq!(fs::read_to_string(&dest).unwrap(),"old();\n", "moving must not silently save a dirty buffer");
-    history(&mut active,&mut other,false).unwrap();
-    assert!(paths[0].exists()); assert!(!dest.exists()); assert_eq!(text(&active),before);
-    history(&mut active,&mut other,true).unwrap(); assert!(dest.exists());
+    let preview = prepare(
+        &workspace,
+        &root.0,
+        &[lsp::Document {
+            path: paths[0].canonicalize().unwrap(),
+            text: before.clone(),
+        }],
+        &HashMap::new(),
+        SystemTime::now(),
+    )
+    .unwrap();
+    apply(Arc::new(preview), &mut active, &mut other).unwrap();
+    assert!(!paths[0].exists());
+    assert_eq!(
+        active.path().as_ref().unwrap(),
+        &dest.canonicalize().unwrap()
+    );
+    assert_eq!(text(&active), before);
+    assert!(active.is_dirty());
+    assert_eq!(
+        fs::read_to_string(&dest).unwrap(),
+        "old();\n",
+        "moving must not silently save a dirty buffer"
+    );
+    history(&mut active, &mut other, false).unwrap();
+    assert!(paths[0].exists());
+    assert!(!dest.exists());
+    assert_eq!(text(&active), before);
+    history(&mut active, &mut other, true).unwrap();
+    assert!(dest.exists());
 }
 
 #[test]
 fn resource_preview_refuses_collisions_and_stale_disk_without_partial_apply() {
-    let (root, paths) = setup(); let dest=root.0.join("new.rs");
-    let make = || json!({"documentChanges":[
-        {"kind":"create","uri":lsp::file_uri(&dest).unwrap()},
-        {"textDocument":{"uri":lsp::file_uri(&paths[0]).unwrap(),"version":null},"edits":[edit(0,3,"new")]}
-    ]});
-    let preview=prepare(&make(),&root.0,&[],&HashMap::new(),SystemTime::now()).unwrap();
-    fs::write(&dest,"someone else").unwrap();
-    assert!(apply(Arc::new(preview),&mut empty(),&mut empty()).is_err());
-    assert_eq!(fs::read_to_string(&paths[0]).unwrap(),"old();\n");
-    assert!(prepare(&make(),&root.0,&[],&HashMap::new(),SystemTime::now()).is_err());
-    let outside=root.0.parent().unwrap().join("potyi-outside-refactor.rs");
-    assert!(prepare(&json!({"documentChanges":[{"kind":"create","uri":lsp::file_uri(&outside).unwrap()}]}),
-        &root.0,&[],&HashMap::new(),SystemTime::now()).is_err());
+    let (root, paths) = setup();
+    let dest = root.0.join("new.rs");
+    let make = || {
+        json!({"documentChanges":[
+            {"kind":"create","uri":lsp::file_uri(&dest).unwrap()},
+            {"textDocument":{"uri":lsp::file_uri(&paths[0]).unwrap(),"version":null},"edits":[edit(0,3,"new")]}
+        ]})
+    };
+    let preview = prepare(&make(), &root.0, &[], &HashMap::new(), SystemTime::now()).unwrap();
+    fs::write(&dest, "someone else").unwrap();
+    assert!(apply(Arc::new(preview), &mut empty(), &mut empty()).is_err());
+    assert_eq!(fs::read_to_string(&paths[0]).unwrap(), "old();\n");
+    assert!(prepare(&make(), &root.0, &[], &HashMap::new(), SystemTime::now()).is_err());
+    let outside = root.0.parent().unwrap().join("potyi-outside-refactor.rs");
+    assert!(
+        prepare(
+            &json!({"documentChanges":[{"kind":"create","uri":lsp::file_uri(&outside).unwrap()}]}),
+            &root.0,
+            &[],
+            &HashMap::new(),
+            SystemTime::now()
+        )
+        .is_err()
+    );
 }
 
 #[test]
 fn deleting_open_file_keeps_draft_and_undo_restores_file_and_path() {
-    let (root, paths) = setup(); let mut active = editor(&paths[0]); let mut other = empty();
-    active.insert_text("draft ").unwrap(); let before = text(&active);
-    let preview = prepare(&json!({"documentChanges":[{"kind":"delete","uri":lsp::file_uri(&paths[0]).unwrap()}]}),
-        &root.0,&[lsp::Document {path:paths[0].clone(),text:before.clone()}],&HashMap::new(),SystemTime::now()).unwrap();
-    apply(Arc::new(preview),&mut active,&mut other).unwrap();
-    assert!(!paths[0].exists()); assert!(active.path.is_none()); assert!(active.dirty); assert_eq!(text(&active),before);
-    assert_eq!(recent_disk_changes(&active,false)[0].1,3);
-    history(&mut active,&mut other,false).unwrap();
-    assert!(active.path.is_some()); assert_eq!(fs::read_to_string(&paths[0]).unwrap(),"old();\n"); assert_eq!(text(&active),before);
-    assert_eq!(recent_disk_changes(&active,true)[0].1,1);
-    history(&mut active,&mut other,true).unwrap(); assert!(!paths[0].exists());
+    let (root, paths) = setup();
+    let mut active = editor(&paths[0]);
+    let mut other = empty();
+    active.insert_text("draft ").unwrap();
+    let before = text(&active);
+    let preview = prepare(
+        &json!({"documentChanges":[{"kind":"delete","uri":lsp::file_uri(&paths[0]).unwrap()}]}),
+        &root.0,
+        &[lsp::Document {
+            path: paths[0].clone(),
+            text: before.clone(),
+        }],
+        &HashMap::new(),
+        SystemTime::now(),
+    )
+    .unwrap();
+    apply(Arc::new(preview), &mut active, &mut other).unwrap();
+    assert!(!paths[0].exists());
+    assert!(active.path().is_none());
+    assert!(active.is_dirty());
+    assert_eq!(text(&active), before);
+    assert_eq!(recent_disk_changes(&active, false)[0].1, 3);
+    history(&mut active, &mut other, false).unwrap();
+    assert!(active.path().is_some());
+    assert_eq!(fs::read_to_string(&paths[0]).unwrap(), "old();\n");
+    assert_eq!(text(&active), before);
+    assert_eq!(recent_disk_changes(&active, true)[0].1, 1);
+    history(&mut active, &mut other, true).unwrap();
+    assert!(!paths[0].exists());
 }
 
 #[test]
 fn annotated_edits_are_reviewed_and_unknown_annotations_and_snippets_rejected() {
-    let (root, paths) = setup(); let uri=lsp::file_uri(&paths[0]).unwrap();
-    let mut replacement=edit(0,3,"new"); replacement["annotationId"]=json!("note");
-    let mut workspace=json!({"changes":{uri.clone():[replacement]},"changeAnnotations":{"note":{"label":"Changes public API","needsConfirmation":true}}});
-    let prepare_it = |w: &Value| prepare(w,&root.0,&[],&HashMap::new(),SystemTime::now());
-    assert!(prepare_it(&workspace).unwrap().files[0].preview.contains("Changes public API"));
-    workspace["changeAnnotations"]=json!({}); assert!(prepare_it(&workspace).is_err());
-    workspace["changeAnnotations"]=json!({"note":{"label":"Note"}});
-    workspace["changes"][&uri][0]["insertTextFormat"]=json!(2); assert!(prepare_it(&workspace).is_err());
+    let (root, paths) = setup();
+    let uri = lsp::file_uri(&paths[0]).unwrap();
+    let mut replacement = edit(0, 3, "new");
+    replacement["annotationId"] = json!("note");
+    let mut workspace = json!({"changes":{uri.clone():[replacement]},"changeAnnotations":{"note":{"label":"Changes public API","needsConfirmation":true}}});
+    let prepare_it = |w: &Value| prepare(w, &root.0, &[], &HashMap::new(), SystemTime::now());
+    assert!(
+        prepare_it(&workspace).unwrap().files[0]
+            .preview
+            .contains("Changes public API")
+    );
+    workspace["changeAnnotations"] = json!({});
+    assert!(prepare_it(&workspace).is_err());
+    workspace["changeAnnotations"] = json!({"note":{"label":"Note"}});
+    workspace["changes"][&uri][0]["insertTextFormat"] = json!(2);
+    assert!(prepare_it(&workspace).is_err());
 }
 
 #[test]
 fn resource_undo_waits_for_newer_edits_in_both_copies_of_an_open_buffer() {
-    let (root, paths) = setup(); let mut active=editor(&paths[0]); let mut other=editor(&paths[0]);
-    let dest=root.0.join("new.rs");
+    let (root, paths) = setup();
+    let mut active = editor(&paths[0]);
+    let mut other = editor(&paths[0]);
+    let dest = root.0.join("new.rs");
     let preview=prepare(&json!({"documentChanges":[
         {"kind":"create","uri":lsp::file_uri(&dest).unwrap()},
         {"textDocument":{"uri":lsp::file_uri(&paths[0]).unwrap(),"version":null},"edits":[edit(0,3,"new")]}
     ]}),&root.0,&[lsp::Document {path:paths[0].clone(),text:text(&active)}],&HashMap::new(),SystemTime::now()).unwrap();
-    apply(Arc::new(preview),&mut active,&mut other).unwrap();
+    apply(Arc::new(preview), &mut active, &mut other).unwrap();
     other.insert_text("later ").unwrap();
-    assert!(history(&mut active,&mut other,false).is_err());
-    assert!(dest.exists()); assert_eq!(text(&active),"new();\n");
-    other.undo().unwrap(); history(&mut active,&mut other,false).unwrap();
-    assert!(!dest.exists()); assert_eq!(text(&active),"old();\n"); assert_eq!(text(&other),"old();\n");
+    assert!(history(&mut active, &mut other, false).is_err());
+    assert!(dest.exists());
+    assert_eq!(text(&active), "new();\n");
+    other.undo().unwrap();
+    history(&mut active, &mut other, false).unwrap();
+    assert!(!dest.exists());
+    assert_eq!(text(&active), "old();\n");
+    assert_eq!(text(&other), "old();\n");
 }
 
 #[test]
@@ -405,8 +482,8 @@ fn shared_views_save_as_together_and_replacing_one_view_keeps_the_other_editable
     let destination = root.0.join("saved.rs");
     b.save_as(destination.to_str().unwrap(), false).unwrap();
     Editor::synchronize_views(&mut b, &mut a).unwrap();
-    assert_eq!(a.path, b.path);
-    assert!(!a.dirty && !b.dirty);
+    assert_eq!(a.path(), b.path());
+    assert!(!a.is_dirty() && !b.is_dirty());
     assert_eq!(fs::read_to_string(&destination).unwrap(), "draft old();\n");
     a.open(paths[1].to_str().unwrap()).unwrap();
     assert!(!a.shares_document_with(&b));
@@ -426,16 +503,24 @@ fn moving_a_file_updates_both_shared_views_and_undo_restores_both_paths() {
     a.insert_text("draft ").unwrap();
     let mut b = a.duplicate_view();
     let before = text(&a);
-    let preview = prepare(&json!({"documentChanges":[{"kind":"rename",
+    let preview = prepare(
+        &json!({"documentChanges":[{"kind":"rename",
         "oldUri":lsp::file_uri(&paths[0]).unwrap(),"newUri":lsp::file_uri(&dest).unwrap()}]}),
-        &root.0, &[lsp::Document { path: paths[0].clone(), text: before.clone() }],
-        &HashMap::new(), SystemTime::now()).unwrap();
+        &root.0,
+        &[lsp::Document {
+            path: paths[0].clone(),
+            text: before.clone(),
+        }],
+        &HashMap::new(),
+        SystemTime::now(),
+    )
+    .unwrap();
     apply(Arc::new(preview), &mut a, &mut b).unwrap();
-    assert_eq!(a.path.as_ref(), Some(&dest.canonicalize().unwrap()));
-    assert_eq!(a.path, b.path);
+    assert_eq!(a.path().as_ref(), Some(&dest.canonicalize().unwrap()));
+    assert_eq!(a.path(), b.path());
     assert_eq!(text(&a), before);
     assert_eq!(text(&b), before);
     assert!(history(&mut b, &mut a, false).unwrap());
-    assert_eq!(a.path.as_ref(), Some(&paths[0].canonicalize().unwrap()));
-    assert_eq!(a.path, b.path);
+    assert_eq!(a.path().as_ref(), Some(&paths[0].canonicalize().unwrap()));
+    assert_eq!(a.path(), b.path());
 }

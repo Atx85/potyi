@@ -1,0 +1,17 @@
+{
+  "algorithm": "sha256-relative-path-nul-file-v1",
+  "source_sha256": "ab82a877b99e74df9b88d1c3b4721e38137e0077f7b0312757ea48ab43e73623",
+  "source_before_sha256": "ab82a877b99e74df9b88d1c3b4721e38137e0077f7b0312757ea48ab43e73623",
+  "source_after_sha256": "ab82a877b99e74df9b88d1c3b4721e38137e0077f7b0312757ea48ab43e73623",
+  "binary_path": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-bin/potyi-tests",
+  "binary_sha256": "a9a49cf1023f18e613a6c9a35a8fe4d43922da59c12c7a0bb3beef53315a2419",
+  "helper_path": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-bin/potyi",
+  "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+  "source_root": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline",
+  "profile": "release",
+  "target": "x86_64-apple-darwin",
+  "command": [
+    "cargo build --offline --locked --release",
+    "cargo test --offline --locked --release --no-run"
+  ]
+}

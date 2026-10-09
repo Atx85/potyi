@@ -35,7 +35,7 @@ impl LspUi {
 
     pub fn validate_completion(&mut self, editor: &Editor, other: &Editor, visible: bool) {
         let valid = visible
-            && !editor.read_only
+            && !editor.is_read_only()
             && editor.document.secondary_cursors.is_empty()
             && self.completion.as_ref().is_none_or(|m| {
                 m.guard.matches_document(editor, other) && m.anchor == editor.document.cursor.anchor
@@ -61,9 +61,9 @@ impl LspUi {
         self.dismiss_completion();
         if !matches!(text, "." | ":" | ">")
             || bar.is_active()
-            || editor.read_only
+            || editor.is_read_only()
             || !editor.document.secondary_cursors.is_empty()
-            || editor.path.is_none()
+            || editor.path().is_none()
             || editor.document.len() > lsp::MAX_DOCUMENT_BYTES
             || self.pending.is_some()
         {
@@ -75,7 +75,7 @@ impl LspUi {
         if !self.is_enabled(config.enabled) {
             return;
         }
-        let Some(server) = editor.path.as_deref().and_then(|p| config.server_for(p)) else {
+        let Some(server) = editor.path().as_deref().and_then(|p| config.server_for(p)) else {
             return;
         };
         if !member_trigger(text, &server.language_id, &editor.document) {
@@ -188,7 +188,7 @@ impl LspUi {
         let anchor = self.pending_anchor.take();
         let mut outcome = CommandOutcome::default();
         if bar.is_active()
-            || editor.read_only
+            || editor.is_read_only()
             || !pending.matches_document(editor, other)
             || anchor != Some(editor.document.cursor.anchor)
             || !editor.document.secondary_cursors.is_empty()
@@ -215,7 +215,7 @@ impl LspUi {
                     editor.document.cursor.desired_column = None;
                     let after = editor.cursor_state();
                     if changed {
-                        if let Some(entry) = editor.undo_stack.last_mut() {
+                        if let Some(mut entry) = editor.undo_stack.last_mut() {
                             entry.after = after;
                         }
                     }

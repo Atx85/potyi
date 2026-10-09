@@ -1,0 +1,425 @@
+warning: unused import: `Row`
+ --> src/experimental_terminal/pane.rs:4:44
+  |
+4 |     browser::{BrowseAction, Browser, Kind, Row},
+  |                                            ^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `handle_search_key` is never used
+  --> src/app/search.rs:17:15
+   |
+17 | pub(crate) fn handle_search_key(
+   |               ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: enum `SearchKeyResult` is never used
+   --> src/app/search.rs:129:17
+    |
+129 | pub(crate) enum SearchKeyResult {
+    |                 ^^^^^^^^^^^^^^^
+
+warning: function `replacement_requires_cursor_refresh` is never used
+   --> src/app/search.rs:137:15
+    |
+137 | pub(crate) fn replacement_requires_cursor_refresh(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `is_empty` is never used
+  --> src/editor/document_state.rs:43:19
+   |
+26 | impl HistoryStack {
+   | ----------------- method in this implementation
+...
+43 |     pub(crate) fn is_empty(&self) -> bool {
+   |                   ^^^^^^^^
+
+warning: function `setup_script` is never used
+   --> src/experimental_terminal/bridge.rs:424:15
+    |
+424 | pub(crate) fn setup_script() -> String {
+    |               ^^^^^^^^^^^^
+
+warning: constant `MAX_READ_ROWS` is never used
+  --> src/experimental_terminal/browser.rs:29:7
+   |
+29 | const MAX_READ_ROWS: usize = 256;
+   |       ^^^^^^^^^^^^^
+
+warning: associated items `new`, `open_with_transcript`, `len`, `rows`, `refresh`, and `start` are never used
+   --> src/experimental_terminal/browser.rs:122:19
+    |
+119 | impl Browser {
+    | ------------ associated items in this implementation
+...
+122 |     pub(crate) fn new(directory: &Path, wake: Wake) -> io::Result<Self> {
+    |                   ^^^
+...
+126 |     pub(crate) fn open_with_transcript(
+    |                   ^^^^^^^^^^^^^^^^^^^^
+...
+197 |     pub(crate) fn len(&self) -> usize {
+    |                   ^^^
+...
+233 |     pub(crate) fn rows(&mut self, start: usize, count: usize) -> io::Result<Vec<Row>> {
+    |                   ^^^^
+...
+315 |     pub(crate) fn refresh(&mut self) -> io::Result<()> {
+    |                   ^^^^^^^
+...
+563 |     fn start(&mut self, work: Work) -> io::Result<()> {
+    |        ^^^^^
+
+warning: constant `MAX_READ_ROWS` is never used
+  --> src/experimental_terminal/transcript.rs:17:7
+   |
+17 | const MAX_READ_ROWS: usize = 256;
+   |       ^^^^^^^^^^^^^
+
+warning: methods `take_error` and `read_rows` are never used
+   --> src/experimental_terminal/transcript.rs:100:19
+    |
+ 64 | impl Transcript {
+    | --------------- methods in this implementation
+...
+100 |     pub(crate) fn take_error(&mut self) -> Option<String> {
+    |                   ^^^^^^^^^^
+...
+405 |     pub(crate) fn read_rows(&mut self, start: usize, count: usize) -> io::Result<Vec<Record>> {
+    |                   ^^^^^^^^^
+
+warning: function `record_size` is never used
+   --> src/experimental_terminal/transcript.rs:453:4
+    |
+453 | fn record_size(record: &Record) -> usize {
+    |    ^^^^^^^^^^^
+
+warning: method `freeze` is never used
+   --> src/experimental_terminal/output_source.rs:161:19
+    |
+134 | impl Source<'_> {
+    | --------------- method in this implementation
+...
+161 |     pub(super) fn freeze(&self, cancelled: Arc<AtomicBool>) -> FrozenSource {
+    |                   ^^^^^^
+
+warning: associated function `start` is never used
+  --> src/experimental_terminal/copy_job.rs:23:19
+   |
+22 | impl CopyJob {
+   | ------------ associated function in this implementation
+23 |     pub(super) fn start(source: &Source<'_>, selection: &Selection, all: bool, yank: bool, wake: Wake) -> io::Result<Self> {
+   |                   ^^^^^
+
+warning: variant `Apply` is never constructed
+  --> src/experimental_terminal/navigation_job.rs:14:5
+   |
+12 | pub(super) enum Work {
+   |                 ---- variant in this enum
+13 |     Motion(Motion, bool),
+14 |     Apply(Anchor, bool),
+   |     ^^^^^
+   |
+   = note: `Work` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: associated function `start` is never used
+  --> src/experimental_terminal/navigation_job.rs:31:19
+   |
+30 | impl NavigationJob {
+   | ------------------ associated function in this implementation
+31 |     pub(super) fn start(source: &Source<'_>, selection: &Selection, work: Work, wake: Wake) -> io::Result<Self> {
+   |                   ^^^^^
+
+warning: method `prompt_view` is never used
+   --> src/experimental_terminal/pane.rs:294:19
+    |
+101 | impl Pane {
+    | --------- method in this implementation
+...
+294 |     pub(crate) fn prompt_view(&self, columns: usize) -> (String, usize) {
+    |                   ^^^^^^^^^^^
+
+warning: associated items `open_with_environment`, `spawn`, `screen`, and `scroll` are never used
+    --> src/experimental_terminal/session.rs:354:19
+     |
+ 323 | impl Session {
+     | ------------ associated items in this implementation
+...
+ 354 |     pub(super) fn open_with_environment(
+     |                   ^^^^^^^^^^^^^^^^^^^^^
+...
+ 622 |     fn spawn(
+     |        ^^^^^
+...
+1103 |     pub(super) fn screen(&self) -> &vt100::Screen {
+     |                   ^^^^^^
+...
+1255 |     pub(super) fn scroll(&mut self, rows: isize) {
+     |                   ^^^^^^
+
+warning: method `anchor_visual_column` is never used
+   --> src/experimental_terminal/layout.rs:191:19
+    |
+138 | impl Fragment {
+    | ------------- method in this implementation
+...
+191 |     pub(crate) fn anchor_visual_column(&self, anchor: Anchor) -> Option<u16> {
+    |                   ^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+   --> src/experimental_terminal/layout.rs:257:8
+    |
+256 | impl Loaded {
+    | ----------- associated function in this implementation
+257 |     fn new(record: Record) -> io::Result<Self> {
+    |        ^^^
+
+warning: method `cached_start` is never used
+    --> src/experimental_terminal/layout.rs:1888:19
+     |
+1133 | impl Layout {
+     | ----------- method in this implementation
+...
+1888 |     pub(crate) fn cached_start(&self) -> Option<usize> {
+     |                   ^^^^^^^^^^^^
+
+warning: method `pending` is never used
+   --> src/experimental_terminal/diagnostic_links.rs:134:19
+    |
+ 65 | impl Job {
+    | -------- method in this implementation
+...
+134 |     pub(super) fn pending(&self) -> bool {
+    |                   ^^^^^^^
+
+warning: methods `line_text_from_start`, `cursor_line_column`, and `replace_ranges` are never used
+    --> src/piece_table.rs:1348:12
+     |
+ 374 | impl Document {
+     | ------------- methods in this implementation
+...
+1348 |     pub fn line_text_from_start(
+     |            ^^^^^^^^^^^^^^^^^^^^
+...
+1748 |     pub fn cursor_line_column(
+     |            ^^^^^^^^^^^^^^^^^^
+...
+3291 |     pub(crate) fn replace_ranges<I>(
+     |                   ^^^^^^^^^^^^^^
+
+warning: method `is_empty` is never used
+  --> src/piece_table/line_index.rs:57:19
+   |
+39 | impl LineIndex {
+   | -------------- method in this implementation
+...
+57 |     pub(super) fn is_empty(&self) -> bool {
+   |                   ^^^^^^^^
+
+warning: multiple methods are never used
+   --> src/piece_table/view.rs:72:19
+    |
+ 42 | impl PieceTable {
+    | --------------- methods in this implementation
+...
+ 72 |     pub(crate) fn pieces(&self) -> Ref<'_, [Piece]> {
+    |                   ^^^^^^
+...
+115 |     pub(crate) fn refresh_view_from(&mut self, source: &Self) -> io::Result<()> {
+    |                   ^^^^^^^^^^^^^^^^^
+...
+121 |     pub fn cursor_line_column(&self) -> io::Result<(usize, usize)> {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+133 |     pub fn debug(&mut self) {
+    |            ^^^^^
+...
+227 |     pub fn line_text_from_start(&mut self, start: usize) -> io::Result<(String, usize)> {
+    |            ^^^^^^^^^^^^^^^^^^^^
+...
+357 |     pub(crate) fn replace_ranges<I>(
+    |                   ^^^^^^^^^^^^^^
+...
+451 |     pub(crate) fn enable_recovery_at(&mut self, root: PathBuf, source: Option<&Path>) {
+    |                   ^^^^^^^^^^^^^^^^^^
+
+warning: associated items `visual_column_for_text`, `visual_x_for_column`, `logical_column_for_document_x`, and `search_bar_reserved_height` are never used
+    --> src/renderer.rs:632:8
+     |
+ 195 | impl<'a> Renderer<'a> {
+     | --------------------- associated items in this implementation
+...
+ 632 |     fn visual_column_for_text(
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+ 675 |     fn visual_x_for_column(
+     |        ^^^^^^^^^^^^^^^^^^^
+...
+ 690 |     fn logical_column_for_document_x(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+1816 |     fn search_bar_reserved_height(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `experimental_send` is never used
+   --> src/renderer/experimental.rs:223:19
+    |
+  9 | impl<'a> Renderer<'a> {
+    | --------------------- method in this implementation
+...
+223 |     pub(crate) fn experimental_send(&mut self, command: &str) -> Result<(), String> {
+    |                   ^^^^^^^^^^^^^^^^^
+
+warning: field `search_origin` is never read
+  --> src/search.rs:68:5
+   |
+65 | pub struct Searcher {
+   |            -------- field in this struct
+...
+68 |     search_origin: usize,
+   |     ^^^^^^^^^^^^^
+
+warning: methods `is_empty`, `len`, `visit_non_overlapping_matches`, `find_forward`, and `find_backward` are never used
+   --> src/search.rs:130:12
+    |
+ 72 | impl Searcher {
+    | ------------- methods in this implementation
+...
+130 |     pub fn is_empty(&self) -> bool {
+    |            ^^^^^^^^
+...
+135 |     pub fn len(&self) -> usize {
+    |            ^^^
+...
+148 |     pub fn visit_non_overlapping_matches<F>(
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+382 |     pub fn find_forward(
+    |            ^^^^^^^^^^^^
+...
+554 | pub fn find_backward(
+    |        ^^^^^^^^^^^^^
+
+warning: multiple methods are never used
+   --> src/search_ui.rs:126:12
+    |
+ 87 | impl SearchUi {
+    | ------------- methods in this implementation
+...
+126 |     pub fn panel_mode(&self) -> SearchPanelMode {
+    |            ^^^^^^^^^^
+...
+187 |     pub fn set_mode(
+    |            ^^^^^^^^
+...
+212 |     pub fn cycle_mode(
+    |            ^^^^^^^^^^
+...
+240 |     pub fn open(
+    |            ^^^^
+...
+272 |     pub fn open_replace(
+    |            ^^^^^^^^^^^^
+...
+402 |     pub fn focus_next_field(&mut self, _backwards: bool) {
+    |            ^^^^^^^^^^^^^^^^
+...
+423 |     pub fn set_query(
+    |            ^^^^^^^^^
+...
+451 |     pub fn insert_text(
+    |            ^^^^^^^^^^^
+...
+487 |     pub fn backspace(
+    |            ^^^^^^^^^
+...
+524 |     pub fn delete(
+    |            ^^^^^^
+...
+565 |     pub fn move_left(&mut self) {
+    |            ^^^^^^^^^
+...
+577 |     pub fn move_right(&mut self) {
+    |            ^^^^^^^^^^
+...
+591 |     pub fn move_home(&mut self) {
+    |            ^^^^^^^^^
+...
+597 |     pub fn move_end(&mut self) {
+    |            ^^^^^^^^
+...
+607 |     pub fn insert_focused_text(
+    |            ^^^^^^^^^^^^^^^^^^^
+...
+643 |     pub fn backspace_focused(
+    |            ^^^^^^^^^^^^^^^^^
+...
+678 |     pub fn delete_focused(
+    |            ^^^^^^^^^^^^^^
+...
+711 |     pub fn move_focused_left(&mut self) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+730 |     pub fn move_focused_right(&mut self) {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+749 |     pub fn move_focused_home(&mut self) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+764 |     pub fn move_focused_end(&mut self) {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: function `previous_char_boundary` is never used
+    --> src/search_ui.rs:1132:4
+     |
+1132 | fn previous_char_boundary(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `next_char_boundary` is never used
+    --> src/search_ui.rs:1152:4
+     |
+1152 | fn next_char_boundary(
+     |    ^^^^^^^^^^^^^^^^^^
+
+warning: field `name` is never read
+  --> src/syntax.rs:41:9
+   |
+40 | pub struct SyntaxDefinition {
+   |            ---------------- field in this struct
+41 |     pub name: String,
+   |         ^^^^
+   |
+   = note: `SyntaxDefinition` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `pattern` is never read
+  --> src/syntax.rs:49:9
+   |
+47 | pub struct SyntaxRule {
+   |            ---------- field in this struct
+48 |     pub name: String,
+49 |     pub pattern: String,
+   |         ^^^^^^^
+   |
+   = note: `SyntaxRule` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: method `output_text` is never used
+   --> src/terminal.rs:319:12
+    |
+194 | impl Terminal {
+    | ------------- method in this implementation
+...
+319 |     pub fn output_text(&self) -> io::Result<String> {
+    |            ^^^^^^^^^^^
+
+warning: method `begin_output_drag` is never used
+  --> src/terminal/selection.rs:74:12
+   |
+44 | impl Terminal {
+   | ------------- method in this implementation
+...
+74 |     pub fn begin_output_drag(
+   |            ^^^^^^^^^^^^^^^^^
+
+warning: `potyi` (bin "potyi") generated 35 warnings (run `cargo fix --bin "potyi" -p potyi` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.50s

@@ -2,6 +2,10 @@
 //! Ordered SDL input routing. Handlers borrow live state without copying
 //! documents or histories; Continue and Quit replace the former loop jumps.
 use super::*;
+mod command_outcome;
+use command_outcome::{CommandOutcomeContext, CommandSource};
+mod contexts;
+use contexts::{EditContext, HistoryContext, TextContext};
 mod drop_file;
 mod keyboard;
 pub(crate) use keyboard::PaneKeys;
@@ -75,19 +79,40 @@ pub(super) fn dispatch(
     coordinates_converted: bool,
 ) -> Result<EventFlow, String> {
     let mut context = context;
-    if matches!(event, Event::MouseButtonDown { .. } | Event::DropFile { .. }
-        | Event::Window { win_event: WindowEvent::FocusLost, .. }) {
+    if matches!(
+        event,
+        Event::MouseButtonDown { .. }
+            | Event::DropFile { .. }
+            | Event::Window {
+                win_event: WindowEvent::FocusLost,
+                ..
+            }
+    ) {
         context.pane_keys.cancel();
     }
-    if matches!(event, Event::KeyDown { .. } | Event::TextInput { .. } | Event::DropFile { .. }
-        | Event::Window { win_event: WindowEvent::FocusLost, .. })
-    {
+    if matches!(
+        event,
+        Event::KeyDown { .. }
+            | Event::TextInput { .. }
+            | Event::DropFile { .. }
+            | Event::Window {
+                win_event: WindowEvent::FocusLost,
+                ..
+            }
+    ) {
         context.mouse_state.cancel_drag();
         context.terminal.cancel_output_drag();
     }
-    synchronize_pane_views(context.editor, context.other_editor, context.renderer).map_err(|e| e.to_string())?;
+    synchronize_pane_views(context.editor, context.other_editor, context.renderer)
+        .map_err(|e| e.to_string())?;
+    if super::experimental::pointer_and_text(context.reborrow(), &event, coordinates_converted) {
+        synchronize_pane_views(context.editor, context.other_editor, context.renderer)
+            .map_err(|e| e.to_string())?;
+        return Ok(EventFlow::Continue);
+    }
     let result = dispatch_event(context.reborrow(), event, coordinates_converted);
-    synchronize_pane_views(context.editor, context.other_editor, context.renderer).map_err(|e| e.to_string())?;
+    synchronize_pane_views(context.editor, context.other_editor, context.renderer)
+        .map_err(|e| e.to_string())?;
     result
 }
 
@@ -104,19 +129,24 @@ fn dispatch_event(
             repeat,
             ..
         } => keyboard::key(context, key, keymod, repeat),
-        Event::TextInput { text, .. } => text::text(context, &text),
+        Event::TextInput { text, .. } => text::text(context.into(), &text),
         event @ (Event::MouseButtonDown { .. }
         | Event::MouseButtonUp { .. }
         | Event::MouseMotion { .. }
-        | Event::MouseWheel { .. }) => mouse::mouse(context, event, coordinates_converted),
+        | Event::MouseWheel { .. }) => mouse::mouse(context.into(), event, coordinates_converted),
         Event::Quit { .. } => Ok(EventFlow::Quit),
         Event::Window {
-            win_event: WindowEvent::MouseLeave | WindowEvent::FocusLost
-                | WindowEvent::Hidden | WindowEvent::Minimized,
+            win_event:
+                WindowEvent::MouseLeave
+                | WindowEvent::FocusLost
+                | WindowEvent::Hidden
+                | WindowEvent::Minimized,
             ..
         } => {
             context.mouse_state.reset_cursor();
-            *context.dirty |= context.renderer.set_window_control_hover(WindowControl::None);
+            *context.dirty |= context
+                .renderer
+                .set_window_control_hover(WindowControl::None);
             Ok(EventFlow::Continue)
         }
         Event::Window {
@@ -133,7 +163,9 @@ fn dispatch_event(
             display_event: DisplayEvent::ContentScaleChanged,
             ..
         } => {
-            context.renderer.set_window_control_hover(WindowControl::None);
+            context
+                .renderer
+                .set_window_control_hover(WindowControl::None);
             context.renderer.update_window_size()?;
             *context.dirty = true;
             Ok(EventFlow::Continue)

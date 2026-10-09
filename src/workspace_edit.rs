@@ -77,7 +77,9 @@ impl PreparedRename {
             .files
             .iter()
             .map(|f| {
-                if let Some(operation) = &f.operation { return operation.clone(); }
+                if let Some(operation) = &f.operation {
+                    return operation.clone();
+                }
                 format!(
                     "{} · {} change(s) · {}",
                     f.path.strip_prefix(&self.root).unwrap_or(&f.path).display(),
@@ -145,17 +147,31 @@ pub(crate) fn byte_position(text: &str, position: &Value) -> Result<usize, Strin
 }
 
 fn annotation_notes(edit: &Value) -> Result<String, String> {
-    let Some(raw) = edit.get("changeAnnotations") else { return Ok(String::new()); };
+    let Some(raw) = edit.get("changeAnnotations") else {
+        return Ok(String::new());
+    };
     let annotations = raw.as_object().ok_or("Invalid change annotations")?;
-    if annotations.len() > 64 { return Err("Too many change annotations".into()); }
+    if annotations.len() > 64 {
+        return Err("Too many change annotations".into());
+    }
     let mut notes = String::new();
     for annotation in annotations.values() {
-        let label = annotation["label"].as_str().ok_or("Missing annotation label")?;
-        notes.push_str(&format!("\nServer note: {}", label.chars().take(240).collect::<String>()));
+        let label = annotation["label"]
+            .as_str()
+            .ok_or("Missing annotation label")?;
+        notes.push_str(&format!(
+            "\nServer note: {}",
+            label.chars().take(240).collect::<String>()
+        ));
         if let Some(description) = annotation["description"].as_str() {
-            notes.push_str(&format!(" — {}", description.chars().take(500).collect::<String>()));
+            notes.push_str(&format!(
+                " — {}",
+                description.chars().take(500).collect::<String>()
+            ));
         }
-        if annotation["needsConfirmation"] == true { notes.push_str(" (review before applying)"); }
+        if annotation["needsConfirmation"] == true {
+            notes.push_str(" (review before applying)");
+        }
     }
     Ok(notes)
 }
@@ -163,9 +179,14 @@ fn annotation_notes(edit: &Value) -> Result<String, String> {
 fn validate_edit_metadata(item: &Value, workspace: &Value) -> Result<(), String> {
     if let Some(id) = item.get("annotationId") {
         let id = id.as_str().ok_or("Invalid annotation ID")?;
-        if workspace["changeAnnotations"].get(id).is_none() { return Err("Unknown change annotation".into()); }
+        if workspace["changeAnnotations"].get(id).is_none() {
+            return Err("Unknown change annotation".into());
+        }
     }
-    if item.get("insertTextFormat").is_some_and(|v| v.as_u64() != Some(1)) {
+    if item
+        .get("insertTextFormat")
+        .is_some_and(|v| v.as_u64() != Some(1))
+    {
         return Err("Snippet edits are not supported".into());
     }
     Ok(())
@@ -178,7 +199,10 @@ pub(crate) fn prepare(
     versions: &HashMap<PathBuf, (String, i64)>,
     started: SystemTime,
 ) -> Result<PreparedRename, String> {
-    if edit["documentChanges"].as_array().is_some_and(|changes| changes.iter().any(|c| c.get("kind").is_some())) {
+    if edit["documentChanges"]
+        .as_array()
+        .is_some_and(|changes| changes.iter().any(|c| c.get("kind").is_some()))
+    {
         return resources::prepare(edit, root, documents, versions, started);
     }
     if edit.is_null() {
@@ -372,7 +396,7 @@ fn marker(entry: &HistoryEntry) -> Option<&Marker> {
 }
 fn matching(editor: &Editor, file: &FileChange) -> bool {
     editor
-        .path
+        .path()
         .as_ref()
         .and_then(|p| p.canonicalize().ok())
         .as_ref()
@@ -516,7 +540,9 @@ pub(crate) fn apply(
         Editor::synchronize_views(editor, other).map_err(|e| e.to_string())?;
         return result;
     }
-    if record.resources.is_some() { return resources::apply(record, editor, other); }
+    if record.resources.is_some() {
+        return resources::apply(record, editor, other);
+    }
     let mut writes = Vec::new();
     for file in &record.files {
         let expected = read(&file.before)?;
@@ -524,7 +550,7 @@ pub(crate) fn apply(
         for pane in [&*editor, &*other] {
             if matching(pane, file) {
                 opened = true;
-                if pane.read_only || content(pane)? != expected {
+                if pane.is_read_only() || content(pane)? != expected {
                     return Err(format!(
                         "Buffer changed or is read-only: {}",
                         file.path.display()
@@ -576,7 +602,7 @@ pub(crate) fn apply(
             after,
         });
         pane.redo_stack.clear();
-        pane.dirty = true;
+        pane.set_dirty(true);
     }
     if anchor {
         let cursor = editor.cursor_state();
@@ -602,10 +628,13 @@ pub(crate) fn recent_disk_changes(editor: &Editor, undone: bool) -> Vec<(PathBuf
         &editor.undo_stack
     };
     stack
+        .entries()
         .last()
         .and_then(marker)
         .map(|m| {
-            if let Some(plan) = &m.record.resources { return plan.paths(undone); }
+            if let Some(plan) = &m.record.resources {
+                return plan.paths(undone);
+            }
             m.record
                 .files
                 .iter()
@@ -630,10 +659,17 @@ pub(crate) fn history(editor: &mut Editor, other: &mut Editor, redo: bool) -> Re
     } else {
         &editor.undo_stack
     };
-    let Some(record) = stack.last().and_then(marker).map(|m| m.record.clone()) else {
+    let Some(record) = stack
+        .entries()
+        .last()
+        .and_then(marker)
+        .map(|m| m.record.clone())
+    else {
         return Ok(false);
     };
-    if record.resources.is_some() { return resources::history(record, editor, other, redo).map(|_| true); }
+    if record.resources.is_some() {
+        return resources::history(record, editor, other, redo).map(|_| true);
+    }
     let participates = |pane: &Editor| {
         let stack = if redo {
             &pane.redo_stack
@@ -641,6 +677,7 @@ pub(crate) fn history(editor: &mut Editor, other: &mut Editor, redo: bool) -> Re
             &pane.undo_stack
         };
         stack
+            .entries()
             .last()
             .and_then(marker)
             .is_some_and(|m| Arc::ptr_eq(&m.record, &record))
@@ -660,7 +697,7 @@ pub(crate) fn history(editor: &mut Editor, other: &mut Editor, redo: bool) -> Re
                 ));
             }
             for pane in opened {
-                if pane.read_only || !participates(pane) || content(pane)? != expected {
+                if pane.is_read_only() || !participates(pane) || content(pane)? != expected {
                     return Err(
                         "Undo newer edits in the other pane before undoing this rename".into(),
                     );
@@ -680,7 +717,7 @@ pub(crate) fn history(editor: &mut Editor, other: &mut Editor, redo: bool) -> Re
             )?);
         }
     }
-    if editor.read_only || (participates(other) && other.read_only) {
+    if editor.is_read_only() || (participates(other) && other.is_read_only()) {
         return Err("Cannot undo a rename in a read-only pane".into());
     }
     commit_disk(&writes, &record)?;
@@ -696,7 +733,7 @@ pub(crate) fn history(editor: &mut Editor, other: &mut Editor, redo: bool) -> Re
         if let HistoryKind::Workspace(m) = &mut entry.kind {
             if let Some(snapshot) = &mut m.local {
                 pane.document.swap_snapshot(snapshot);
-                pane.dirty = true;
+                pane.set_dirty(true);
             }
         }
         pane.restore_cursor(if redo {

@@ -89,8 +89,16 @@ impl LspUi {
         self.preview = None;
     }
 
-    pub fn start(&mut self, restart: bool, editor: &Editor, other: &Editor, bar: &mut CommandBar) -> Result<(), String> {
-        if restart { self.stop(); }
+    pub fn start(
+        &mut self,
+        restart: bool,
+        editor: &Editor,
+        other: &Editor,
+        bar: &mut CommandBar,
+    ) -> Result<(), String> {
+        if restart {
+            self.stop();
+        }
         self.enabled_override = Some(true);
         self.connection_result = None;
         self.completion_error = None;
@@ -100,23 +108,47 @@ impl LspUi {
                 bar.show_info("Connecting to the language server and loading the project…\nEscape closes this panel; connection continues. Use :lsp status to check progress.");
                 Ok(())
             }
-            Err(error) => { self.connection_result = Some(error.clone()); Err(error) }
+            Err(error) => {
+                self.connection_result = Some(error.clone());
+                Err(error)
+            }
         }
     }
 
-    fn is_enabled(&self, configured: bool) -> bool { self.enabled_override.unwrap_or(configured) }
-
-    pub fn setup(&mut self, install: bool, server: Option<&str>, editor: &Editor, bar: &mut CommandBar) -> Result<(), String> {
-        self.setup.start(install, server, editor.path.clone(), &self.events, bar)
+    fn is_enabled(&self, configured: bool) -> bool {
+        self.enabled_override.unwrap_or(configured)
     }
 
-    pub fn accept_setup(&mut self, event: crate::lsp_setup::Event, editor: &Editor, other: &Editor, bar: &mut CommandBar) {
-        if let Some(id) = self.setup.accept(event, bar, editor.path.as_deref()) {
-            if editor.path.as_deref().is_some_and(|path| {
-                lsp::Config::load().ok().is_some_and(|config| config.server_for(path).is_some_and(|server|
-                    crate::lsp_setup::catalog::find(id).is_ok_and(|recipe| crate::lsp_setup::is_managed(server, recipe))))
+    pub fn setup(
+        &mut self,
+        install: bool,
+        server: Option<&str>,
+        editor: &Editor,
+        bar: &mut CommandBar,
+    ) -> Result<(), String> {
+        self.setup
+            .start(install, server, editor.path().clone(), &self.events, bar)
+    }
+
+    pub fn accept_setup(
+        &mut self,
+        event: crate::lsp_setup::Event,
+        editor: &Editor,
+        other: &Editor,
+        bar: &mut CommandBar,
+    ) {
+        if let Some(id) = self.setup.accept(event, bar, editor.path().as_deref()) {
+            if editor.path().as_deref().is_some_and(|path| {
+                lsp::Config::load().ok().is_some_and(|config| {
+                    config.server_for(path).is_some_and(|server| {
+                        crate::lsp_setup::catalog::find(id)
+                            .is_ok_and(|recipe| crate::lsp_setup::is_managed(server, recipe))
+                    })
+                })
             }) {
-                if let Err(error) = self.start(true, editor, other, bar) { bar.show_info(&format!("Server installed. Could not connect: {error}")); }
+                if let Err(error) = self.start(true, editor, other, bar) {
+                    bar.show_info(&format!("Server installed. Could not connect: {error}"));
+                }
             }
         }
     }
@@ -124,13 +156,21 @@ impl LspUi {
     /// Clicks are explicit hover requests. While a server is busy, retain only
     /// the latest target metadata; snapshot its text when the previous request ends.
     pub fn document_clicked(&mut self, editor: &Editor, other: &Editor, bar: &mut CommandBar) {
-        if !bar.is_active() || !bar.is_info()
+        if !bar.is_active()
+            || !bar.is_info()
             || !matches!(bar.parse(), Ok(crate::command_bar::ParsedCommand::Hover))
         {
             self.hover_refresh = None;
-            if bar.is_active() && bar.is_info()
-                && matches!(bar.parse(), Ok(crate::command_bar::ParsedCommand::Definition))
-                && self.pending.as_ref().is_some_and(|p| !p.matches(editor, other, bar))
+            if bar.is_active()
+                && bar.is_info()
+                && matches!(
+                    bar.parse(),
+                    Ok(crate::command_bar::ParsedCommand::Definition)
+                )
+                && self
+                    .pending
+                    .as_ref()
+                    .is_some_and(|p| !p.matches(editor, other, bar))
             {
                 bar.show_info("Cursor moved. Press Enter to request a definition here.");
             }
@@ -138,9 +178,12 @@ impl LspUi {
         }
         if self.pending.is_some() {
             self.hover_refresh = Some(Pending {
-                id: 0, revision: editor.document.revision(),
+                id: 0,
+                revision: editor.document.revision(),
                 other_revision: other.document.revision(),
-                cursor: editor.document.cursor.position, path: editor.path.clone(), epoch: bar.epoch(),
+                cursor: editor.document.cursor.position,
+                path: editor.path().clone(),
+                epoch: bar.epoch(),
             });
             bar.show_info("Waiting for hover at the clicked word…\nClick another word to change the target; Escape closes.");
         } else if let Err(error) = self.request(lsp::Action::Hover, editor, other, bar) {
@@ -153,7 +196,7 @@ impl LspUi {
             Err(error) => error,
             Ok(config) => {
                 let name = editor
-                    .path
+                    .path()
                     .as_deref()
                     .and_then(|p| config.server_for(p))
                     .map(|s| s.name.as_str())
@@ -169,10 +212,26 @@ impl LspUi {
                         .values()
                         .filter(|s| s.client.is_alive())
                         .count()
-                ) + if self.starting { "\nConnecting / loading project…" } else { "" }
-                  + &self.connection_result.as_ref().map(|s| format!("\nLast connection result: {s}")).unwrap_or_default()
-                  + &self.completion_error.as_ref().map(|e| format!("\nLast autocomplete result: {e}")).unwrap_or_default()
-                  + &self.setup.last.as_ref().map(|s| format!("\nSetup: {s}")).unwrap_or_default()
+                ) + if self.starting {
+                    "\nConnecting / loading project…"
+                } else {
+                    ""
+                } + &self
+                    .connection_result
+                    .as_ref()
+                    .map(|s| format!("\nLast connection result: {s}"))
+                    .unwrap_or_default()
+                    + &self
+                        .completion_error
+                        .as_ref()
+                        .map(|e| format!("\nLast autocomplete result: {e}"))
+                        .unwrap_or_default()
+                    + &self
+                        .setup
+                        .last
+                        .as_ref()
+                        .map(|s| format!("\nSetup: {s}"))
+                        .unwrap_or_default()
             }
         }
     }
@@ -184,8 +243,13 @@ impl LspUi {
         other: &Editor,
         bar: &mut CommandBar,
     ) -> Result<(), String> {
-        let automatic = matches!(action, lsp::Action::Complete { .. } | lsp::Action::ResolveCompletion { .. });
-        if !automatic { self.dismiss_completion(); }
+        let automatic = matches!(
+            action,
+            lsp::Action::Complete { .. } | lsp::Action::ResolveCompletion { .. }
+        );
+        if !automatic {
+            self.dismiss_completion();
+        }
         if self.pending.is_some() {
             return Err("LSP request in progress; use :lsp restart to reconnect".into());
         }
@@ -195,10 +259,12 @@ impl LspUi {
         self.pending_anchor = Some(editor.document.cursor.anchor);
         let config = lsp::Config::load()?;
         if !self.is_enabled(config.enabled) {
-            return Err("LSP is stopped or disabled. Use :lsp start to enable it for this window.".into());
+            return Err(
+                "LSP is stopped or disabled. Use :lsp start to enable it for this window.".into(),
+            );
         }
         let path = editor
-            .path
+            .path()
             .as_deref()
             .ok_or("Save this document before using LSP")?
             .canonicalize()
@@ -209,7 +275,7 @@ impl LspUi {
             .clone();
         let root = lsp::project_root(&path, &server);
         let mut documents = vec![snapshot(editor, path.clone())?];
-        if let Some(other_path) = other.path.as_deref() {
+        if let Some(other_path) = other.path().as_deref() {
             if let Ok(other_path) = other_path.canonicalize() {
                 if other_path != path
                     && config
@@ -225,7 +291,9 @@ impl LspUi {
         let key = (server.name.clone(), root.clone());
         if !self.sessions.contains_key(&key) {
             if self.sessions.len() >= 2 {
-                return Err("Two project sessions are already active; use :lsp restart first".into());
+                return Err(
+                    "Two project sessions are already active; use :lsp restart first".into(),
+                );
             }
             let sender = self.events.event_sender();
             let client = lsp::Client::start(server.clone(), root, move |event| {
@@ -244,7 +312,8 @@ impl LspUi {
         let id = self.next_id;
         self.next_id += 1;
         let completion_cancel = match &action {
-            lsp::Action::Complete { cancel, .. } | lsp::Action::ResolveCompletion { cancel, .. } => Some(cancel.clone()),
+            lsp::Action::Complete { cancel, .. }
+            | lsp::Action::ResolveCompletion { cancel, .. } => Some(cancel.clone()),
             _ => None,
         };
         running.client.request(lsp::Request {
@@ -255,18 +324,20 @@ impl LspUi {
         })?;
         self.completion_cancel = completion_cancel;
         running.paths = paths;
-        self.last_paths = vec![editor.path.clone(), other.path.clone()];
+        self.last_paths = vec![editor.path().clone(), other.path().clone()];
         self.last_paths.sort();
         self.pending = Some(Pending {
             id,
             revision: editor.document.revision(),
             other_revision: other.document.revision(),
             cursor: editor.document.cursor.position,
-            path: editor.path.clone(),
+            path: editor.path().clone(),
             epoch: bar.epoch(),
         });
         if !automatic {
-            bar.show_info("Waiting for the language server…\nEscape dismisses the result; :lsp stop cancels.");
+            bar.show_info(
+                "Waiting for the language server…\nEscape dismisses the result; :lsp stop cancels.",
+            );
         }
         Ok(())
     }
@@ -277,7 +348,7 @@ impl LspUi {
         if self.sessions.is_empty() {
             return;
         }
-        let mut paths = vec![editor.path.clone(), other.path.clone()];
+        let mut paths = vec![editor.path().clone(), other.path().clone()];
         paths.sort();
         if paths == self.last_paths {
             return;
@@ -342,12 +413,16 @@ impl LspUi {
             self.starting = false;
             let message = match event.result {
                 Ok(lsp::Reply::Started(message)) => message,
-                Err(error) => format!("Could not start LSP: {error}\nCheck the server configuration, then use :lsp restart."),
+                Err(error) => format!(
+                    "Could not start LSP: {error}\nCheck the server configuration, then use :lsp restart."
+                ),
                 _ => "Unexpected language-server startup response".into(),
             };
             self.connection_result = Some(message.clone());
             self.pending_anchor = None;
-            if bar.is_active() && bar.epoch() == pending.epoch { bar.show_info(&message); }
+            if bar.is_active() && bar.epoch() == pending.epoch {
+                bar.show_info(&message);
+            }
             return outcome;
         }
         if self.completion_cancel.take().is_some() {
@@ -363,12 +438,18 @@ impl LspUi {
             }
             return outcome;
         }
-        if self.pending_anchor.take().is_some_and(|anchor| anchor != editor.document.cursor.anchor)
-            || !pending.matches(editor, other, bar) {
+        if self
+            .pending_anchor
+            .take()
+            .is_some_and(|anchor| anchor != editor.document.cursor.anchor)
+            || !pending.matches(editor, other, bar)
+        {
             return outcome;
         }
         match event.result {
-            Ok(lsp::Reply::Started(_) | lsp::Reply::Completions(_) | lsp::Reply::CompletionEdit(_)) => {},
+            Ok(
+                lsp::Reply::Started(_) | lsp::Reply::Completions(_) | lsp::Reply::CompletionEdit(_),
+            ) => {}
             Err(error) => bar.show_info(&format!("LSP: {error}")),
             Ok(lsp::Reply::CodeActions(actions)) => {
                 if actions.items.is_empty() {
@@ -389,7 +470,7 @@ impl LspUi {
             Ok(lsp::Reply::Definition(locations)) => {
                 if let Some(location) = locations.first() {
                     let bookmark = Bookmark {
-                        path: editor.path.clone().unwrap(),
+                        path: editor.path().clone().unwrap(),
                         cursor: editor.cursor_state(),
                         revision: editor.document.revision(),
                     };
@@ -413,30 +494,48 @@ impl LspUi {
     }
 
     pub fn files_changed(&mut self, paths: Vec<(PathBuf, u8)>) {
-        if paths.is_empty() { return; }
+        if paths.is_empty() {
+            return;
+        }
         self.dismiss_completion();
         self.pending = None;
         self.starting = false;
         self.hover_refresh = None;
-        self.sessions.retain(|(_,root), session| {
-            let changed: Vec<_> = paths.iter().filter(|(p, _)| p.starts_with(root)).cloned().collect();
+        self.sessions.retain(|(_, root), session| {
+            let changed: Vec<_> = paths
+                .iter()
+                .filter(|(p, _)| p.starts_with(root))
+                .cloned()
+                .collect();
             // Reconnect on demand if the bounded queue cannot accept invalidation.
             changed.is_empty() || session.client.files_changed(changed)
         });
     }
 
     pub fn discard_dismissed_preview(&mut self, bar: &CommandBar) {
-        if self.actions.as_ref().is_some_and(|(p,_,_)| !bar.is_active() || p.epoch != bar.epoch()) {
+        if self
+            .actions
+            .as_ref()
+            .is_some_and(|(p, _, _)| !bar.is_active() || p.epoch != bar.epoch())
+        {
             self.actions = None;
         }
-        if self.preview.as_ref().is_some_and(|(epoch,_)| !bar.is_active() || *epoch != bar.epoch()) {
+        if self
+            .preview
+            .as_ref()
+            .is_some_and(|(epoch, _)| !bar.is_active() || *epoch != bar.epoch())
+        {
             self.preview = None;
         }
     }
 
     /// Returns Some only while Enter/click belongs to an existing rename preview.
-    pub fn review(&mut self, editor: &mut Editor, other: &mut Editor, bar: &mut CommandBar)
-        -> Option<Result<bool,String>> {
+    pub fn review(
+        &mut self,
+        editor: &mut Editor,
+        other: &mut Editor,
+        bar: &mut CommandBar,
+    ) -> Option<Result<bool, String>> {
         self.discard_dismissed_preview(bar);
         if let Some((guard, anchor, actions)) = self.actions.as_ref() {
             if !guard.matches(editor, other, bar) || *anchor != editor.document.cursor.anchor {
@@ -444,15 +543,26 @@ impl LspUi {
                 bar.show_info("The selection or document changed. Run :lsp actions again.");
                 return Some(Ok(false));
             }
-            if bar.is_info() { show_actions(bar, actions); return Some(Ok(false)); }
-            let selected = bar.review_selection()?;
-            if selected >= actions.items.len() { self.actions = None; bar.close(); return Some(Ok(false)); }
-            let item = &actions.items[selected];
-            if let Some(reason) = &item.disabled {
-                bar.show_info(reason); bar.set_status("Enter returns to actions; Escape closes");
+            if bar.is_info() {
+                show_actions(bar, actions);
                 return Some(Ok(false));
             }
-            let action = lsp::Action::ResolveCodeAction { action: item.value.clone(), started: actions.started };
+            let selected = bar.review_selection()?;
+            if selected >= actions.items.len() {
+                self.actions = None;
+                bar.close();
+                return Some(Ok(false));
+            }
+            let item = &actions.items[selected];
+            if let Some(reason) = &item.disabled {
+                bar.show_info(reason);
+                bar.set_status("Enter returns to actions; Escape closes");
+                return Some(Ok(false));
+            }
+            let action = lsp::Action::ResolveCodeAction {
+                action: item.value.clone(),
+                started: actions.started,
+            };
             return Some(self.request(action, editor, other, bar).map(|_| false));
         }
         let (_, preview) = self.preview.as_ref()?;
@@ -468,11 +578,17 @@ impl LspUi {
         }
         let apply = selected == preview.files.len();
         let (_, preview) = self.preview.take().unwrap();
-        if !apply { bar.close(); return Some(Ok(false)); }
-        Some(crate::workspace_edit::apply(preview, editor, other).map(|_| {
-            self.files_changed(crate::workspace_edit::recent_disk_changes(editor, false));
-            bar.close(); true
-        }))
+        if !apply {
+            bar.close();
+            return Some(Ok(false));
+        }
+        Some(
+            crate::workspace_edit::apply(preview, editor, other).map(|_| {
+                self.files_changed(crate::workspace_edit::recent_disk_changes(editor, false));
+                bar.close();
+                true
+            }),
+        )
     }
 
     pub fn go_back(
@@ -505,9 +621,17 @@ impl LspUi {
 }
 
 fn show_actions(bar: &mut CommandBar, actions: &lsp::CodeActions) {
-    let mut choices: Vec<_> = actions.items.iter().map(|a| {
-        if a.disabled.is_some() { format!("{} (unavailable)", a.title) } else { a.title.clone() }
-    }).collect();
+    let mut choices: Vec<_> = actions
+        .items
+        .iter()
+        .map(|a| {
+            if a.disabled.is_some() {
+                format!("{} (unavailable)", a.title)
+            } else {
+                a.title.clone()
+            }
+        })
+        .collect();
     choices.push("Cancel".into());
     bar.show_review(choices);
     bar.set_status("Click or Enter to preview an action; Escape cancels");
@@ -515,13 +639,11 @@ fn show_actions(bar: &mut CommandBar, actions: &lsp::CodeActions) {
 
 impl Pending {
     fn matches(&self, editor: &Editor, other: &Editor, bar: &CommandBar) -> bool {
-        bar.is_active()
-            && bar.epoch() == self.epoch
-            && self.matches_document(editor, other)
+        bar.is_active() && bar.epoch() == self.epoch && self.matches_document(editor, other)
     }
 
     fn matches_document(&self, editor: &Editor, other: &Editor) -> bool {
-        editor.path == self.path
+        editor.path() == self.path
             && editor.document.revision() == self.revision
             && other.document.revision() == self.other_revision
             && editor.document.cursor.position == self.cursor
@@ -553,7 +675,7 @@ fn navigate(
         .ok_or("Definition path is not valid Unicode")?;
     let current = file_is_open_in(path, editor);
     let in_other = file_is_open_in(path, other);
-    let focus_other = !current && (in_other || editor.dirty);
+    let focus_other = !current && (in_other || editor.is_dirty());
     let target = if focus_other { other } else { editor };
     let reloaded = !current && !in_other;
     let move_to = |target: &mut Editor| -> Result<(), String> {
@@ -576,7 +698,7 @@ fn navigate(
             .map_err(|e| e.to_string())
     };
     if reloaded {
-        if target.dirty {
+        if target.is_dirty() {
             return Err(
                 "Both panes have unsaved changes. Save one before opening this definition.".into(),
             );

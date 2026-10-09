@@ -5,7 +5,7 @@ mod format;
 mod snapshot;
 #[cfg(test)]
 mod tests;
-use super::{Piece, PieceTable, read_at};
+use super::{Document as PieceTable, Piece, read_at};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, File, OpenOptions},
@@ -240,7 +240,8 @@ impl PieceTable {
                     Journal::create(root, state.source.as_deref(), self).and_then(|journal| {
                         // Pin the live original to the same immutable backing as
                         // recovery, including after saves or outside replacements.
-                        self.original = std::sync::Arc::new(File::open(journal.directory.join("original"))?);
+                        self.original =
+                            std::sync::Arc::new(File::open(journal.directory.join("original"))?);
                         state.journal = Some(journal);
                         Ok(())
                     })
@@ -272,7 +273,8 @@ impl PieceTable {
                     Journal::create(root, state.source.as_deref(), self).and_then(|journal| {
                         // Pin the live original to the same immutable backing as
                         // recovery, including after saves or outside replacements.
-                        self.original = std::sync::Arc::new(File::open(journal.directory.join("original"))?);
+                        self.original =
+                            std::sync::Arc::new(File::open(journal.directory.join("original"))?);
                         state.journal = Some(journal);
                         Ok(())
                     })
@@ -488,8 +490,10 @@ fn display_path(path: &Path) -> String {
     }
     if let Some(drive) = text.strip_prefix(r"\\?\") {
         let bytes = drive.as_bytes();
-        if bytes.len() >= 3 && bytes[0].is_ascii_alphabetic()
-            && bytes[1] == b':' && bytes[2] == b'\\'
+        if bytes.len() >= 3
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':'
+            && bytes[2] == b'\\'
         {
             return drive.to_owned();
         }
@@ -508,7 +512,9 @@ impl StartupNotice {
     pub fn acknowledge(self) {
         for directory in self.directories {
             if let Ok(Some(_lock)) = claim(&directory) {
-                let _ = OpenOptions::new().write(true).create_new(true)
+                let _ = OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
                     .open(directory.join("notice-dismissed"));
             }
         }
@@ -517,11 +523,16 @@ impl StartupNotice {
 
 pub(crate) fn startup_notice(root: &Path) -> io::Result<Option<StartupNotice>> {
     let entries = list(root)?;
-    if !entries.iter().any(|entry| !root.join(&entry.id).join("notice-dismissed").is_file()) {
+    if !entries
+        .iter()
+        .any(|entry| !root.join(&entry.id).join("notice-dismissed").is_file())
+    {
         return Ok(None);
     }
-    let text = format!("{}\nDismiss this panel to stop reminders for these sessions. They remain available through :recover.",
-        describe_entries(&entries));
+    let text = format!(
+        "{}\nDismiss this panel to stop reminders for these sessions. They remain available through :recover.",
+        describe_entries(&entries)
+    );
     Ok(Some(StartupNotice {
         text,
         directories: entries.iter().map(|entry| root.join(&entry.id)).collect(),
@@ -575,7 +586,7 @@ static ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::n
 pub(crate) fn enable_for_application() {
     ENABLED.store(true, std::sync::atomic::Ordering::Relaxed);
 }
-pub(crate) fn arm(table: &mut PieceTable, source: Option<&Path>) {
+pub(crate) fn arm(table: &mut super::PieceTable, source: Option<&Path>) {
     if ENABLED.load(std::sync::atomic::Ordering::Relaxed) {
         table.enable_recovery(source);
     }

@@ -1,0 +1,27 @@
+{
+  "frames": [
+    {
+      "scene": "accent-filename-before",
+      "size_old": [
+        420,
+        600
+      ],
+      "size_new": [
+        420,
+        600
+      ],
+      "changed_pixels": 0,
+      "bounds": null
+    }
+  ],
+  "clipboard": [
+    {
+      "scene": "accent-filename-before",
+      "equal": true,
+      "bytes_old": 140,
+      "bytes_new": 140,
+      "sha256_old": "36362bf80d0f3626b0f1bfcd1928ad7fb3121fa63de82cabc26cf00e28087f87",
+      "sha256_new": "36362bf80d0f3626b0f1bfcd1928ad7fb3121fa63de82cabc26cf00e28087f87"
+    }
+  ]
+}

@@ -212,7 +212,7 @@ impl Editor {
         text: &str,
         backward: Option<bool>,
     ) -> io::Result<()> {
-        if self.read_only {
+        if self.is_read_only() {
             return Ok(());
         }
         let before = self.cursor_state();
@@ -318,12 +318,21 @@ impl Editor {
         if !changes.is_empty() {
             let after = self.cursor_state();
             let kind = HistoryKind::Changes(changes);
-            if let Some(index) = self.multi_edit_group
-                && index + 1 == self.undo_stack.len()
-                && let HistoryKind::Sequence(kinds) = &mut self.undo_stack[index].kind
-            {
-                kinds.push(kind);
-                self.undo_stack[index].after = after;
+            let merge = self
+                .multi_edit_group
+                .is_some_and(|index| index + 1 == self.undo_stack.len())
+                && self
+                    .undo_stack
+                    .last()
+                    .is_some_and(|entry| matches!(entry.kind, HistoryKind::Sequence(_)));
+            if merge {
+                let index = self.multi_edit_group.unwrap();
+                self.undo_stack.update(index, |entry| {
+                    if let HistoryKind::Sequence(kinds) = &mut entry.kind {
+                        kinds.push(kind);
+                    }
+                    entry.after = after;
+                });
             } else {
                 self.multi_edit_group = Some(self.undo_stack.len());
                 self.undo_stack.push(HistoryEntry {
@@ -333,7 +342,7 @@ impl Editor {
                 });
             }
             self.redo_stack.clear();
-            self.dirty = true;
+            self.set_dirty(true);
         }
         Ok(())
     }
@@ -462,7 +471,7 @@ mod tests {
         let mut e = editor("cat cat");
         select(&mut e, 2);
         e.insert("cat").unwrap();
-        assert!(!e.dirty);
+        assert!(!e.is_dirty());
         assert!(e.undo_stack.is_empty());
         e.clear_secondary_cursors();
         e.document.move_cursor(0).unwrap();
@@ -579,7 +588,7 @@ mod tests {
             (0, 5)
         );
         assert!(e.undo_stack.is_empty());
-        assert!(!e.dirty);
+        assert!(!e.is_dirty());
     }
 
     #[test]
@@ -695,7 +704,7 @@ mod tests {
         assert!(!e.document.has_selection());
         let mut e = editor("cat cat");
         select(&mut e, 2);
-        e.read_only = true;
+        e.set_read_only(true);
         e.insert("dog").unwrap();
         e.delete().unwrap();
         e.backspace().unwrap();

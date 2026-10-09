@@ -79,8 +79,8 @@ jobs:
           restore-keys: |
             linux-rebuild-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.version }}-${{ hashFiles('potyi build/Cargo.lock', 'potyi build/.github/workflows/build-linux.yml') }}-
 
-      - name: Build release executable
-        run: cargo +stable build --release --locked --target "$BUILD_TARGET"
+      - name: Build release executables
+        run: cargo +stable build --release --locked --bins --target "$BUILD_TARGET"
 
       - name: Check core behavior
         run: cargo +stable test --release --locked --target "$BUILD_TARGET" -- --test-threads=1
@@ -136,8 +136,9 @@ jobs:
           cp docs/formatters.md docs/syntax-highlighting.md docs/lsp.md docs/lsp-setup.md docs/crash-recovery.md docs/recovery-memory-results.json "$stage/docs/"
           cp fonts/LICENSE-DejaVuSans.md "$stage/fonts/"
           cp "target/$BUILD_TARGET/release/potyi" "$stage/"
+          cp "target/$BUILD_TARGET/release/potyi-term-helper" "$stage/"
           cp linux/potyi.desktop linux/potyi.png "$stage/"
-          chmod +x "$stage/potyi"
+          chmod +x "$stage/potyi" "$stage/potyi-term-helper"
           tar -czf "dist/$package.tar.gz" -C "$RUNNER_TEMP" "$package"
 
       - name: Upload Linux download

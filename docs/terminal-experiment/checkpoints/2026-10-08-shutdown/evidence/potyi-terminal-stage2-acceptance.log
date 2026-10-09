@@ -1,0 +1,175 @@
+   Compiling potyi v0.1.8 (/private/tmp/potyi-term-integration)
+warning: variable does not need to be mutable
+   --> src/tests.rs:754:9
+    |
+754 |     let mut table = PieceTable::open(
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:841:9
+    |
+841 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:853:9
+    |
+853 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:864:9
+    |
+864 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:880:9
+    |
+880 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/tests.rs:1246:9
+     |
+1246 |     let mut table =
+     |         ----^^^^^
+     |         |
+     |         help: remove this `mut`
+
+warning: function `setup_script` is never used
+   --> src/experimental_terminal/bridge.rs:317:15
+    |
+317 | pub(crate) fn setup_script() -> String {
+    |               ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `take_error` is never used
+  --> src/experimental_terminal/transcript.rs:94:19
+   |
+59 | impl Transcript {
+   | --------------- method in this implementation
+...
+94 |     pub(crate) fn take_error(&mut self) -> Option<String> {
+   |                   ^^^^^^^^^^
+
+warning: method `freeze` is never used
+  --> src/experimental_terminal/output_source.rs:76:19
+   |
+71 | impl Source<'_> {
+   | --------------- method in this implementation
+...
+76 |     pub(super) fn freeze(&self, cancelled: Arc<AtomicBool>) -> FrozenSource {
+   |                   ^^^^^^
+
+warning: associated function `start` is never used
+  --> src/experimental_terminal/copy_job.rs:23:19
+   |
+22 | impl CopyJob {
+   | ------------ associated function in this implementation
+23 |     pub(super) fn start(source: &Source<'_>, selection: &Selection, all: bool, yank: bool, wake: Wake) -> io::Result<Self> {
+   |                   ^^^^^
+
+warning: variant `Apply` is never constructed
+  --> src/experimental_terminal/navigation_job.rs:14:5
+   |
+12 | pub(super) enum Work {
+   |                 ---- variant in this enum
+13 |     Motion(Motion, bool),
+14 |     Apply(Anchor, bool),
+   |     ^^^^^
+   |
+   = note: `Work` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: associated function `start` is never used
+  --> src/experimental_terminal/navigation_job.rs:31:19
+   |
+30 | impl NavigationJob {
+   | ------------------ associated function in this implementation
+31 |     pub(super) fn start(source: &Source<'_>, selection: &Selection, work: Work, wake: Wake) -> io::Result<Self> {
+   |                   ^^^^^
+
+warning: method `anchor_visual_column` is never used
+   --> src/experimental_terminal/layout.rs:146:19
+    |
+ 98 | impl Fragment {
+    | ------------- method in this implementation
+...
+146 |     pub(crate) fn anchor_visual_column(&self, anchor: Anchor) -> Option<u16> {
+    |                   ^^^^^^^^^^^^^^^^^^^^
+
+warning: method `line_text_from_start` is never used
+    --> src/piece_table.rs:1392:12
+     |
+ 367 | impl PieceTable {
+     | --------------- method in this implementation
+...
+1392 |     pub fn line_text_from_start(
+     |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `search_bar_reserved_height` is never used
+    --> src/renderer.rs:1816:8
+     |
+ 195 | impl<'a> Renderer<'a> {
+     | --------------------- associated function in this implementation
+...
+1816 |     fn search_bar_reserved_height(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `experimental_row_y` is never used
+   --> src/renderer/experimental.rs:115:19
+    |
+  9 | impl<'a> Renderer<'a> {
+    | --------------------- method in this implementation
+...
+115 |     pub(crate) fn experimental_row_y(&self, index: usize) -> i32 {
+    |                   ^^^^^^^^^^^^^^^^^^
+
+warning: field `search_origin` is never read
+  --> src/search.rs:68:5
+   |
+65 | pub struct Searcher {
+   |            -------- field in this struct
+...
+68 |     search_origin: usize,
+   |     ^^^^^^^^^^^^^
+
+warning: field `pattern` is never read
+  --> src/syntax.rs:49:9
+   |
+47 | pub struct SyntaxRule {
+   |            ---------- field in this struct
+48 |     pub name: String,
+49 |     pub pattern: String,
+   |         ^^^^^^^
+   |
+   = note: `SyntaxRule` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `test_file` is never used
+   --> src/tests.rs:139:4
+    |
+139 | fn test_file(contents: &[u8]) -> PathBuf {
+    |    ^^^^^^^^^
+
+warning: `potyi` (bin "potyi" test) generated 19 warnings (run `cargo fix --bin "potyi" -p potyi --tests` to apply 6 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 27.33s
+     Running unittests src/main.rs (target/debug/deps/potyi-024a047d6e6e24eb)
+
+running 106 tests
+....................................................................................... 87/106
+...................
+test result: ok. 106 passed; 0 failed; 0 ignored; 0 measured; 675 filtered out; finished in 15.36s
+

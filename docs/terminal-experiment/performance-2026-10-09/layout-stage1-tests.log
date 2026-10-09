@@ -1,0 +1,34 @@
+
+running 29 tests
+test experimental_terminal::layout::tests::a_head_scroll_waits_for_eviction_origin_without_hiding_retained_rows ... ok
+test experimental_terminal::layout::tests::changing_plain_tail_finishes_captured_index_and_viewport_work ... ok
+test experimental_terminal::layout::tests::continuous_append_color_and_follow_targets_publish_bounded_frames ... ok
+test experimental_terminal::layout::tests::continuously_mutating_initial_tail_finishes_captured_index_passes ... ok
+test experimental_terminal::layout::tests::eviction_and_clear_reject_old_anchors_and_do_not_grow_the_index ... ok
+test experimental_terminal::layout::tests::eviction_of_continued_lines_reflows_from_a_true_hard_boundary ... ok
+test experimental_terminal::layout::tests::font_columns_reflow_missing_wide_glyphs_without_changing_byte_anchors ... ok
+test experimental_terminal::layout::tests::font_tab_stops_count_combining_scalars_separately_from_glyph_pixels ... ok
+test experimental_terminal::layout::tests::huge_tab_runs_and_dense_style_changes_stay_inside_projection_budget ... ok
+test experimental_terminal::layout::tests::live_grid_bounds_and_primary_snapshot_do_not_duplicate_disk_history ... ok
+test experimental_terminal::layout::tests::main_output_uses_legacy_normal_styles_after_ansi_reflow ... ok
+test experimental_terminal::layout::tests::measured_wrap_matches_scalar_pixels_and_unmeasured_hidden_output_suspends ... ok
+test experimental_terminal::layout::tests::native_columns_are_row_major_and_padding_has_no_source_anchor ... ok
+test experimental_terminal::layout::tests::native_listing_blank_and_eof_are_distinct_rows_and_survive_later_output ... ok
+test experimental_terminal::layout::tests::one_per_line_and_recursive_headers_stop_packing ... ok
+test experimental_terminal::layout::tests::original_wide_and_tall_normal_geometry_keeps_existing_byte_budget ... ok
+test experimental_terminal::layout::tests::plain_tail_bounds_are_atomic_and_published_text_is_pinned ... ok
+test experimental_terminal::layout::tests::plain_tail_preserves_literal_text_and_seals_with_stable_anchors ... ok
+test experimental_terminal::layout::tests::repeated_cap_eviction_reuses_hard_line_suffix_and_rebases_navigation ... ok
+test experimental_terminal::layout::tests::repeated_live_updates_preserve_a_ready_scrolled_frame_during_rewind ... ok
+test experimental_terminal::layout::tests::resize_append_and_color_only_revision_preserve_logical_positions ... ok
+test experimental_terminal::layout::tests::saved_live_seam_and_incremental_sealing_keep_future_ids_stable ... ok
+test experimental_terminal::layout::tests::shape_only_counting_keeps_fragment_byte_and_segment_boundaries ... ok
+test experimental_terminal::layout::tests::shape_only_counting_matches_wrapping_styles_packing_and_source_boundaries ... ok
+test experimental_terminal::layout::tests::sparse_checkpoints_and_visible_projection_are_fixed_bounded_caches ... ok
+test experimental_terminal::layout::tests::terminal_soft_wrap_seams_keep_byte_anchors_and_command_boundaries ... ok
+test experimental_terminal::layout::tests::token_across_saved_physical_rows_is_one_reflowable_line ... ok
+test experimental_terminal::layout::tests::vertical_navigation_is_independent_of_viewport_requests ... ok
+test experimental_terminal::layout::tests::word_wrap_retains_unicode_combining_tabs_long_words_and_blank_lines ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 880 filtered out; finished in 1.43s
+

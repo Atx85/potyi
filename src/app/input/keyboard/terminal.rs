@@ -29,7 +29,7 @@ pub(super) fn handle(
                 terminal.set_status(error.to_string());
             }
             *dirty = true;
-            return Ok(Some(EventFlow::Continue));
+            return Ok(KeyFlow::Handled);
         }
 
         let clipboard_command = key_bindings.terminal_clipboard_command(key, keymod, repeat);
@@ -43,7 +43,7 @@ pub(super) fn handle(
             }
 
             *dirty = true;
-            return Ok(Some(EventFlow::Continue));
+            return Ok(KeyFlow::Handled);
         }
 
         let selected_copy = ctrl_pressed(keymod)
@@ -59,7 +59,7 @@ pub(super) fn handle(
                 other_vim.set_clipboard_linewise(!all && terminal.output_linewise());
             }
             *dirty = true;
-            return Ok(Some(EventFlow::Continue));
+            return Ok(KeyFlow::Handled);
         }
 
         if ctrl_pressed(keymod) && key == Keycode::C && !repeat && terminal.is_running() {
@@ -68,7 +68,7 @@ pub(super) fn handle(
             }
 
             *dirty = true;
-            return Ok(Some(EventFlow::Continue));
+            return Ok(KeyFlow::Handled);
         }
 
         if ctrl_pressed(keymod) && key == Keycode::L && !repeat {
@@ -77,7 +77,7 @@ pub(super) fn handle(
             }
 
             *dirty = true;
-            return Ok(Some(EventFlow::Continue));
+            return Ok(KeyFlow::Handled);
         }
 
         let select_output = !terminal.output_focused()
@@ -109,7 +109,7 @@ pub(super) fn handle(
                 )?;
             }
             *dirty = true;
-            return Ok(Some(EventFlow::Continue));
+            return Ok(KeyFlow::Handled);
         }
 
         if terminal.output_focused() {
@@ -130,7 +130,7 @@ pub(super) fn handle(
                 renderer.navigate_terminal_output(&mut *terminal, command)?;
             }
             *dirty = true;
-            return Ok(Some(EventFlow::Continue));
+            return Ok(KeyFlow::Handled);
         }
 
         match key {
@@ -166,14 +166,24 @@ pub(super) fn handle(
             }
             Keycode::Return | Keycode::KpEnter if !repeat => {
                 if terminal.input().trim() == ":exit" {
-                    if close_focused_pane(split_mode, active_pane, editor, other_editor,
-                        vim, other_vim, renderer, terminal) {
+                    if close_focused_pane(
+                        split_mode,
+                        active_pane,
+                        editor,
+                        other_editor,
+                        vim,
+                        other_vim,
+                        renderer,
+                        terminal,
+                    ) {
                         terminal.clear_input();
                     } else {
-                        terminal.set_status("No split pane to close. Use :quit in the editor to close Pötyi.");
+                        terminal.set_status(
+                            "No split pane to close. Use :quit in the editor to close Pötyi.",
+                        );
                     }
                     *dirty = true;
-                    return Ok(Some(EventFlow::Continue));
+                    return Ok(KeyFlow::Handled);
                 }
                 match terminal.submit(event_subsystem) {
                     Ok(action) => {
@@ -205,8 +215,8 @@ pub(super) fn handle(
         }
 
         *dirty = true;
-        return Ok(Some(EventFlow::Continue));
+        return Ok(KeyFlow::Handled);
     }
 
-    Ok(None)
+    Ok(KeyFlow::Pass)
 }

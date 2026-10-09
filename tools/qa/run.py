@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFERRED = {
     "benchmarks::recovery_latency::typing_latency_probe": "Separate recovery typing latency investigation",
     "benchmarks::editor_performance_probe": "Separate resource measurements",
+    "benchmarks::scaling::sustained_editing_probe": "Separate sustained editing measurements; run tools/benchmarks/scaling.py",
     "formatting::tests::resource_probe": "Separate resource measurements",
     "piece_table::recovery::tests::recovery_memory_probe": "Separate resource measurements",
     "renderer::terminal_selection_render_tests::long_line_navigation_probe": "Separate resource measurements",

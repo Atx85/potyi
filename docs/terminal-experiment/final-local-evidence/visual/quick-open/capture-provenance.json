@@ -1,0 +1,53 @@
+{
+  "before": {
+    "observed_utc": "2026-10-09T09:52:58.912342+00:00",
+    "source_sha256": "a45c4bde2b9fb155d2660973e01270edc6b122c6c339810b877629269c8cd851",
+    "test_binary": "/private/tmp/potyi-terminal-candidate-target/debug/deps/potyi-024a047d6e6e24eb",
+    "test_binary_sha256": "6de87222d0f645a440877c2d58d85d45b54d11187db72dd5ce8552a4104ead10",
+    "helper": "/private/tmp/potyi-terminal-candidate-target/debug/potyi",
+    "helper_sha256": "bd914c87ee9b4d1c475a68064fa1d736af33ffcd345fe94315a2da792654fe2c"
+  },
+  "after": {
+    "observed_utc": "2026-10-09T09:52:59.596332+00:00",
+    "source_sha256": "a45c4bde2b9fb155d2660973e01270edc6b122c6c339810b877629269c8cd851",
+    "test_binary": "/private/tmp/potyi-terminal-candidate-target/debug/deps/potyi-024a047d6e6e24eb",
+    "test_binary_sha256": "6de87222d0f645a440877c2d58d85d45b54d11187db72dd5ce8552a4104ead10",
+    "helper": "/private/tmp/potyi-terminal-candidate-target/debug/potyi",
+    "helper_sha256": "bd914c87ee9b4d1c475a68064fa1d736af33ffcd345fe94315a2da792654fe2c"
+  },
+  "fixture": "Actual original/new mouse click at accent-only filename ink in420x600headlessSDL; authoritative path asserted by app.",
+  "frames": [
+    {
+      "path": "new/accent-filename-before.bmp",
+      "sha256": "768480262940a24ec23a96be557c7f269ecb7d636b8f75778b991490137e78e5"
+    },
+    {
+      "path": "old/accent-filename-before.bmp",
+      "sha256": "768480262940a24ec23a96be557c7f269ecb7d636b8f75778b991490137e78e5"
+    }
+  ],
+  "clipboard": [
+    {
+      "path": "new/accent-filename-before.txt",
+      "sha256": "36362bf80d0f3626b0f1bfcd1928ad7fb3121fa63de82cabc26cf00e28087f87"
+    },
+    {
+      "path": "old/accent-filename-before.txt",
+      "sha256": "36362bf80d0f3626b0f1bfcd1928ad7fb3121fa63de82cabc26cf00e28087f87"
+    }
+  ],
+  "logs": [
+    {
+      "path": "comparison.log",
+      "sha256": "5dc17605302d5e8dda1b0d6e005b8f5820e099c65b23ae8db247ed098daada64"
+    },
+    {
+      "path": "new.log",
+      "sha256": "a0df8451086e73a8b64cd8bb92fbc59a23d52aae784eb84b9757f1a2726104bf"
+    },
+    {
+      "path": "old.log",
+      "sha256": "01f2d2830f64b1751b257e2cc9d2865ec366e4bb6faac6b75e7860d92828e6d9"
+    }
+  ]
+}

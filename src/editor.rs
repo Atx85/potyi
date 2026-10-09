@@ -9,7 +9,9 @@ use crate::{
     search::{SearchResult, Searcher},
     workspace_edit,
 };
-use std::{io, path::PathBuf, time::Instant};
+use std::{cell::RefCell, io, path::PathBuf, rc::Rc, time::Instant};
+mod document_state;
+use document_state::{DocumentState, HistoryStack};
 
 #[derive(Clone)]
 pub(crate) struct CursorState {
@@ -60,33 +62,30 @@ pub(crate) struct ReplacementRun {
 pub(crate) struct Editor {
     pub(crate) document: PieceTable,
     pub(crate) emacs: emacs::State,
-    pub(crate) path: Option<PathBuf>,
+    state: Rc<RefCell<DocumentState>>,
     pub(crate) config: EditorConfig,
 
-    pub(crate) undo_stack: Vec<HistoryEntry>,
-    pub(crate) redo_stack: Vec<HistoryEntry>,
+    pub(crate) undo_stack: HistoryStack,
+    pub(crate) redo_stack: HistoryStack,
 
     pub(crate) multi_edit_group: Option<usize>,
     pub(crate) applying_history: bool,
-    pub(crate) dirty: bool,
-    pub(crate) read_only: bool,
 }
 
 impl Editor {
     pub(crate) fn new(config: EditorConfig) -> io::Result<Self> {
         let mut document = PieceTable::empty()?;
         piece_table::recovery::arm(&mut document, None);
+        let state = Rc::new(RefCell::new(DocumentState::default()));
         Ok(Self {
             document,
             emacs: emacs::State::default(),
-            path: None,
+            state: state.clone(),
             config,
-            undo_stack: Vec::new(),
-            redo_stack: Vec::new(),
+            undo_stack: HistoryStack::new(state.clone(), false),
+            redo_stack: HistoryStack::new(state, true),
             multi_edit_group: None,
             applying_history: false,
-            dirty: false,
-            read_only: false,
         })
     }
 
@@ -95,14 +94,12 @@ impl Editor {
         Self {
             document: self.document.duplicate_view(),
             emacs: emacs::State::default(),
-            path: self.path.clone(),
+            state: self.state.clone(),
             config: self.config.clone(),
             undo_stack: self.undo_stack.clone(),
             redo_stack: self.redo_stack.clone(),
             multi_edit_group: None,
             applying_history: false,
-            dirty: self.dirty,
-            read_only: self.read_only,
         }
     }
 
@@ -110,31 +107,44 @@ impl Editor {
         self.document.shares_storage_with(&other.document)
     }
 
-    /// Called at input/async-event boundaries: views have independent cursors,
-    /// but the newest buffer revision, history and saved state must agree.
+    /// Reconcile pane-local cursors; text, history and file state already agree.
     pub(crate) fn synchronize_views(active: &mut Self, other: &mut Self) -> io::Result<()> {
-        if !active.shares_document_with(other) { return Ok(()); }
-        if other.document.revision() > active.document.revision() {
-            active.refresh_view_from(other)
-        } else {
-            other.refresh_view_from(active)
+        if !active.shares_document_with(other) {
+            return Ok(());
         }
+        active.refresh_view()?;
+        other.refresh_view()?;
+        Ok(())
     }
 
-    fn refresh_view_from(&mut self, source: &Self) -> io::Result<()> {
-        if self.document.revision() != source.document.revision()
-            || self.undo_stack.len() != source.undo_stack.len()
-            || self.redo_stack.len() != source.redo_stack.len()
-        {
-            self.document.refresh_view_from(&source.document)?;
-            self.undo_stack.clone_from(&source.undo_stack);
-            self.redo_stack.clone_from(&source.redo_stack);
+    fn refresh_view(&mut self) -> io::Result<()> {
+        if self.document.refresh()? {
             self.multi_edit_group = None;
         }
-        self.path.clone_from(&source.path);
-        self.dirty = source.dirty;
-        self.read_only = source.read_only;
         Ok(())
+    }
+    pub(crate) fn path(&self) -> Option<PathBuf> {
+        self.state.borrow().path.clone()
+    }
+    pub(crate) fn set_path(&self, path: Option<PathBuf>) {
+        self.state.borrow_mut().path = path;
+    }
+    pub(crate) fn is_dirty(&self) -> bool {
+        self.state.borrow().dirty
+    }
+    pub(crate) fn set_dirty(&self, value: bool) {
+        self.state.borrow_mut().dirty = value;
+    }
+    pub(crate) fn is_read_only(&self) -> bool {
+        self.state.borrow().read_only
+    }
+    pub(crate) fn set_read_only(&self, value: bool) {
+        self.state.borrow_mut().read_only = value;
+    }
+    fn detach_file_state(&mut self) {
+        self.state = Rc::new(RefCell::new(DocumentState::default()));
+        self.undo_stack = HistoryStack::new(self.state.clone(), false);
+        self.redo_stack = HistoryStack::new(self.state.clone(), true);
     }
 
     pub(crate) fn insert_tab(&mut self) -> io::Result<()> {
@@ -166,6 +176,7 @@ impl Editor {
         // A workspace transaction must remain a top-level, coordinated undo step.
         let start = self
             .undo_stack
+            .entries()
             .iter()
             .enumerate()
             .skip(start)
@@ -280,7 +291,7 @@ impl Editor {
     }
 
     pub(crate) fn new_document(&mut self, path: Option<&str>) -> io::Result<()> {
-        if self.dirty {
+        if self.is_dirty() {
             return Err(io::Error::other(
                 "Save the current document before creating a new file",
             ));
@@ -306,13 +317,14 @@ impl Editor {
         }
         piece_table::recovery::arm(&mut document, path.map(std::path::Path::new));
         self.document = document;
+        self.detach_file_state();
         self.emacs.reset();
-        self.path = path.map(PathBuf::from);
+        self.set_path(path.map(PathBuf::from));
         self.multi_edit_group = None;
         self.undo_stack.clear();
         self.redo_stack.clear();
-        self.dirty = false;
-        self.read_only = false;
+        self.set_dirty(false);
+        self.set_read_only(false);
         Ok(())
     }
 
@@ -325,30 +337,31 @@ impl Editor {
         println!("PieceTable::open({}): {:?}", path, start.elapsed());
 
         self.document = document;
+        self.detach_file_state();
         self.emacs.reset();
-        self.path = Some(PathBuf::from(path));
+        self.set_path(Some(PathBuf::from(path)));
 
         self.multi_edit_group = None;
         self.undo_stack.clear();
         self.redo_stack.clear();
-        self.dirty = false;
-        self.read_only = false;
+        self.set_dirty(false);
+        self.set_read_only(false);
 
         Ok(())
     }
 
     pub(crate) fn save(&mut self) -> io::Result<()> {
-        if self.read_only {
+        if self.is_read_only() {
             return Err(io::Error::new(
                 io::ErrorKind::PermissionDenied,
                 "This file is open for viewing",
             ));
         }
 
-        if let Some(path) = self.path.as_deref() {
+        if let Some(path) = self.path().as_deref() {
             self.document.write_to(path)?;
             self.document.recovery_saved(path);
-            self.dirty = false;
+            self.set_dirty(false);
             return Ok(());
         }
 
@@ -369,14 +382,14 @@ impl Editor {
         self.document.write_to(&path)?;
         self.document.recovery_saved(&path);
 
-        self.path = Some(path);
-        self.dirty = false;
+        self.set_path(Some(path));
+        self.set_dirty(false);
 
         Ok(())
     }
 
     pub(crate) fn save_as(&mut self, path: &str, overwrite: bool) -> io::Result<()> {
-        if self.read_only {
+        if self.is_read_only() {
             return Err(io::Error::new(
                 io::ErrorKind::PermissionDenied,
                 "This file is open for viewing",
@@ -405,8 +418,8 @@ impl Editor {
             })?;
         }
         self.document.recovery_saved(&destination);
-        self.path = Some(destination);
-        self.dirty = false;
+        self.set_path(Some(destination));
+        self.set_dirty(false);
         Ok(())
     }
 
@@ -415,7 +428,7 @@ impl Editor {
         root: &std::path::Path,
         number: usize,
     ) -> io::Result<bool> {
-        if self.dirty {
+        if self.is_dirty() {
             return Err(io::Error::other(
                 "Save the current document before opening recovered work, or switch to an empty pane",
             ));
@@ -426,7 +439,7 @@ impl Editor {
                 .ok_or_else(|| io::Error::other("Recovery path is not UTF-8"))?,
         )?;
         self.document.recovered_from(session);
-        self.dirty = true;
+        self.set_dirty(true);
         Ok(incomplete)
     }
 
@@ -434,7 +447,8 @@ impl Editor {
         &mut self,
         output: &mut (impl io::Read + io::Seek),
     ) -> io::Result<bool> {
-        if self.read_only {
+        self.refresh_view()?;
+        if self.is_read_only() {
             return Err(io::Error::new(
                 io::ErrorKind::PermissionDenied,
                 "This file is open for viewing",
@@ -480,12 +494,12 @@ impl Editor {
             after,
         });
         self.redo_stack.clear();
-        self.dirty = true;
+        self.set_dirty(true);
         Ok(true)
     }
 
     pub(crate) fn format_document(&mut self, name: Option<&str>) -> io::Result<(String, bool)> {
-        if self.read_only {
+        if self.is_read_only() {
             return Err(io::Error::new(
                 io::ErrorKind::PermissionDenied,
                 "This file is open for viewing",
@@ -498,9 +512,9 @@ impl Editor {
             ));
         }
         let scratch = formatting::Scratch::create()?;
-        if name == Some("builtin") || (name.is_none() && self.path.is_none()) {
+        if name == Some("builtin") || (name.is_none() && self.path().is_none()) {
             let mut output = formatting::builtin::run(
-                self.path.as_deref(),
+                self.path().as_deref(),
                 &self.document,
                 &scratch,
                 self.config.tab_width,
@@ -512,11 +526,11 @@ impl Editor {
             ));
         }
         let config = formatting::Formatters::load(std::path::Path::new("config/formatters.toml"))?;
-        let (provider, executable) = match config.select(self.path.as_deref(), name) {
+        let (provider, executable) = match config.select(self.path().as_deref(), name) {
             Ok(selected) => selected,
             Err(_) if name.is_none() => {
                 let mut output = formatting::builtin::run(
-                    self.path.as_deref(),
+                    self.path().as_deref(),
                     &self.document,
                     &scratch,
                     self.config.tab_width,
@@ -532,7 +546,7 @@ impl Editor {
         let mut output = formatting::run(
             provider,
             &executable,
-            self.path.as_deref(),
+            self.path().as_deref(),
             &self.document,
             &scratch,
         )?;
@@ -541,6 +555,7 @@ impl Editor {
     }
 
     pub(crate) fn execute(&mut self, command: Command, page_lines: usize) -> io::Result<()> {
+        self.refresh_view()?;
         if self.config.keybinding_mode == KeybindingMode::Conventional
             && !self.document.secondary_cursors.is_empty()
             && multi_cursor::is_cursor_motion(command)
@@ -566,6 +581,7 @@ impl Editor {
     }
 
     pub(crate) fn execute_single(&mut self, command: Command, page_lines: usize) -> io::Result<()> {
+        self.refresh_view()?;
         match command {
             Command::SelectNextOccurrence => self.select_next_occurrence(),
             Command::MoveLeft => self.move_left(),
@@ -709,11 +725,12 @@ impl Editor {
     }
 
     pub(crate) fn insert_text(&mut self, text: &str) -> io::Result<()> {
+        self.refresh_view()?;
         if text.is_empty() {
             return Ok(());
         }
 
-        if self.read_only {
+        if self.is_read_only() {
             return Ok(());
         }
 
@@ -750,7 +767,8 @@ impl Editor {
         range: SearchResult,
         replacement: &str,
     ) -> io::Result<bool> {
-        if self.read_only {
+        self.refresh_view()?;
+        if self.is_read_only() {
             return Ok(false);
         }
 
@@ -825,7 +843,7 @@ impl Editor {
         }
 
         if changed {
-            self.dirty = true;
+            self.set_dirty(true);
         }
 
         Ok(changed)
@@ -843,7 +861,8 @@ impl Editor {
         searcher: &Searcher,
         replacement: &str,
     ) -> io::Result<usize> {
-        if self.read_only {
+        self.refresh_view()?;
+        if self.is_read_only() {
             return Ok(0);
         }
 
@@ -976,7 +995,7 @@ impl Editor {
             self.redo_stack.clear();
         }
 
-        self.dirty = true;
+        self.set_dirty(true);
 
         Ok(count)
     }
@@ -1088,6 +1107,7 @@ impl Editor {
     }
 
     pub(crate) fn delete(&mut self) -> io::Result<()> {
+        self.refresh_view()?;
         if !self.document.secondary_cursors.is_empty() {
             return self.edit_occurrences("", Some(false));
         }
@@ -1107,6 +1127,7 @@ impl Editor {
     }
 
     pub(crate) fn backspace(&mut self) -> io::Result<()> {
+        self.refresh_view()?;
         if !self.document.secondary_cursors.is_empty() {
             return self.edit_occurrences("", Some(true));
         }
@@ -1126,6 +1147,7 @@ impl Editor {
     }
 
     pub(crate) fn delete_selection(&mut self) -> io::Result<()> {
+        self.refresh_view()?;
         if !self.document.secondary_cursors.is_empty() {
             return self.edit_occurrences("", None);
         }
@@ -1145,6 +1167,7 @@ impl Editor {
     // ----------------------------------------------------------------------
 
     pub(crate) fn undo(&mut self) -> io::Result<()> {
+        self.refresh_view()?;
         if self
             .undo_stack
             .last()
@@ -1153,7 +1176,7 @@ impl Editor {
             return Err(io::Error::other("Workspace undo requires both panes"));
         }
         self.multi_edit_group = None;
-        if self.read_only {
+        if self.is_read_only() {
             return Ok(());
         }
 
@@ -1176,12 +1199,13 @@ impl Editor {
         result?;
 
         self.redo_stack.push(entry);
-        self.dirty = true;
+        self.set_dirty(true);
 
         Ok(())
     }
 
     pub(crate) fn redo(&mut self) -> io::Result<()> {
+        self.refresh_view()?;
         if self
             .redo_stack
             .last()
@@ -1190,7 +1214,7 @@ impl Editor {
             return Err(io::Error::other("Workspace undo requires both panes"));
         }
         self.multi_edit_group = None;
-        if self.read_only {
+        if self.is_read_only() {
             return Ok(());
         }
 
@@ -1213,14 +1237,15 @@ impl Editor {
         result?;
 
         self.undo_stack.push(entry);
-        self.dirty = true;
+        self.set_dirty(true);
 
         Ok(())
     }
 }
 
 pub(crate) fn file_is_open_in(path: &str, editor: &Editor) -> bool {
-    let Some(open_path) = editor.path.as_deref() else {
+    let open_path = editor.path();
+    let Some(open_path) = open_path.as_deref() else {
         return false;
     };
 

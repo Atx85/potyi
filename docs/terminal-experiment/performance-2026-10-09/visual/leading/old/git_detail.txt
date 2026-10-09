@@ -1,0 +1,20 @@
+Commit 5fbf44f · Back / Alt+Left returns to the log
+commit 5fbf44f1b6d113f53a3c084cbf741e0146f5a3bf
+Author:     Potyi Visual <visual@example.invalid>
+AuthorDate: Fri Jan 3 04:05:06 2020 +0000
+Commit:     Potyi Visual <visual@example.invalid>
+CommitDate: Fri Jan 3 04:05:06 2020 +0000
+
+    Change fixture note
+---
+ note.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/note.txt b/note.txt
+index 08fe272..75bf0df 100644
+--- a/note.txt
++++ b/note.txt
+@@ -1 +1,2 @@
+-first line
++changed line
++added line

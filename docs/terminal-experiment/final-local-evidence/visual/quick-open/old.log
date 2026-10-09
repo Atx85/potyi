@@ -1,0 +1,9 @@
+
+running 1 test
+test app::input::tests::terminal_visual_probe::experimental_terminal_accent_filename_click_preserves_legacy_hit ... PieceTable::open(/private/tmp/potyi-terminal-visual/leading-fixture/́): 237.083µs
+PieceTable::open(/private/tmp/potyi-terminal-visual/leading-fixture/́): 261.667µs
+POTYI_ACCENT_CLICK row=9 x=15 y=320 actual=Some("/private/tmp/potyi-terminal-visual/leading-fixture/\u{301}")
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 900 filtered out; finished in 0.14s
+

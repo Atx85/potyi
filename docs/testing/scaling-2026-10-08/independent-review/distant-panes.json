@@ -1,0 +1,392 @@
+{
+  "arch": "x86_64",
+  "fixture_bytes": 67108864,
+  "full_scan_ms": 317.15625,
+  "line_index_metadata": [
+    551,
+    2048,
+    131072
+  ],
+  "lines": 1048577,
+  "samples": [
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 88,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 0,
+      "left_line": 517,
+      "milliseconds": 0.20925,
+      "right_line": 786947
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 88,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 1,
+      "left_line": 517,
+      "milliseconds": 0.181459,
+      "right_line": 786947
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 88,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 2,
+      "left_line": 517,
+      "milliseconds": 0.17758300000000002,
+      "right_line": 786947
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 88,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 3,
+      "left_line": 517,
+      "milliseconds": 0.17825,
+      "right_line": 786947
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 88,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 4,
+      "left_line": 517,
+      "milliseconds": 0.178666,
+      "right_line": 786947
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 88,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 5,
+      "left_line": 517,
+      "milliseconds": 0.176125,
+      "right_line": 786947
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 88,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 6,
+      "left_line": 517,
+      "milliseconds": 0.174209,
+      "right_line": 786947
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 88,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 7,
+      "left_line": 517,
+      "milliseconds": 0.17575,
+      "right_line": 786947
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 88,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 8,
+      "left_line": 517,
+      "milliseconds": 0.1725,
+      "right_line": 786947
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 590,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 0,
+      "left_line": 767,
+      "milliseconds": 0.32879200000000003,
+      "right_line": 787199
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 590,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 1,
+      "left_line": 767,
+      "milliseconds": 0.32937500000000003,
+      "right_line": 787199
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 590,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 2,
+      "left_line": 767,
+      "milliseconds": 0.338542,
+      "right_line": 787199
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 590,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 3,
+      "left_line": 767,
+      "milliseconds": 0.338042,
+      "right_line": 787199
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 590,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 4,
+      "left_line": 767,
+      "milliseconds": 0.33754199999999995,
+      "right_line": 787199
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 590,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 5,
+      "left_line": 767,
+      "milliseconds": 0.34,
+      "right_line": 787199
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 590,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 6,
+      "left_line": 767,
+      "milliseconds": 0.35724999999999996,
+      "right_line": 787199
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 590,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 7,
+      "left_line": 767,
+      "milliseconds": 0.334959,
+      "right_line": 787199
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 590,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 8,
+      "left_line": 767,
+      "milliseconds": 0.3365,
+      "right_line": 787199
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 1102,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 0,
+      "left_line": 1023,
+      "milliseconds": 0.482125,
+      "right_line": 787455
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 1102,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 1,
+      "left_line": 1023,
+      "milliseconds": 0.46775,
+      "right_line": 787455
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 1102,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 2,
+      "left_line": 1023,
+      "milliseconds": 0.46575,
+      "right_line": 787455
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 1102,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 3,
+      "left_line": 1023,
+      "milliseconds": 0.472208,
+      "right_line": 787455
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 1102,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 4,
+      "left_line": 1023,
+      "milliseconds": 0.468667,
+      "right_line": 787455
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 1102,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 5,
+      "left_line": 1023,
+      "milliseconds": 0.48970800000000003,
+      "right_line": 787455
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 1102,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 6,
+      "left_line": 1023,
+      "milliseconds": 0.465541,
+      "right_line": 787455
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 1102,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 7,
+      "left_line": 1023,
+      "milliseconds": 0.465792,
+      "right_line": 787455
+    },
+    {
+      "counters": {
+        "copied_history_entries": 0,
+        "copied_line_records": 0,
+        "copied_piece_records": 0,
+        "line_discoveries": 1102,
+        "read_bytes": 136112,
+        "read_calls": 82
+      },
+      "iteration": 8,
+      "left_line": 1023,
+      "milliseconds": 0.471667,
+      "right_line": 787455
+    }
+  ],
+  "two_panes_visible_rows": 40
+}

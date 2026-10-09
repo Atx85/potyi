@@ -1,0 +1,11 @@
+{
+  "scene_count": 27,
+  "exact_frame_count": 27,
+  "clipboard_count": 10,
+  "exact_clipboard_count": 10,
+  "different_frames": [],
+  "different_clipboard": [],
+  "source_sha256": "a45c4bde2b9fb155d2660973e01270edc6b122c6c339810b877629269c8cd851",
+  "test_binary_sha256": "6de87222d0f645a440877c2d58d85d45b54d11187db72dd5ce8552a4104ead10",
+  "helper_sha256": "bd914c87ee9b4d1c475a68064fa1d736af33ffcd345fe94315a2da792654fe2c"
+}

@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (/private/tmp/potyi-terminal-final-arm-target/aarch64-apple-darwin/debug/deps/vt100-7e7db8aa510e0117)
+
+running 2 tests
+test narrow_tests::one_column_wide_glyphs_do_not_create_half_cells_and_resize_recovers ... ok
+test narrow_tests::one_row_wrap_marks_outgoing_history_and_preserves_exact_output ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

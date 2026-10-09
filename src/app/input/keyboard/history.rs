@@ -2,13 +2,13 @@
 use super::*;
 
 pub(super) fn handle(
-    context: InputContext<'_, '_>,
+    context: HistoryContext<'_, '_>,
     key: Keycode,
     keymod: Mod,
     _repeat: bool,
     bound_command: Option<Command>,
 ) -> KeyResult {
-    let InputContext {
+    let HistoryContext {
         editor,
         other_editor,
         renderer,
@@ -44,7 +44,7 @@ pub(super) fn handle(
             result => {
                 if result.is_ok() {
                     lsp_ui.files_changed(workspace_edit::recent_disk_changes(&*editor, !redo));
-                    renderer.set_file_path(editor.path.as_deref());
+                    renderer.set_file_path(editor.path().as_deref());
                 }
                 if *vim_enabled {
                     vim.deactivate(&mut *editor);
@@ -60,10 +60,10 @@ pub(super) fn handle(
                 renderer.invalidate_scroll_cache();
                 renderer.update_cursor(&editor.document);
                 *dirty = true;
-                return Ok(Some(EventFlow::Continue));
+                return Ok(KeyFlow::Handled);
             }
         }
     }
 
-    Ok(None)
+    Ok(KeyFlow::Pass)
 }

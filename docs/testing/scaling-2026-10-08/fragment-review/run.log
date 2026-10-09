@@ -1,0 +1,25 @@
+fragments=1000 variant=fixed64 run=1 status=complete seconds=3.558 phase=editing
+fragments=1000 variant=adaptive run=1 status=complete seconds=3.243 phase=editing
+fragments=1000 variant=adaptive run=2 status=complete seconds=0.125 phase=editing
+fragments=1000 variant=fixed64 run=2 status=complete seconds=0.114 phase=editing
+fragments=1000 variant=fixed64 run=3 status=complete seconds=0.110 phase=editing
+fragments=1000 variant=adaptive run=3 status=complete seconds=0.113 phase=editing
+fragments=1000 variant=adaptive run=4 status=complete seconds=0.113 phase=editing
+fragments=1000 variant=fixed64 run=4 status=complete seconds=0.115 phase=editing
+fragments=10000 variant=adaptive run=1 status=complete seconds=0.223 phase=editing
+fragments=10000 variant=fixed64 run=1 status=complete seconds=0.235 phase=editing
+fragments=10000 variant=fixed64 run=2 status=complete seconds=0.216 phase=editing
+fragments=10000 variant=adaptive run=2 status=complete seconds=0.219 phase=editing
+fragments=10000 variant=adaptive run=3 status=complete seconds=0.216 phase=editing
+fragments=10000 variant=fixed64 run=3 status=complete seconds=0.223 phase=editing
+fragments=10000 variant=fixed64 run=4 status=complete seconds=0.214 phase=editing
+fragments=10000 variant=adaptive run=4 status=complete seconds=0.212 phase=editing
+fragments=100000 variant=fixed64 run=1 status=complete seconds=7.418 phase=editing
+fragments=100000 variant=adaptive run=1 status=complete seconds=7.297 phase=editing
+fragments=100000 variant=adaptive run=2 status=complete seconds=7.400 phase=editing
+fragments=100000 variant=fixed64 run=2 status=complete seconds=7.424 phase=editing
+fragments=100000 variant=fixed64 run=3 status=complete seconds=7.418 phase=editing
+fragments=100000 variant=adaptive run=3 status=complete seconds=7.504 phase=editing
+fragments=100000 variant=adaptive run=4 status=complete seconds=7.481 phase=editing
+fragments=100000 variant=fixed64 run=4 status=complete seconds=7.724 phase=editing
+Saved /private/tmp/potyi-fragment-review-20261008-qkzzxea3/results.json

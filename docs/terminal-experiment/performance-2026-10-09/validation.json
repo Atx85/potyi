@@ -1,0 +1,20 @@
+{
+  "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+  "observed_utc": "2026-10-09T12:43:47.790572+00:00",
+  "log_sha256": {
+    "optimized-tests.log": "98be56ec2ee44188bf2d572b9617caa41c56aa2ee403340ed7ba69902109f156",
+    "mac-arm-final.log": "e89275bf7273b781d9d239efe7bd993a515bbdb580e598599ceb380b690a5810",
+    "windows-final.log": "7d97300b7a070daad7e94681a8645d9e5b4ea6aaff93ce6842a1a14cb6484c30",
+    "linux-final.log": "5a961ae9bd70700af7a723472515c5afd2968a3ad2169cdb17b415ed37ed55a5"
+  },
+  "macos_release_rosetta_app_passed": 238,
+  "macos_arm64_backend_passed": 207,
+  "linux_arm64_backend_passed": 207,
+  "linux_arm64_app_passed": 238,
+  "parser_passed_per_native_backend": 2,
+  "windows_gnu_backend_compile": true,
+  "windows_native_runtime_verified": false,
+  "visual_rgb_pairs": 55,
+  "clipboard_pairs": 21,
+  "shared_compiled_inputs_match_frozen": true
+}

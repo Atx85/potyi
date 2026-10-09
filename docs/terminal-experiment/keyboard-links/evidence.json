@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-09",
+  "feature": "Enter activates the underlined item at the output cursor",
+  "target": "x86_64-apple-darwin (Rosetta on Apple Silicon)",
+  "focused_tests": {
+    "passed": 6,
+    "failed": 0
+  },
+  "terminal_tests": {
+    "passed": 215,
+    "failed": 0
+  },
+  "production_changes": [
+    "src/experimental_terminal/pane.rs",
+    "src/experimental_terminal/pane_output.rs"
+  ],
+  "source_sha256": {
+    "src/experimental_terminal/pane.rs": "f603bc6ac358eda7d0d4684da5d41aaf0c3343e57bb2729328de21e70e5d66d8",
+    "src/experimental_terminal/pane_output.rs": "4efa948244025741e804f2acaf9247fde899222c2e19a4521ef8db2263b3d7a5",
+    "src/app/input/terminal_keyboard_links.rs": "9890f7fd73896673d27b5854d90022c8e4e481f2e284589b602e1dfcc0df65a2",
+    "src/app/input/tests.rs": "2d8d19158f5d9d0f26a3aad3a801f0ff4e09c68273d2179adcd040cf9332e178"
+  },
+  "test_binary_sha256": "3c6e5e25df3736ec4bb88a587b613f0a1909a3c51acd61d1997f7aac20fb1d51",
+  "test_helper_sha256": "acf94a987431e060ec52c4d1ca649d1d7daae215bedcad2705094c150e31cfad",
+  "preview_binary_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+  "release_inputs_checked": {
+    "count": 298,
+    "unchanged": true,
+    "scope": "Cargo files, build.rs, and .rs/.toml/.ttf files under src and vendor"
+  },
+  "note": "Keyboard follow-up. The prior final-evidence.json, integration.patch and resource comparisons remain evidence for their earlier frozen source."
+}

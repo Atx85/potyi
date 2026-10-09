@@ -1,0 +1,282 @@
+[
+  {
+    "shell": "/bin/sh",
+    "command": "printf '%s' 'space \u6771\u4eac'",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/sh",
+    "command": "printf '%s' trailing\\",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/sh",
+    "command": "printf '%s' slash\\\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/sh",
+    "command": "printf 'newline\\n'\n\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/sh",
+    "command": "printf '%s' comment; # final comment",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/sh",
+    "command": "printf 'BEFORE_LATE_ERROR\\n'\nprintf 'unterminated",
+    "passed": true,
+    "status": 2,
+    "reference_status": 2
+  },
+  {
+    "shell": "/bin/sh",
+    "command": "printf '%s' 'quoted\n\n'\n\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/sh",
+    "command": "return 7; printf 'AFTER_RETURN\\n'",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/bash",
+    "command": "printf '%s' 'space \u6771\u4eac'",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/bash",
+    "command": "printf '%s' trailing\\",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/bash",
+    "command": "printf '%s' slash\\\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/bash",
+    "command": "printf 'newline\\n'\n\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/bash",
+    "command": "printf '%s' comment; # final comment",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/bash",
+    "command": "printf 'BEFORE_LATE_ERROR\\n'\nprintf 'unterminated",
+    "passed": true,
+    "status": 2,
+    "reference_status": 2
+  },
+  {
+    "shell": "/bin/bash",
+    "command": "printf '%s' 'quoted\n\n'\n\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/bash",
+    "command": "return 7; printf 'AFTER_RETURN\\n'",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/zsh",
+    "command": "printf '%s' 'space \u6771\u4eac'",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/zsh",
+    "command": "printf '%s' trailing\\",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/zsh",
+    "command": "printf '%s' slash\\\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/zsh",
+    "command": "printf 'newline\\n'\n\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/zsh",
+    "command": "printf '%s' comment; # final comment",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/zsh",
+    "command": "printf 'BEFORE_LATE_ERROR\\n'\nprintf 'unterminated",
+    "passed": true,
+    "status": 1,
+    "reference_status": 1
+  },
+  {
+    "shell": "/bin/zsh",
+    "command": "printf '%s' 'quoted\n\n'\n\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/zsh",
+    "command": "return 7; printf 'AFTER_RETURN\\n'",
+    "passed": true,
+    "status": 7,
+    "reference_status": 7
+  },
+  {
+    "shell": "/bin/dash",
+    "command": "printf '%s' 'space \u6771\u4eac'",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/dash",
+    "command": "printf '%s' trailing\\",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/dash",
+    "command": "printf '%s' slash\\\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/dash",
+    "command": "printf 'newline\\n'\n\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/dash",
+    "command": "printf '%s' comment; # final comment",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/dash",
+    "command": "printf 'BEFORE_LATE_ERROR\\n'\nprintf 'unterminated",
+    "passed": true,
+    "status": 2,
+    "reference_status": 2
+  },
+  {
+    "shell": "/bin/dash",
+    "command": "printf '%s' 'quoted\n\n'\n\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/dash",
+    "command": "return 7; printf 'AFTER_RETURN\\n'",
+    "passed": true,
+    "status": 7,
+    "reference_status": 7
+  },
+  {
+    "shell": "/bin/ksh",
+    "command": "printf '%s' 'space \u6771\u4eac'",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/ksh",
+    "command": "printf '%s' trailing\\",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/ksh",
+    "command": "printf '%s' slash\\\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/ksh",
+    "command": "printf 'newline\\n'\n\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/ksh",
+    "command": "printf '%s' comment; # final comment",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/ksh",
+    "command": "printf 'BEFORE_LATE_ERROR\\n'\nprintf 'unterminated",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/ksh",
+    "command": "printf '%s' 'quoted\n\n'\n\n",
+    "passed": true,
+    "status": 0,
+    "reference_status": 0
+  },
+  {
+    "shell": "/bin/ksh",
+    "command": "return 7; printf 'AFTER_RETURN\\n'",
+    "passed": true,
+    "status": 7,
+    "reference_status": 7
+  }
+]

@@ -1,0 +1,3 @@
+$ printf '́leading text\ń\n'
+́leading text
+́

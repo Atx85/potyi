@@ -1,0 +1,12 @@
+Capturing common old with explicit immutable helper
+Capturing common new with explicit immutable helper
+/private/tmp/potyi-terminal-performance-20261009-111723/review/run_terminal_visual_parity.py:201: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+  row.update(changed_pixels=sum(pixel != (0, 0, 0) for pixel in difference.getdata()),
+common: 27 exact RGB frames; 10 exact clipboard files
+Capturing leading old with explicit immutable helper
+Capturing leading new with explicit immutable helper
+leading: 27 exact RGB frames; 10 exact clipboard files
+Capturing quick-open old with explicit immutable helper
+Capturing quick-open new with explicit immutable helper
+quick-open: 1 exact RGB frames; 1 exact clipboard files
+Both 27-frame/10-clipboard comparisons and original/new actual accent filename clicks passed.

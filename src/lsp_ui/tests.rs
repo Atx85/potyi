@@ -17,7 +17,7 @@ fn pending_results_are_invalid_after_edits_reopens_cursor_moves_or_dismissal() {
         id: 1,
         revision: editor.document.revision(),
         other_revision: other.document.revision(),
-        path: editor.path.clone(),
+        path: editor.path().clone(),
         cursor: 0,
         epoch: bar.epoch(),
     };
@@ -51,7 +51,7 @@ fn batch_formatting_and_replacing_a_document_invalidate_pending_results() {
         id: 1,
         revision: active.document.revision(),
         other_revision: other.document.revision(),
-        path: active.path.clone(),
+        path: active.path().clone(),
         cursor: active.document.cursor.position,
         epoch: bar.epoch(),
     };
@@ -104,13 +104,18 @@ fn unity_missing_language_server_keeps_the_document_editable() {
     use std::time::{Duration, Instant};
     struct WorkingDirectory(PathBuf);
     impl Drop for WorkingDirectory {
-        fn drop(&mut self) { std::env::set_current_dir(&self.0).unwrap(); }
+        fn drop(&mut self) {
+            std::env::set_current_dir(&self.0).unwrap();
+        }
     }
     let files = Files::new();
     for directory in ["Assets/Scripts", "ProjectSettings", "config"] {
         std::fs::create_dir_all(files.0.join(directory)).unwrap();
     }
-    files.write("ProjectSettings/ProjectVersion.txt", "m_EditorVersion: 6000.0.0f1\n");
+    files.write(
+        "ProjectSettings/ProjectVersion.txt",
+        "m_EditorVersion: 6000.0.0f1\n",
+    );
     files.write("Game.sln", "");
     let missing = files.0.join("not-installed/csharp-ls.exe");
     files.write("config/lsp.toml", &format!(
@@ -131,7 +136,10 @@ fn unity_missing_language_server_keeps_the_document_editable() {
     let mut other = editor("another unsaved document");
     let mut bar = CommandBar::new();
     ui.reconcile(&active, &other);
-    assert!(ui.sessions.is_empty(), "opening a file must not launch a server");
+    assert!(
+        ui.sessions.is_empty(),
+        "opening a file must not launch a server"
+    );
     active.insert_text("// unsaved edit\r\n").unwrap();
     let edited = active.document.text().unwrap();
     bar.open(":lsp start");
@@ -140,20 +148,30 @@ fn unity_missing_language_server_keeps_the_document_editable() {
     while ui.pending.is_some() {
         assert!(started.elapsed() < Duration::from_secs(5));
         if let Some(event) = pump.wait_event_timeout(Duration::from_millis(20))
-            && let Some(event) = event.as_user_event_type::<lsp::Event>() {
+            && let Some(event) = event.as_user_event_type::<lsp::Event>()
+        {
             ui.accept(event, &mut active, &mut other, &mut bar);
         }
     }
-    assert!(bar.is_active() && bar.is_info(), "missing server must show a message");
+    assert!(
+        bar.is_active() && bar.is_info(),
+        "missing server must show a message"
+    );
     assert!(ui.status(&active).contains("was not found"));
     assert!(ui.status(&active).contains("keep editing without LSP"));
     assert_eq!(active.document.text().unwrap(), edited);
     assert_eq!(other.document.text().unwrap(), "another unsaved document");
-    assert!(active.dirty);
+    assert!(active.is_dirty());
     active.undo().unwrap();
     assert_eq!(active.document.text().unwrap(), source);
     active.insert_text("// still editable\r\n").unwrap();
-    assert!(active.document.text().unwrap().starts_with("// still editable"));
+    assert!(
+        active
+            .document
+            .text()
+            .unwrap()
+            .starts_with("// still editable")
+    );
     assert_eq!(std::fs::read_to_string(path).unwrap(), source);
     ui.stop();
 }
@@ -165,11 +183,16 @@ fn hover_clicks_refresh_only_the_latest_target_and_respect_dismissal() {
     use std::time::{Duration, Instant};
     struct WorkingDirectory(PathBuf);
     impl Drop for WorkingDirectory {
-        fn drop(&mut self) { std::env::set_current_dir(&self.0).unwrap(); }
+        fn drop(&mut self) {
+            std::env::set_current_dir(&self.0).unwrap();
+        }
     }
     let files = Files::new();
     std::fs::create_dir(files.0.join("config")).unwrap();
-    let fixture = format!("{}/tests/fixtures/lsp_server.py", env!("CARGO_MANIFEST_DIR"));
+    let fixture = format!(
+        "{}/tests/fixtures/lsp_server.py",
+        env!("CARGO_MANIFEST_DIR")
+    );
     files.write("config/lsp.toml", &format!(
         "enabled = true\n[[servers]]\nname = 'mock'\ncommand = 'python3'\nargs = ['{fixture}', 'incremental']\nextensions = ['rs']\nlanguage_id = 'rust'\n"));
     let path = files.write("main.rs", "one two three");
@@ -187,53 +210,83 @@ fn hover_clicks_refresh_only_the_latest_target_and_respect_dismissal() {
     let mut bar = CommandBar::new();
     bar.open(":lsp hover");
     ui.document_clicked(&active, &other, &mut bar);
-    assert!(ui.pending.is_none(), "typing a command must not enable click inspection");
-    ui.request(lsp::Action::Hover, &active, &other, &mut bar).unwrap();
+    assert!(
+        ui.pending.is_none(),
+        "typing a command must not enable click inspection"
+    );
+    ui.request(lsp::Action::Hover, &active, &other, &mut bar)
+        .unwrap();
     let first = ui.pending.as_ref().unwrap().id;
     for position in [4, 2, 8] {
         active.document.move_cursor(position).unwrap();
         ui.document_clicked(&active, &other, &mut bar);
     }
-    assert_eq!(ui.next_id, first + 1, "clicks must not queue server jobs while busy");
+    assert_eq!(
+        ui.next_id,
+        first + 1,
+        "clicks must not queue server jobs while busy"
+    );
     assert_eq!(ui.hover_refresh.as_ref().unwrap().cursor, 8);
-    let mut drain = |ui: &mut LspUi, active: &mut Editor, other: &mut Editor, bar: &mut CommandBar| {
-        let deadline = Instant::now() + Duration::from_secs(5);
-        while ui.pending.is_some() {
-            assert!(Instant::now() < deadline, "hover result timed out");
-            if let Some(event) = pump.wait_event_timeout(Duration::from_millis(100))
-                && let Some(event) = event.as_user_event_type::<lsp::Event>()
-            {
-                ui.accept(event, active, other, bar);
+    let mut drain =
+        |ui: &mut LspUi, active: &mut Editor, other: &mut Editor, bar: &mut CommandBar| {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while ui.pending.is_some() {
+                assert!(Instant::now() < deadline, "hover result timed out");
+                if let Some(event) = pump.wait_event_timeout(Duration::from_millis(100))
+                    && let Some(event) = event.as_user_event_type::<lsp::Event>()
+                {
+                    ui.accept(event, active, other, bar);
+                }
             }
-        }
-    };
+        };
     drain(&mut ui, &mut active, &mut other, &mut bar);
-    assert_eq!(ui.next_id, first + 2, "only the latest click should create a follow-up request");
-    let result: String = (0..bar.suggestion_count()).map(|i| bar.suggestion(i).unwrap().label).collect();
+    assert_eq!(
+        ui.next_id,
+        first + 2,
+        "only the latest click should create a follow-up request"
+    );
+    let result: String = (0..bar.suggestion_count())
+        .map(|i| bar.suggestion(i).unwrap().label)
+        .collect();
     let result: serde_json::Value = serde_json::from_str(&result).unwrap();
     assert_eq!(result["position"]["character"], 8);
     assert!(bar.is_active());
 
     active.document.move_cursor(4).unwrap();
     ui.document_clicked(&active, &other, &mut bar);
-    assert_eq!(ui.pending.as_ref().unwrap().cursor, 4, "completed hover must refresh on a click");
+    assert_eq!(
+        ui.pending.as_ref().unwrap().cursor,
+        4,
+        "completed hover must refresh on a click"
+    );
     active.document.move_cursor(0).unwrap();
     ui.document_clicked(&active, &other, &mut bar);
     let next_id = ui.next_id;
     bar.close();
     drain(&mut ui, &mut active, &mut other, &mut bar);
-    assert!(!bar.is_active(), "a late reply must not reopen a dismissed hover");
-    assert_eq!(ui.next_id, next_id, "dismissal must discard the queued click");
+    assert!(
+        !bar.is_active(),
+        "a late reply must not reopen a dismissed hover"
+    );
+    assert_eq!(
+        ui.next_id, next_id,
+        "dismissal must discard the queued click"
+    );
     assert!(ui.hover_refresh.is_none());
     bar.open(":lsp definition");
-    ui.request(lsp::Action::Definition, &active, &other, &mut bar).unwrap();
+    ui.request(lsp::Action::Definition, &active, &other, &mut bar)
+        .unwrap();
     active.document.move_cursor(5).unwrap();
     ui.document_clicked(&active, &other, &mut bar);
     drain(&mut ui, &mut active, &mut other, &mut bar);
-    assert_eq!(active.document.cursor.position, 5, "a stale definition must not jump away from a click");
+    assert_eq!(
+        active.document.cursor.position, 5,
+        "a stale definition must not jump away from a click"
+    );
     assert!(bar.suggestion(0).unwrap().label.contains("Cursor moved"));
     assert!(bar.prepare_execute());
-    ui.request(lsp::Action::Definition, &active, &other, &mut bar).unwrap();
+    ui.request(lsp::Action::Definition, &active, &other, &mut bar)
+        .unwrap();
     drain(&mut ui, &mut active, &mut other, &mut bar);
     assert_eq!(active.document.cursor.position, 2);
     assert!(!bar.is_active());
@@ -246,13 +299,13 @@ fn navigation_preserves_both_dirty_panes_and_existing_undo_history() {
     let path = files.write("existing.rs", "a🦀b\n");
     let new = files.write("new.rs", "new\n");
     let mut active = editor("unsaved");
-    active.dirty = true;
+    active.set_dirty(true);
     let mut other = editor("");
     other.open(path.to_str().unwrap()).unwrap();
     other.document.move_cursor(other.document.len()).unwrap();
     other.insert_text("edit").unwrap();
     let history = other.undo_stack.len();
-    other.read_only = true;
+    other.set_read_only(true);
     let result = navigate(
         &lsp::Location {
             path: path.clone(),
@@ -267,8 +320,8 @@ fn navigation_preserves_both_dirty_panes_and_existing_undo_history() {
     assert!(!result.document_reloaded);
     assert_eq!(other.document.cursor.column, 2);
     assert_eq!(other.undo_stack.len(), history);
-    assert!(other.dirty);
-    assert!(other.read_only);
+    assert!(other.is_dirty());
+    assert!(other.is_read_only());
     assert_eq!(active.document.text().unwrap(), "unsaved");
     assert!(
         navigate(
@@ -282,7 +335,7 @@ fn navigation_preserves_both_dirty_panes_and_existing_undo_history() {
         )
         .is_err()
     );
-    assert_eq!(other.path, Some(path));
+    assert_eq!(other.path(), Some(path));
 }
 
 #[test]
@@ -316,30 +369,79 @@ fn rename_reply_preview_click_enter_apply_and_dismissal() {
     let path = files.write("main.rs", "old();\n").canonicalize().unwrap();
     let sdl = sdl3::init().unwrap();
     let mut ui = LspUi::new(sdl.event().unwrap());
-    let mut active = editor(""); active.open(path.to_str().unwrap()).unwrap();
-    let mut other = editor(""); let mut bar = CommandBar::new();
-    let make_preview = || crate::workspace_edit::prepare(&serde_json::json!({"changes": {
-        lsp::file_uri(&path).unwrap(): [{"range":{"start":{"line":0,"character":0},
-            "end":{"line":0,"character":3}},"newText":"renamed"}]
-    }}),&files.0,&[lsp::Document { path:path.clone(), text:"old();\n".into() }],
-        &std::collections::HashMap::new(),std::time::SystemTime::now()).unwrap();
+    let mut active = editor("");
+    active.open(path.to_str().unwrap()).unwrap();
+    let mut other = editor("");
+    let mut bar = CommandBar::new();
+    let make_preview = || {
+        crate::workspace_edit::prepare(
+            &serde_json::json!({"changes": {
+                lsp::file_uri(&path).unwrap(): [{"range":{"start":{"line":0,"character":0},
+                    "end":{"line":0,"character":3}},"newText":"renamed"}]
+            }}),
+            &files.0,
+            &[lsp::Document {
+                path: path.clone(),
+                text: "old();\n".into(),
+            }],
+            &std::collections::HashMap::new(),
+            std::time::SystemTime::now(),
+        )
+        .unwrap()
+    };
     bar.open(":lsp rename renamed");
-    ui.pending = Some(Pending { id:42,revision:active.document.revision(),other_revision:other.document.revision(),
-        cursor:active.document.cursor.position,path:active.path.clone(),epoch:bar.epoch() });
-    ui.accept(lsp::Event { id:42,result:Ok(lsp::Reply::Rename(make_preview())) }, &mut active,&mut other,&mut bar);
-    assert!(!bar.is_info()); assert!(ui.preview.is_some());
-    bar.select_suggestion(0); assert!(!ui.review(&mut active,&mut other,&mut bar).unwrap().unwrap());
-    assert!(bar.is_info()); assert_eq!(active.document.text().unwrap(),"old();\n");
-    assert!(bar.prepare_execute()); assert!(!ui.review(&mut active,&mut other,&mut bar).unwrap().unwrap());
+    ui.pending = Some(Pending {
+        id: 42,
+        revision: active.document.revision(),
+        other_revision: other.document.revision(),
+        cursor: active.document.cursor.position,
+        path: active.path().clone(),
+        epoch: bar.epoch(),
+    });
+    ui.accept(
+        lsp::Event {
+            id: 42,
+            result: Ok(lsp::Reply::Rename(make_preview())),
+        },
+        &mut active,
+        &mut other,
+        &mut bar,
+    );
     assert!(!bar.is_info());
-    bar.select_suggestion(1); assert!(ui.review(&mut active,&mut other,&mut bar).unwrap().unwrap());
-    assert_eq!(active.document.text().unwrap(),"renamed();\n"); assert!(!bar.is_active());
-    assert_eq!(std::fs::read_to_string(&path).unwrap(),"old();\n");
-    crate::workspace_edit::history(&mut active,&mut other,false).unwrap();
-    bar.open(":lsp rename renamed"); let preview = make_preview(); bar.show_review(preview.choices());
-    ui.preview = Some((bar.epoch(),std::sync::Arc::new(preview)));
-    bar.close(); ui.discard_dismissed_preview(&bar); assert!(ui.preview.is_none());
-    assert_eq!(active.document.text().unwrap(),"old();\n");
+    assert!(ui.preview.is_some());
+    bar.select_suggestion(0);
+    assert!(
+        !ui.review(&mut active, &mut other, &mut bar)
+            .unwrap()
+            .unwrap()
+    );
+    assert!(bar.is_info());
+    assert_eq!(active.document.text().unwrap(), "old();\n");
+    assert!(bar.prepare_execute());
+    assert!(
+        !ui.review(&mut active, &mut other, &mut bar)
+            .unwrap()
+            .unwrap()
+    );
+    assert!(!bar.is_info());
+    bar.select_suggestion(1);
+    assert!(
+        ui.review(&mut active, &mut other, &mut bar)
+            .unwrap()
+            .unwrap()
+    );
+    assert_eq!(active.document.text().unwrap(), "renamed();\n");
+    assert!(!bar.is_active());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "old();\n");
+    crate::workspace_edit::history(&mut active, &mut other, false).unwrap();
+    bar.open(":lsp rename renamed");
+    let preview = make_preview();
+    bar.show_review(preview.choices());
+    ui.preview = Some((bar.epoch(), std::sync::Arc::new(preview)));
+    bar.close();
+    ui.discard_dismissed_preview(&bar);
+    assert!(ui.preview.is_none());
+    assert_eq!(active.document.text().unwrap(), "old();\n");
 }
 
 #[test]
@@ -347,89 +449,171 @@ fn rename_reply_preview_click_enter_apply_and_dismissal() {
 fn action_picker_click_enter_cancel_and_selection_invalidation() {
     let sdl = sdl3::init().unwrap();
     let mut ui = LspUi::new(sdl.event().unwrap());
-    let mut active = editor("Unknown"); let mut other = editor("");
+    let mut active = editor("Unknown");
+    let mut other = editor("");
     let mut bar = CommandBar::new();
-    let prepare = |ui: &mut LspUi, bar: &mut CommandBar, active: &mut Editor, other: &mut Editor| {
-        bar.open(":lsp actions");
-        ui.pending = Some(Pending { id:1, revision:active.document.revision(), other_revision:other.document.revision(),
-            cursor:active.document.cursor.position, path:active.path.clone(), epoch:bar.epoch() });
-        ui.accept(lsp::Event {id:1, result:Ok(lsp::Reply::CodeActions(lsp::CodeActions {
-            started:std::time::SystemTime::now(), items:vec![lsp::CodeActionItem {
-                title:"Unavailable fix".into(), disabled:Some("Needs a server extension".into()), value:serde_json::json!({})
-            }]
-        }))}, active, other, bar);
-    };
-    prepare(&mut ui,&mut bar,&mut active,&mut other);
-    assert!(ui.actions.is_some()); assert!(!bar.is_info());
-    bar.select_suggestion(0); ui.review(&mut active,&mut other,&mut bar).unwrap().unwrap();
-    assert!(bar.is_info()); assert!(bar.prepare_execute());
-    ui.review(&mut active,&mut other,&mut bar).unwrap().unwrap(); assert!(!bar.is_info());
-    bar.select_suggestion(1); ui.review(&mut active,&mut other,&mut bar).unwrap().unwrap();
-    assert!(!bar.is_active()); assert!(ui.actions.is_none());
-    prepare(&mut ui,&mut bar,&mut active,&mut other);
+    let prepare =
+        |ui: &mut LspUi, bar: &mut CommandBar, active: &mut Editor, other: &mut Editor| {
+            bar.open(":lsp actions");
+            ui.pending = Some(Pending {
+                id: 1,
+                revision: active.document.revision(),
+                other_revision: other.document.revision(),
+                cursor: active.document.cursor.position,
+                path: active.path().clone(),
+                epoch: bar.epoch(),
+            });
+            ui.accept(
+                lsp::Event {
+                    id: 1,
+                    result: Ok(lsp::Reply::CodeActions(lsp::CodeActions {
+                        started: std::time::SystemTime::now(),
+                        items: vec![lsp::CodeActionItem {
+                            title: "Unavailable fix".into(),
+                            disabled: Some("Needs a server extension".into()),
+                            value: serde_json::json!({}),
+                        }],
+                    })),
+                },
+                active,
+                other,
+                bar,
+            );
+        };
+    prepare(&mut ui, &mut bar, &mut active, &mut other);
+    assert!(ui.actions.is_some());
+    assert!(!bar.is_info());
+    bar.select_suggestion(0);
+    ui.review(&mut active, &mut other, &mut bar)
+        .unwrap()
+        .unwrap();
+    assert!(bar.is_info());
+    assert!(bar.prepare_execute());
+    ui.review(&mut active, &mut other, &mut bar)
+        .unwrap()
+        .unwrap();
+    assert!(!bar.is_info());
+    bar.select_suggestion(1);
+    ui.review(&mut active, &mut other, &mut bar)
+        .unwrap()
+        .unwrap();
+    assert!(!bar.is_active());
+    assert!(ui.actions.is_none());
+    prepare(&mut ui, &mut bar, &mut active, &mut other);
     active.document.cursor.anchor = 1;
-    ui.review(&mut active,&mut other,&mut bar).unwrap().unwrap();
-    assert!(ui.actions.is_none()); assert!(bar.is_info());
-    assert_eq!(active.document.text().unwrap(),"Unknown");
-    prepare(&mut ui,&mut bar,&mut active,&mut other);
-    bar.close(); ui.discard_dismissed_preview(&bar); assert!(ui.actions.is_none());
+    ui.review(&mut active, &mut other, &mut bar)
+        .unwrap()
+        .unwrap();
+    assert!(ui.actions.is_none());
+    assert!(bar.is_info());
+    assert_eq!(active.document.text().unwrap(), "Unknown");
+    prepare(&mut ui, &mut bar, &mut active, &mut other);
+    bar.close();
+    ui.discard_dismissed_preview(&bar);
+    assert!(ui.actions.is_none());
 }
 
 #[test]
 #[cfg(unix)]
 #[ignore = "SDL integration with a temporary working directory; run with --test-threads=1"]
 fn completion_popup_keys_undo_and_stale_results() {
-    use std::time::{Duration,Instant};
+    use std::time::{Duration, Instant};
     struct WorkingDirectory(PathBuf);
-    impl Drop for WorkingDirectory { fn drop(&mut self) { std::env::set_current_dir(&self.0).unwrap(); } }
+    impl Drop for WorkingDirectory {
+        fn drop(&mut self) {
+            std::env::set_current_dir(&self.0).unwrap();
+        }
+    }
     let files = Files::new();
     std::fs::create_dir(files.0.join("config")).unwrap();
-    let fixture = format!("{}/tests/fixtures/lsp_server.py",env!("CARGO_MANIFEST_DIR"));
+    let fixture = format!(
+        "{}/tests/fixtures/lsp_server.py",
+        env!("CARGO_MANIFEST_DIR")
+    );
     files.write("config/lsp.toml",&format!("enabled=true\n[[servers]]\nname='csharp'\ncommand='python3'\nargs=['{fixture}','slow-completion']\nextensions=['cs']\nlanguage_id='csharp'\n"));
-    let path = files.write("Player.cs","transform.");
+    let path = files.write("Player.cs", "transform.");
     let _cwd = WorkingDirectory(std::env::current_dir().unwrap());
     std::env::set_current_dir(&files.0).unwrap();
-    let sdl=sdl3::init().unwrap(); let events=sdl.event().unwrap();
+    let sdl = sdl3::init().unwrap();
+    let events = sdl.event().unwrap();
     // SDL retains custom type registration across sequential test contexts.
     let _ = events.register_custom_event::<lsp::Event>();
-    let mut pump=sdl.event_pump().unwrap(); let mut ui=LspUi::new(events);
-    let mut active=editor(""); active.open(path.to_str().unwrap()).unwrap();
+    let mut pump = sdl.event_pump().unwrap();
+    let mut ui = LspUi::new(events);
+    let mut active = editor("");
+    active.open(path.to_str().unwrap()).unwrap();
     active.document.move_cursor(10).unwrap();
-    let mut other=editor(""); let mut bar=CommandBar::new();
-    let drain=|ui:&mut LspUi,active:&mut Editor,other:&mut Editor,bar:&mut CommandBar,pump:&mut sdl3::EventPump| {
-        let started=Instant::now();
+    let mut other = editor("");
+    let mut bar = CommandBar::new();
+    let drain = |ui: &mut LspUi,
+                 active: &mut Editor,
+                 other: &mut Editor,
+                 bar: &mut CommandBar,
+                 pump: &mut sdl3::EventPump| {
+        let started = Instant::now();
         while ui.pending.is_some() {
-            assert!(started.elapsed()<Duration::from_secs(5));
-            if let Some(event)=pump.wait_event_timeout(Duration::from_millis(20))
-                && let Some(event)=event.as_user_event_type::<lsp::Event>() {ui.accept(event,active,other,bar);}
+            assert!(started.elapsed() < Duration::from_secs(5));
+            if let Some(event) = pump.wait_event_timeout(Duration::from_millis(20))
+                && let Some(event) = event.as_user_event_type::<lsp::Event>()
+            {
+                ui.accept(event, active, other, bar);
+            }
         }
     };
-    ui.typed_member_trigger(".",&active,&other,&mut bar);
-    assert!(!bar.is_active(),"autocomplete must not open the command bar");
-    drain(&mut ui,&mut active,&mut other,&mut bar,&mut pump);
-    assert_eq!(ui.completion_display().unwrap().labels,["position","Translate"]);
-    assert!(ui.completion_key(sdl3::keyboard::Keycode::Down,false,&active,&other,&mut bar));
-    assert_eq!(ui.completion_display().unwrap().selected,1);
-    assert!(ui.completion_key(sdl3::keyboard::Keycode::Return,false,&active,&other,&mut bar));
-    drain(&mut ui,&mut active,&mut other,&mut bar,&mut pump);
-    assert_eq!(active.document.text().unwrap(),"transform.Translate");
-    assert_eq!(active.document.cursor.position,19);
-    assert_eq!(std::fs::read_to_string(&path).unwrap(),"transform.","completion must not save");
+    ui.typed_member_trigger(".", &active, &other, &mut bar);
+    assert!(
+        !bar.is_active(),
+        "autocomplete must not open the command bar"
+    );
+    drain(&mut ui, &mut active, &mut other, &mut bar, &mut pump);
+    assert_eq!(
+        ui.completion_display().unwrap().labels,
+        ["position", "Translate"]
+    );
+    assert!(ui.completion_key(
+        sdl3::keyboard::Keycode::Down,
+        false,
+        &active,
+        &other,
+        &mut bar
+    ));
+    assert_eq!(ui.completion_display().unwrap().selected, 1);
+    assert!(ui.completion_key(
+        sdl3::keyboard::Keycode::Return,
+        false,
+        &active,
+        &other,
+        &mut bar
+    ));
+    drain(&mut ui, &mut active, &mut other, &mut bar, &mut pump);
+    assert_eq!(active.document.text().unwrap(), "transform.Translate");
+    assert_eq!(active.document.cursor.position, 19);
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        "transform.",
+        "completion must not save"
+    );
     active.undo().unwrap();
-    assert_eq!(active.document.text().unwrap(),"transform.");
-    assert_eq!(active.document.cursor.position,10);
+    assert_eq!(active.document.text().unwrap(), "transform.");
+    assert_eq!(active.document.cursor.position, 10);
     active.redo().unwrap();
-    assert_eq!(active.document.cursor.position,19);
+    assert_eq!(active.document.cursor.position, 19);
     active.undo().unwrap();
-    ui.typed_member_trigger(".",&active,&other,&mut bar);
+    ui.typed_member_trigger(".", &active, &other, &mut bar);
     active.insert("x").unwrap();
-    drain(&mut ui,&mut active,&mut other,&mut bar,&mut pump);
+    drain(&mut ui, &mut active, &mut other, &mut bar, &mut pump);
     assert!(ui.completion_display().is_none());
-    assert_eq!(active.document.text().unwrap(),"transform.x");
+    assert_eq!(active.document.text().unwrap(), "transform.x");
     active.undo().unwrap();
-    ui.typed_member_trigger(".",&active,&other,&mut bar);
-    drain(&mut ui,&mut active,&mut other,&mut bar,&mut pump);
-    assert!(ui.completion_key(sdl3::keyboard::Keycode::Escape,false,&active,&other,&mut bar));
+    ui.typed_member_trigger(".", &active, &other, &mut bar);
+    drain(&mut ui, &mut active, &mut other, &mut bar, &mut pump);
+    assert!(ui.completion_key(
+        sdl3::keyboard::Keycode::Escape,
+        false,
+        &active,
+        &other,
+        &mut bar
+    ));
     assert!(ui.completion_display().is_none());
     ui.stop();
 }
@@ -438,51 +622,97 @@ fn completion_popup_keys_undo_and_stale_results() {
 #[cfg(unix)]
 #[ignore = "SDL integration with temporary config; run with --test-threads=1"]
 fn start_enables_stopped_lsp_and_restart_recovers_after_failure() {
-    use std::time::{Duration,Instant};
+    use std::time::{Duration, Instant};
     struct WorkingDirectory(PathBuf);
-    impl Drop for WorkingDirectory { fn drop(&mut self) { std::env::set_current_dir(&self.0).unwrap(); } }
-    let files=Files::new(); std::fs::create_dir(files.0.join("config")).unwrap();
-    let fixture=format!("{}/tests/fixtures/lsp_server.py",env!("CARGO_MANIFEST_DIR"));
-    let settings=format!("enabled=false\n[[servers]]\nname='mock'\ncommand='python3'\nargs=['{fixture}','incremental']\nextensions=['rs']\nlanguage_id='rust'\n");
-    files.write("config/lsp.toml",&settings);
-    let path=files.write("main.rs","player.");
-    let _cwd=WorkingDirectory(std::env::current_dir().unwrap()); std::env::set_current_dir(&files.0).unwrap();
-    let sdl=sdl3::init().unwrap(); let events=sdl.event().unwrap(); let _=events.register_custom_event::<lsp::Event>();
-    let mut pump=sdl.event_pump().unwrap(); let mut ui=LspUi::new(events);
-    let mut active=editor(""); active.open(path.to_str().unwrap()).unwrap(); active.document.move_cursor(7).unwrap();
-    let mut other=editor(""); let mut bar=CommandBar::new();
-    let drain=|ui:&mut LspUi,active:&mut Editor,other:&mut Editor,bar:&mut CommandBar,pump:&mut sdl3::EventPump| {
-        let started=Instant::now();
+    impl Drop for WorkingDirectory {
+        fn drop(&mut self) {
+            std::env::set_current_dir(&self.0).unwrap();
+        }
+    }
+    let files = Files::new();
+    std::fs::create_dir(files.0.join("config")).unwrap();
+    let fixture = format!(
+        "{}/tests/fixtures/lsp_server.py",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let settings = format!(
+        "enabled=false\n[[servers]]\nname='mock'\ncommand='python3'\nargs=['{fixture}','incremental']\nextensions=['rs']\nlanguage_id='rust'\n"
+    );
+    files.write("config/lsp.toml", &settings);
+    let path = files.write("main.rs", "player.");
+    let _cwd = WorkingDirectory(std::env::current_dir().unwrap());
+    std::env::set_current_dir(&files.0).unwrap();
+    let sdl = sdl3::init().unwrap();
+    let events = sdl.event().unwrap();
+    let _ = events.register_custom_event::<lsp::Event>();
+    let mut pump = sdl.event_pump().unwrap();
+    let mut ui = LspUi::new(events);
+    let mut active = editor("");
+    active.open(path.to_str().unwrap()).unwrap();
+    active.document.move_cursor(7).unwrap();
+    let mut other = editor("");
+    let mut bar = CommandBar::new();
+    let drain = |ui: &mut LspUi,
+                 active: &mut Editor,
+                 other: &mut Editor,
+                 bar: &mut CommandBar,
+                 pump: &mut sdl3::EventPump| {
+        let started = Instant::now();
         while ui.pending.is_some() {
-            assert!(started.elapsed()<Duration::from_secs(5));
-            if let Some(event)=pump.wait_event_timeout(Duration::from_millis(20))
-                && let Some(event)=event.as_user_event_type::<lsp::Event>() {ui.accept(event,active,other,bar);}
+            assert!(started.elapsed() < Duration::from_secs(5));
+            if let Some(event) = pump.wait_event_timeout(Duration::from_millis(20))
+                && let Some(event) = event.as_user_event_type::<lsp::Event>()
+            {
+                ui.accept(event, active, other, bar);
+            }
         }
     };
-    ui.typed_member_trigger(".",&active,&other,&mut bar); assert!(ui.pending.is_none());
-    bar.open(":lsp start"); ui.start(false,&active,&other,&mut bar).unwrap();
+    ui.typed_member_trigger(".", &active, &other, &mut bar);
+    assert!(ui.pending.is_none());
+    bar.open(":lsp start");
+    ui.start(false, &active, &other, &mut bar).unwrap();
     assert!(ui.status(&active).contains("Connecting / loading"));
     // Connection status should survive moving the cursor or closing its panel.
-    active.document.move_cursor(0).unwrap(); bar.close();
-    drain(&mut ui,&mut active,&mut other,&mut bar,&mut pump);
+    active.document.move_cursor(0).unwrap();
+    bar.close();
+    drain(&mut ui, &mut active, &mut other, &mut bar, &mut pump);
     assert!(ui.status(&active).contains("Connected to mock"));
     assert!(!bar.is_active());
     active.document.move_cursor(7).unwrap();
-    ui.typed_member_trigger(".",&active,&other,&mut bar);
-    assert_eq!(ui.completion_display().unwrap().total,0,"loading is visible immediately");
-    ui.stop(); ui.typed_member_trigger(".",&active,&other,&mut bar);
-    assert!(ui.pending.is_none(),"stop must pause automatic restarts");
-    files.write("config/lsp.toml",&settings.replace("command='python3'","command='potyi-nonexistent-language-server'"));
-    bar.open(":lsp restart"); ui.start(true,&active,&other,&mut bar).unwrap();
-    drain(&mut ui,&mut active,&mut other,&mut bar,&mut pump);
+    ui.typed_member_trigger(".", &active, &other, &mut bar);
+    assert_eq!(
+        ui.completion_display().unwrap().total,
+        0,
+        "loading is visible immediately"
+    );
+    ui.stop();
+    ui.typed_member_trigger(".", &active, &other, &mut bar);
+    assert!(ui.pending.is_none(), "stop must pause automatic restarts");
+    files.write(
+        "config/lsp.toml",
+        &settings.replace(
+            "command='python3'",
+            "command='potyi-nonexistent-language-server'",
+        ),
+    );
+    bar.open(":lsp restart");
+    ui.start(true, &active, &other, &mut bar).unwrap();
+    drain(&mut ui, &mut active, &mut other, &mut bar, &mut pump);
     assert!(ui.status(&active).contains("Could not start LSP"));
-    files.write("config/lsp.toml",&settings);
-    ui.start(true,&active,&other,&mut bar).unwrap();
-    drain(&mut ui,&mut active,&mut other,&mut bar,&mut pump);
+    files.write("config/lsp.toml", &settings);
+    ui.start(true, &active, &other, &mut bar).unwrap();
+    drain(&mut ui, &mut active, &mut other, &mut bar, &mut pump);
     assert!(ui.status(&active).contains("Connected to mock"));
     assert!(!ui.status(&active).contains("Could not start LSP"));
-    assert_eq!(std::fs::read_to_string("config/lsp.toml").unwrap(),settings,"start is a window-local opt-in");
-    assert!(bar.prepare_execute(),"Enter retries start/restart from their result panel");
+    assert_eq!(
+        std::fs::read_to_string("config/lsp.toml").unwrap(),
+        settings,
+        "start is a window-local opt-in"
+    );
+    assert!(
+        bar.prepare_execute(),
+        "Enter retries start/restart from their result panel"
+    );
     ui.stop();
 }
 
@@ -491,12 +721,15 @@ fn start_enables_stopped_lsp_and_restart_recovers_after_failure() {
 fn setup_ui_doctor_keeps_editing_and_delivers_background_result() {
     let sdl = sdl3::init().unwrap();
     let events = sdl.event().unwrap();
-    events.register_custom_event::<crate::lsp_setup::Event>().unwrap();
+    events
+        .register_custom_event::<crate::lsp_setup::Event>()
+        .unwrap();
     let mut pump = sdl.event_pump().unwrap();
     let mut ui = LspUi::new(events);
     let mut document = editor("unsaved text");
     let other = editor("");
-    let mut bar = CommandBar::new(); bar.open(":lsp doctor");
+    let mut bar = CommandBar::new();
+    bar.open(":lsp doctor");
     ui.setup(false, None, &document, &mut bar).unwrap();
     document.document.insert(0, "still editing ").unwrap();
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -506,11 +739,25 @@ fn setup_ui_doctor_keeps_editing_and_delivers_background_result() {
                 ui.accept_setup(event, &document, &other, &mut bar);
             }
         }
-        if ui.setup.last.as_ref().is_some_and(|text| text.contains("not managed by Potyi") || text.contains("configured")) { break; }
+        if ui.setup.last.as_ref().is_some_and(|text| {
+            text.contains("not managed by Potyi") || text.contains("configured")
+        }) {
+            break;
+        }
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
-    assert!(ui.setup.last.as_ref().is_some_and(|text| text.contains("LSP setup ·")), "{:?}", ui.setup.last);
+    assert!(
+        ui.setup
+            .last
+            .as_ref()
+            .is_some_and(|text| text.contains("LSP setup ·")),
+        "{:?}",
+        ui.setup.last
+    );
     assert!(bar.is_info());
-    assert_eq!(document.document.text().unwrap(), "still editing unsaved text");
+    assert_eq!(
+        document.document.text().unwrap(),
+        "still editing unsaved text"
+    );
     assert!(ui.sessions.is_empty());
 }

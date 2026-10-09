@@ -1,0 +1,76 @@
+
+running 1 test
+test app::input::tests::terminal_resource_probe::matched_terminal_resource_probe ... 
+POTYI_TERM_RESOURCE {"event":"ready","phase":"ready","kind":"new","pid":59004,"elapsed_ms":45.715,"draws":5,"turns":5}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"idle","kind":"new","pid":59004,"elapsed_ms":45.824,"draws":5,"turns":5}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"idle","kind":"new","pid":59004,"elapsed_ms":2046.088,"draws":5,"turns":7}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"small_command","kind":"new","pid":59004,"elapsed_ms":2046.175,"draws":5,"turns":7}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"small_command","kind":"new","duration_ms":209.212}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"small_command","kind":"new","pid":59004,"elapsed_ms":2255.416,"draws":10,"turns":22}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"small_idle","kind":"new","pid":59004,"elapsed_ms":2255.426,"draws":10,"turns":22}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"small_idle","kind":"new","pid":59004,"elapsed_ms":4255.805,"draws":10,"turns":25}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"stream_first","kind":"new","pid":59004,"elapsed_ms":4255.850,"draws":10,"turns":25}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"stream_first","kind":"new","duration_ms":2609.405}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"stream_first","kind":"new","pid":59004,"elapsed_ms":6865.280,"draws":150,"turns":2058}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"plateau_first","kind":"new","pid":59004,"elapsed_ms":6865.290,"draws":150,"turns":2058}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"plateau_first","kind":"new","pid":59004,"elapsed_ms":8865.626,"draws":150,"turns":2061}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"stream_second","kind":"new","pid":59004,"elapsed_ms":8865.680,"draws":150,"turns":2061}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"stream_second","kind":"new","duration_ms":2627.687}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"stream_second","kind":"new","pid":59004,"elapsed_ms":11493.394,"draws":291,"turns":4076}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"plateau_second","kind":"new","pid":59004,"elapsed_ms":11493.403,"draws":291,"turns":4076}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"plateau_second","kind":"new","pid":59004,"elapsed_ms":13493.585,"draws":291,"turns":4079}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"stream_third","kind":"new","pid":59004,"elapsed_ms":13493.639,"draws":291,"turns":4079}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"stream_third","kind":"new","duration_ms":2625.100}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"stream_third","kind":"new","pid":59004,"elapsed_ms":16118.763,"draws":433,"turns":6348}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"plateau_third","kind":"new","pid":59004,"elapsed_ms":16118.775,"draws":433,"turns":6348}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"plateau_third","kind":"new","pid":59004,"elapsed_ms":18119.337,"draws":433,"turns":6351}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"resize","kind":"new","pid":59004,"elapsed_ms":18119.369,"draws":433,"turns":6351}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"resize","kind":"new","duration_ms":1698.792,"resizes":9}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"resize","kind":"new","pid":59004,"elapsed_ms":19818.191,"draws":553,"turns":10669}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copy_selected","kind":"new","pid":59004,"elapsed_ms":19818.295,"draws":553,"turns":10669}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"copy_selected","kind":"new","duration_ms":1.397,"copied_bytes":4096}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copy_selected","kind":"new","pid":59004,"elapsed_ms":20569.835,"draws":555,"turns":10673}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copy_all","kind":"new","pid":59004,"elapsed_ms":20569.906,"draws":555,"turns":10673}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"copy_all","kind":"new","duration_ms":54.238,"copied_bytes":4785422}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copy_all","kind":"new","pid":59004,"elapsed_ms":21374.251,"draws":557,"turns":10678}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copied_idle","kind":"new","pid":59004,"elapsed_ms":21374.281,"draws":557,"turns":10678}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copied_idle","kind":"new","pid":59004,"elapsed_ms":23374.509,"draws":557,"turns":10680}
+
+POTYI_TERM_RESOURCE {"event":"done","phase":"done","kind":"new","pid":59004,"elapsed_ms":23374.538,"draws":557,"turns":10680}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 908 filtered out; finished in 23.45s
+

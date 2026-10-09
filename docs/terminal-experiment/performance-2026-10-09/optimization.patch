@@ -1,0 +1,2750 @@
+--- a/src/app/input/terminal_startup_probe.rs
++++ b/src/app/input/terminal_startup_probe.rs
+@@ -0,0 +1,363 @@
++// Pötyi - SPDX-License-Identifier: GPL-3.0-or-later
++//! Opt-in startup stages and repeated commands, separate from output resources.
++//! Durations are evidence, never performance-threshold test assertions.
++use super::*;
++use std::{env, path::PathBuf};
++
++const PREFIX: &str = "POTYI_TERM_STARTUP ";
++
++#[derive(Clone, Copy, PartialEq, Eq)]
++enum Kind {
++    Old,
++    New,
++}
++impl Kind {
++    fn label(self) -> &'static str {
++        if self == Self::Old {
++            "old"
++        } else {
++            "new"
++        }
++    }
++}
++
++struct Probe {
++    kind: Kind,
++    started: Instant,
++    frames: terminal::FrameSchedule,
++    draws: usize,
++    turns: usize,
++    ready_seen: bool,
++    visible: bool,
++}
++
++impl Probe {
++    fn event(&self, event: &str, phase: &str, duration_ms: Option<f64>, sequence: Option<usize>) {
++        let data = serde_json::json!({
++            "event": event, "phase": phase, "kind": self.kind.label(),
++            "pid": std::process::id(), "elapsed_ms": self.started.elapsed().as_secs_f64() * 1000.,
++            "duration_ms": duration_ms, "command_sequence": sequence,
++            "draws": self.draws, "turns": self.turns, "visible": self.visible,
++        });
++        eprintln!("\n{PREFIX}{data}");
++    }
++
++    fn observe_ready(&mut self, app: &Fixture<'_>) {
++        if !self.ready_seen && (self.kind == Kind::Old || app.renderer.experimental_ready()) {
++            self.ready_seen = true;
++            // The legacy panel has no persistent Session to authenticate. Its
++            // synchronous-open readiness is deliberately a different event.
++            self.event(
++                if self.kind == Kind::New {
++                    "session_ready"
++                } else {
++                    "legacy_open_ready"
++                },
++                "pane_create",
++                None,
++                None,
++            );
++        }
++    }
++
++    fn running(&self, app: &Fixture<'_>) -> bool {
++        match self.kind {
++            Kind::Old => app.terminal.is_running(),
++            Kind::New => !app.renderer.experimental_ready() || app.renderer.experimental_running(),
++        }
++    }
++
++    fn pending(&self, app: &Fixture<'_>) -> bool {
++        match self.kind {
++            Kind::Old => app.terminal.has_pending_work(),
++            Kind::New => {
++                app.renderer.experimental_pending() || app.renderer.experimental_output_pending()
++            }
++        }
++    }
++
++    fn work_pending(&self, app: &Fixture<'_>) -> bool {
++        match self.kind {
++            Kind::Old => app.terminal.has_pending_work(),
++            Kind::New => app.renderer.experimental_pending(),
++        }
++    }
++
++    fn draw(&mut self, app: &mut Fixture<'_>) {
++        app.dirty = false;
++        match self.kind {
++            Kind::Old => app.renderer.render_terminal(&mut app.terminal).unwrap(),
++            Kind::New => app
++                .renderer
++                .render_experimental(
++                    &mut app.editor.document,
++                    &mut app.other_editor.document,
++                    &mut app.terminal,
++                    &app.search_ui,
++                    &app.command_bar,
++                )
++                .unwrap(),
++        }
++        self.draws += 1;
++        self.frames.rendered(Instant::now());
++    }
++
++    fn turn(
++        &mut self,
++        app: &mut Fixture<'_>,
++        pump: &mut sdl3::EventPump,
++        max_wait: Duration,
++        settling: bool,
++    ) {
++        self.turns += 1;
++        let changed = match self.kind {
++            Kind::Old => app.terminal.poll_background().unwrap(),
++            Kind::New => {
++                crate::app::experimental::poll(&mut app.renderer, &mut app.vim, &mut app.other_vim)
++            }
++        };
++        self.observe_ready(app);
++        if changed {
++            self.frames.changed();
++        }
++        // Preserve the production schedule while avoiding a full idle wait
++        // after the last reader/layout poll has already finished an operation.
++        if settling && !self.running(app) && !self.pending(app) {
++            return;
++        }
++        let timeout = self
++            .frames
++            .wait(Instant::now(), app.dirty, self.work_pending(app))
++            .min(max_wait);
++        if let Some(event) =
++            pump.wait_event_timeout(crate::app::experimental::wait_timeout(timeout))
++        {
++            assert_eq!(
++                app.send_application(event, &mut self.frames),
++                EventFlow::Continue,
++                "Startup probe interrupted by a window close"
++            );
++        }
++        for event in pump.poll_iter().take(64) {
++            assert_eq!(
++                app.send_application(event, &mut self.frames),
++                EventFlow::Continue,
++                "Startup probe interrupted by a window close"
++            );
++        }
++        if app.dirty || self.frames.due(Instant::now()) {
++            self.draw(app);
++        }
++    }
++
++    fn settle(&mut self, app: &mut Fixture<'_>, pump: &mut sdl3::EventPump) {
++        // An operational hang guard, matching the resource fixture. There is
++        // intentionally no latency-budget assertion on a successful run.
++        let deadline = Instant::now() + Duration::from_secs(600);
++        loop {
++            self.turn(app, pump, Duration::from_secs(1), true);
++            if !self.running(app) && !self.pending(app) {
++                self.draw(app);
++                if !self.pending(app) {
++                    break;
++                }
++            }
++            assert!(Instant::now() < deadline, "Startup probe did not settle");
++        }
++    }
++
++    fn command(
++        &mut self,
++        app: &mut Fixture<'_>,
++        pump: &mut sdl3::EventPump,
++        command: &str,
++        sequence: usize,
++    ) {
++        // Distinct phase names prevent repeated intervals being conflated by
++        // phase aggregators or whole-interval process-sample validation.
++        let phase = if sequence == 0 {
++            "first_command".to_owned()
++        } else {
++            format!("warm_command_{sequence:02}")
++        };
++        self.event("phase", &phase, None, Some(sequence));
++        let started = Instant::now();
++        match self.kind {
++            Kind::Old => {
++                app.terminal.run_command(command).unwrap();
++            }
++            Kind::New => app.renderer.experimental_send(command).unwrap(),
++        }
++        self.event(
++            "submitted",
++            &phase,
++            Some(started.elapsed().as_secs_f64() * 1000.),
++            Some(sequence),
++        );
++        self.frames.changed();
++        self.settle(app, pump);
++        self.event(
++            "operation",
++            &phase,
++            Some(started.elapsed().as_secs_f64() * 1000.),
++            Some(sequence),
++        );
++        self.event("end", &phase, None, Some(sequence));
++    }
++}
++
++#[test]
++#[ignore = "Opt-in startup timing; select kind/root and run alone with --ignored --nocapture --test-threads=1"]
++fn matched_terminal_startup_probe() {
++    let kind = match env::var("POTYI_TERM_STARTUP_KIND").as_deref() {
++        Ok("old") => Kind::Old,
++        Ok("new") => Kind::New,
++        _ => panic!("Select old/new with POTYI_TERM_STARTUP_KIND"),
++    };
++    let root = PathBuf::from(
++        env::var_os("POTYI_TERM_STARTUP_ROOT").expect("Private startup fixture root"),
++    )
++    .canonicalize()
++    .unwrap();
++    assert!(root.is_dir() && root.is_absolute());
++    let visible = env::var("POTYI_TERM_STARTUP_VISIBLE").as_deref() == Ok("1");
++    #[cfg(windows)]
++    let default_command = "echo POTYI_STARTUP_DONE";
++    #[cfg(not(windows))]
++    let default_command = "printf '%s\\n' POTYI_STARTUP_DONE";
++    let custom_command = env::var("POTYI_TERM_STARTUP_COMMAND").ok();
++    let command = custom_command
++        .clone()
++        .unwrap_or_else(|| default_command.into());
++    let expected_line = env::var("POTYI_TERM_STARTUP_EXPECT_LINE").ok().or_else(|| {
++        custom_command
++            .is_none()
++            .then(|| "POTYI_STARTUP_DONE".into())
++    });
++    if let Some(line) = &expected_line {
++        assert!(!line.is_empty() && !line.contains(['\r', '\n']));
++    }
++    assert!(!command.is_empty() && command.len() <= 64 * 1024);
++    let hold_ms = env::var("POTYI_TERM_STARTUP_HOLD_MS")
++        .ok()
++        .map(|value| value.parse::<u64>().unwrap())
++        .unwrap_or(if visible { 2000 } else { 0 });
++    assert!(hold_ms <= 10_000);
++
++    with_fixture(|app| {
++        let sdl = sdl3::init().unwrap();
++        let video = sdl.video().unwrap();
++        let driver = video.current_video_driver();
++        if visible {
++            assert_ne!(
++                driver, "dummy",
++                "Visible verification needs the native SDL video driver"
++            );
++            let window = app.renderer.window_mut();
++            window
++                .set_title(&format!("Pötyi terminal startup probe ({})", kind.label()))
++                .unwrap();
++            assert!(window.set_bordered(false), "{}", sdl3::get_error());
++            assert!(window.show(), "{}", sdl3::get_error());
++        }
++        let mut pump = sdl.event_pump().unwrap();
++        let mut probe = Probe {
++            kind,
++            started: Instant::now(),
++            frames: terminal::FrameSchedule::default(),
++            draws: 0,
++            turns: 0,
++            ready_seen: false,
++            visible,
++        };
++        eprintln!(
++            "\n{PREFIX}{}",
++            serde_json::json!({
++                "event": "context", "kind": kind.label(), "pid": std::process::id(),
++                "video_driver": driver, "visible": visible, "fixture_setup_measured": false,
++            "helper_trace_included": false, "warm_commands": 5,
++            "command_source": if custom_command.is_some() { "environment override" } else { "built-in small command" },
++            })
++        );
++        probe.event("phase", "pane_create", None, None);
++        let opened = Instant::now();
++        match kind {
++            Kind::Old => {
++                app.terminal = Terminal::new(root.clone()).unwrap();
++                app.terminal.set_events(app.event_subsystem.clone());
++                app.terminal.open(None);
++            }
++            Kind::New => {
++                app.renderer
++                    .experimental_events(&app.event_subsystem)
++                    .unwrap();
++                app.renderer.open_experimental(&root, None).unwrap();
++            }
++        }
++        probe.event(
++            "open_return",
++            "pane_create",
++            Some(opened.elapsed().as_secs_f64() * 1000.),
++            None,
++        );
++        probe.observe_ready(app);
++        probe.draw(app);
++        probe.settle(app, &mut pump);
++        probe.event(
++            "viewport_settled",
++            "pane_create",
++            Some(opened.elapsed().as_secs_f64() * 1000.),
++            None,
++        );
++        probe.event("end", "pane_create", None, None);
++
++        probe.event("phase", "clear", None, None);
++        let cleared = Instant::now();
++        match kind {
++            Kind::Old => app.terminal.clear().unwrap(),
++            Kind::New => {
++                app.key(Keycode::L, Mod::LCTRLMOD);
++            }
++        }
++        probe.frames.changed();
++        probe.settle(app, &mut pump);
++        probe.event(
++            "operation",
++            "clear",
++            Some(cleared.elapsed().as_secs_f64() * 1000.),
++            None,
++        );
++        probe.event("end", "clear", None, None);
++        for sequence in 0..=5 {
++            probe.command(app, &mut pump, &command, sequence);
++            // Outside the measured operation: default commands must really
++            // publish one new output line, rather than merely stop running.
++            if let Some(expected) = &expected_line {
++                let text = match kind {
++                    Kind::Old => app.terminal.output_mut().text().unwrap(),
++                    Kind::New => app.renderer.experimental_contents(),
++                };
++                assert!(
++                    text.lines()
++                        .filter(|line| line.trim_end_matches('\r') == expected)
++                        .count()
++                        >= sequence + 1,
++                    "Command did not publish its expected output line"
++                );
++            }
++        }
++        probe.event("done", "done", None, None);
++
++        // Keep a real window available for observation after measured stages.
++        // This hold is explicitly outside the command durations.
++        let until = Instant::now() + Duration::from_millis(hold_ms);
++        while Instant::now() < until {
++            probe.turn(
++                app,
++                &mut pump,
++                until.saturating_duration_since(Instant::now()),
++                false,
++            );
++        }
++    });
++}
+--- a/src/app/input/tests.rs
++++ b/src/app/input/tests.rs
+@@ -2484,6 +2484,9 @@
+     });
+ }
+ 
++#[path = "terminal_startup_probe.rs"]
++mod terminal_startup_probe;
++
+ #[path="terminal_resource_probe.rs"]
+ mod terminal_resource_probe;
+ 
+--- a/src/experimental_terminal/bridge.rs
++++ b/src/experimental_terminal/bridge.rs
+@@ -3,16 +3,20 @@
+ use super::Wake;
+ use serde::{Deserialize, Serialize};
+ use std::{
++    fs::{File, OpenOptions},
+     io::{self, Read, Write},
+     net::{TcpListener, TcpStream},
+-    path::PathBuf,
++    path::{Path, PathBuf},
+     sync::{
+         Arc,
+         atomic::{AtomicBool, Ordering},
+         mpsc::{self, Receiver},
+     },
+-    time::Duration,
++    time::{Duration, Instant},
+ };
++
++const MAX_REQUEST_BYTES: usize = 64 * 1024;
++const MAX_TRACE_BYTES: u64 = 64 * 1024;
+ 
+ #[derive(Debug, Serialize, Deserialize)]
+ pub(crate) struct Request {
+@@ -50,6 +54,7 @@
+                 let Ok(mut stream) = stream else {
+                     break;
+                 };
++                let _ = stream.set_nodelay(true);
+                 let _ = stream.set_read_timeout(Some(Duration::from_millis(200)));
+                 let _ = stream.set_write_timeout(Some(Duration::from_millis(200)));
+                 let result = read_request(&mut stream).and_then(|request| {
+@@ -110,14 +115,107 @@
+     let mut size = [0u8; 4];
+     stream.read_exact(&mut size)?;
+     let size = u32::from_be_bytes(size) as usize;
+-    if size > 64 * 1024 {
++    if size > MAX_REQUEST_BYTES {
+         return Err(io::Error::other("Terminal request is too large"));
+     }
+     let mut data = vec![0; size];
+     stream.read_exact(&mut data)?;
+     serde_json::from_slice(&data).map_err(io::Error::other)
+ }
++
++struct RequestPacket(Vec<u8>);
++impl Write for RequestPacket {
++    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
++        if bytes.len() > MAX_REQUEST_BYTES + 4 - self.0.len() {
++            return Err(io::Error::other("Terminal request is too large"));
++        }
++        self.0.extend_from_slice(bytes);
++        Ok(bytes.len())
++    }
++    fn flush(&mut self) -> io::Result<()> {
++        Ok(())
++    }
++}
++fn request_packet(request: &Request) -> io::Result<Vec<u8>> {
++    // Reserve the framing bytes first and serialize directly into one capped
++    // buffer. Escaping must count toward the existing 64 KiB JSON limit too.
++    let mut packet = RequestPacket(Vec::with_capacity(MAX_REQUEST_BYTES + 4));
++    packet.0.extend_from_slice(&[0; 4]);
++    serde_json::to_writer(&mut packet, request).map_err(io::Error::other)?;
++    let size = (packet.0.len() - 4) as u32;
++    packet.0[..4].copy_from_slice(&size.to_be_bytes());
++    Ok(packet.0)
++}
++struct ClientTrace {
++    file: File,
++    start: Instant,
++}
++impl ClientTrace {
++    fn new() -> Option<Self> {
++        let path = std::env::var_os("POTYI_TERM_TRACE_FILE")?;
++        Self::open(Path::new(&path))
++    }
++    fn open(path: &Path) -> Option<Self> {
++        if !path.is_absolute() {
++            return None;
++        }
++        let mut options = OpenOptions::new();
++        options.read(true).append(true).create(true);
++        #[cfg(unix)]
++        {
++            use std::os::unix::fs::OpenOptionsExt;
++            options.mode(0o600);
++        }
++        let file = options.open(path).ok()?;
++        if !file.metadata().ok()?.is_file() {
++            return None;
++        }
++        Some(Self {
++            file,
++            start: Instant::now(),
++        })
++    }
++    fn record(&self, operation: &str, stage: &'static str) {
++        // Trace labels never contain arguments, command text, paths or tokens.
++        let operation = match operation {
++            "edit" => "edit",
++            "view" => "view",
++            "cwd" => "cwd",
++            "ready" => "ready",
++            "complete" => "complete",
++            "read-command" => "read-command",
++            _ => "invalid",
++        };
++        // Helpers share one bounded file. Skip a contended trace rather than
++        // delay a command, and hold the lock across the size check and write.
++        if self.file.try_lock().is_err() {
++            return;
++        }
++        let _ = (|| -> io::Result<()> {
++            let remaining = MAX_TRACE_BYTES.saturating_sub(self.file.metadata()?.len());
++            if remaining < 192 {
++                return Ok(());
++            }
++            let record = format!(
++                "POTYI_TERM_TRACE pid={} operation={operation} stage={stage} elapsed_us={}\n",
++                std::process::id(),
++                self.start.elapsed().as_micros()
++            );
++            if record.len() as u64 <= remaining {
++                (&self.file).write_all(record.as_bytes())?;
++            }
++            Ok(())
++        })();
++        let _ = self.file.unlock();
++    }
++}
++fn trace_client(trace: Option<&ClientTrace>, operation: &str, stage: &'static str) {
++    if let Some(trace) = trace {
++        trace.record(operation, stage);
++    }
++}
+ pub(crate) fn client(arguments: Vec<String>) -> io::Result<()> {
++    let trace = ClientTrace::new();
+     #[cfg(windows)]
+     unsafe {
+         #[link(name = "kernel32")]
+@@ -130,6 +228,7 @@
+     let [address, token, operation, rest @ ..] = arguments.as_slice() else {
+         return Err(io::Error::other("Invalid terminal helper arguments"));
+     };
++    trace_client(trace.as_ref(), operation, "client_enter");
+     // Restrict the helper to the loopback endpoint supplied by this session.
+     let endpoint: std::net::SocketAddr = address.parse().map_err(io::Error::other)?;
+     if !endpoint.ip().is_loopback() {
+@@ -169,17 +268,20 @@
+         command_id,
+         exit_status,
+     };
+-    let data = serde_json::to_vec(&request).map_err(io::Error::other)?;
+-    if data.len() > 64 * 1024 {
+-        return Err(io::Error::other("Terminal request is too large"));
+-    }
++    let packet = request_packet(&request)?;
++    trace_client(trace.as_ref(), operation, "encoded");
+     let mut stream = TcpStream::connect_timeout(&endpoint, Duration::from_secs(2))?;
++    stream.set_nodelay(true)?;
++    trace_client(trace.as_ref(), operation, "connected");
+     stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+     stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+-    stream.write_all(&(data.len() as u32).to_be_bytes())?;
+-    stream.write_all(&data)?;
++    // A separate tiny header write can leave its body waiting for a delayed
++    // acknowledgment while the server is blocked reading that same body.
++    stream.write_all(&packet)?;
++    trace_client(trace.as_ref(), operation, "sent");
+     let mut reply = String::new();
+     stream.take(1024).read_to_string(&mut reply)?;
++    trace_client(trace.as_ref(), operation, "replied");
+     if reply == "OK" {
+         if operation == "ready" {
+             print!("\x1b]777;potyi-ready\x07");
+@@ -190,11 +292,16 @@
+             print!("\x18\x1b]777;potyi-end;{nonce};{}\x07", command_id.unwrap());
+             std::io::stdout().flush()?;
+         }
++        trace_client(trace.as_ref(), operation, "completed");
+         Ok(())
+     } else {
+         Err(io::Error::other(reply))
+     }
+ }
++
++#[cfg(test)]
++#[path = "bridge_tests.rs"]
++mod packet_tests;
+ 
+ /// Definitions used inside the persistent managed shell driver.
+ pub(super) fn setup_helpers(shell_name: &str) -> String {
+@@ -210,7 +317,7 @@
+         "edit(){ \"$POTYI_TERM_CLIENT\" --term-request \"$POTYI_TERM_ADDRESS\" \"$POTYI_TERM_TOKEN\" edit \"$@\"; }; ",
+         "view(){ \"$POTYI_TERM_CLIENT\" --term-request \"$POTYI_TERM_ADDRESS\" \"$POTYI_TERM_TOKEN\" view \"$@\"; }; ",
+         "cd(){ command cd \"$@\" && \"$POTYI_TERM_CLIENT\" --term-request \"$POTYI_TERM_ADDRESS\" \"$POTYI_TERM_TOKEN\" cwd; }; "
+-    ).replace("command cd",if matches!(shell_name,"bash"|"zsh"|"ksh") { "builtin cd" } else { "command cd" })
++    ).replace("command cd",if matches!(shell_name,"bash"|"zsh") { "builtin cd" } else { "command cd" })
+ }
+ 
+ #[cfg(windows)]
+--- a/src/experimental_terminal/bridge_tests.rs
++++ b/src/experimental_terminal/bridge_tests.rs
+@@ -0,0 +1,261 @@
++// Pötyi - SPDX-License-Identifier: GPL-3.0-or-later
++use super::*;
++
++fn request(path: String) -> Request {
++    Request {
++        token: "private-test-token".into(),
++        operation: "view".into(),
++        directory: PathBuf::from("é folder"),
++        path,
++        command_id: None,
++        exit_status: None,
++    }
++}
++
++#[test]
++fn experimental_terminal_bridge_packet_retains_wire_format_and_encoded_limit() {
++    let empty = request_packet(&request(String::new())).unwrap();
++    let overhead = empty.len() - 4;
++    let packet = request_packet(&request("x".repeat(MAX_REQUEST_BYTES - overhead))).unwrap();
++    assert_eq!(packet.len(), MAX_REQUEST_BYTES + 4);
++    assert_eq!(
++        u32::from_be_bytes(packet[..4].try_into().unwrap()) as usize,
++        MAX_REQUEST_BYTES
++    );
++    let decoded: Request = serde_json::from_slice(&packet[4..]).unwrap();
++    assert_eq!(decoded.directory, PathBuf::from("é folder"));
++    assert_eq!(decoded.path.len(), MAX_REQUEST_BYTES - overhead);
++    assert!(request_packet(&request("x".repeat(MAX_REQUEST_BYTES - overhead + 1))).is_err());
++    // These bytes fit before JSON encoding, but their escapes exceed the cap.
++    assert!(request_packet(&request("\0".repeat(12_000))).is_err());
++}
++
++#[test]
++fn experimental_terminal_bridge_accepts_coalesced_and_fragmented_request_frames() {
++    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
++    let address = listener.local_addr().unwrap();
++    let reader = std::thread::spawn(move || {
++        for expected in ["space 東京.rs:3:2", "é notes.rs:4"] {
++            let (mut stream, _) = listener.accept().unwrap();
++            stream
++                .set_read_timeout(Some(Duration::from_secs(2)))
++                .unwrap();
++            let request = read_request(&mut stream).unwrap();
++            assert_eq!(request.path, expected);
++            assert_eq!(request.token, "private-test-token");
++            stream.write_all(b"OK").unwrap();
++        }
++    });
++    for (path, fragmented) in [("space 東京.rs:3:2", false), ("é notes.rs:4", true)] {
++        let packet = request_packet(&request(path.into())).unwrap();
++        let mut stream = TcpStream::connect(address).unwrap();
++        stream.set_nodelay(true).unwrap();
++        stream
++            .set_read_timeout(Some(Duration::from_secs(2)))
++            .unwrap();
++        if fragmented {
++            for bytes in packet.chunks(3) {
++                stream.write_all(bytes).unwrap();
++            }
++        } else {
++            stream.write_all(&packet).unwrap();
++        }
++        let mut reply = String::new();
++        stream.read_to_string(&mut reply).unwrap();
++        assert_eq!(reply, "OK");
++    }
++    reader.join().unwrap();
++}
++
++#[test]
++fn experimental_terminal_bridge_rejects_oversize_and_stays_available() {
++    let bridge = Bridge::new(Arc::new(|| {})).unwrap();
++    assert!(
++        client(vec![
++            bridge.address.clone(),
++            bridge.token.clone(),
++            "edit".into(),
++            "\0".repeat(12_000)
++        ])
++        .is_err()
++    );
++    assert!(bridge.requests.try_recv().is_err());
++    client(vec![
++        bridge.address.clone(),
++        bridge.token.clone(),
++        "complete".into(),
++        "27".into(),
++        "19".into(),
++    ])
++    .unwrap();
++    let request = bridge
++        .requests
++        .recv_timeout(Duration::from_secs(1))
++        .unwrap();
++    assert_eq!(request.command_id, Some(27));
++    assert_eq!(request.exit_status, Some(19));
++}
++
++#[test]
++fn experimental_terminal_bridge_failed_ack_is_not_reported_as_success() {
++    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
++    let address = listener.local_addr().unwrap();
++    let reader = std::thread::spawn(move || {
++        let (mut stream, _) = listener.accept().unwrap();
++        stream
++            .set_read_timeout(Some(Duration::from_secs(2)))
++            .unwrap();
++        let request = read_request(&mut stream).unwrap();
++        assert_eq!(request.command_id, Some(9));
++        stream.write_all(b"Editor request queue is busy").unwrap();
++    });
++    let error = client(vec![
++        address.to_string(),
++        "private-test-token".into(),
++        "complete".into(),
++        "9".into(),
++        "0".into(),
++    ])
++    .unwrap_err();
++    assert_eq!(error.to_string(), "Editor request queue is busy");
++    reader.join().unwrap();
++}
++
++struct TraceFile(PathBuf);
++impl TraceFile {
++    fn new() -> Self {
++        let mut random = [0; 16];
++        getrandom::getrandom(&mut random).unwrap();
++        let suffix: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
++        Self(std::env::temp_dir().join(format!("potyi-helper-trace-{suffix}.log")))
++    }
++}
++impl Drop for TraceFile {
++    fn drop(&mut self) {
++        let _ = std::fs::remove_file(&self.0);
++    }
++}
++
++#[test]
++fn experimental_terminal_bridge_trace_is_bounded_and_sanitizes_operation() {
++    assert!(ClientTrace::open(Path::new("relative-trace.log")).is_none());
++    let path = TraceFile::new();
++    let trace = ClientTrace::open(&path.0).unwrap();
++    trace.record("secret-token\nprivate command path", "client_enter");
++    for _ in 0..2_048 {
++        trace.record("complete", "completed");
++    }
++    let bytes = std::fs::read(&path.0).unwrap();
++    assert!(bytes.len() as u64 <= MAX_TRACE_BYTES);
++    let text = String::from_utf8(bytes).unwrap();
++    assert!(text.contains("operation=invalid stage=client_enter"));
++    assert!(!text.contains("secret-token"));
++    assert!(!text.contains("private command path"));
++    assert!(text.ends_with('\n'));
++    assert!(text.lines().count() > 1);
++    let capped_size = text.len();
++    trace.record("view", "sent");
++    assert_eq!(
++        std::fs::metadata(&path.0).unwrap().len(),
++        capped_size as u64
++    );
++    #[cfg(unix)]
++    {
++        use std::os::unix::fs::PermissionsExt;
++        assert_eq!(
++            std::fs::metadata(&path.0).unwrap().permissions().mode() & 0o777,
++            0o600
++        );
++    }
++}
++
++#[test]
++fn experimental_terminal_bridge_trace_skips_contention_and_preserves_records() {
++    let path = TraceFile::new();
++    let trace = ClientTrace::open(&path.0).unwrap();
++    let locked_file = OpenOptions::new()
++        .read(true)
++        .write(true)
++        .open(&path.0)
++        .unwrap();
++    locked_file.try_lock().unwrap();
++    trace.record("ready", "sent");
++    assert_eq!(std::fs::metadata(&path.0).unwrap().len(), 0);
++    locked_file.unlock().unwrap();
++    drop(locked_file);
++    drop(trace);
++    let writers: Vec<_> = (0..8)
++        .map(|_| {
++            let path = path.0.clone();
++            std::thread::spawn(move || {
++                let trace = ClientTrace::open(&path).unwrap();
++                for _ in 0..512 {
++                    trace.record("complete", "replied");
++                }
++            })
++        })
++        .collect();
++    for writer in writers {
++        writer.join().unwrap();
++    }
++    let text = std::fs::read_to_string(&path.0).unwrap();
++    assert!(!text.is_empty());
++    assert!(text.len() as u64 <= MAX_TRACE_BYTES);
++    assert!(text.ends_with('\n'));
++    for record in text.lines() {
++        assert!(record.starts_with("POTYI_TERM_TRACE pid="));
++        assert!(record.contains(" operation=complete stage=replied elapsed_us="));
++        assert!(record.rsplit_once('=').unwrap().1.parse::<u128>().is_ok());
++    }
++}
++
++#[cfg(unix)]
++#[test]
++fn experimental_terminal_ksh_helper_cd_uses_the_builtin_and_reports_real_cwd() {
++    use std::{os::unix::fs::PermissionsExt, process::Command};
++    let Some(shell) = ["/bin/ksh", "/usr/bin/ksh", "/usr/local/bin/ksh"]
++        .into_iter()
++        .map(PathBuf::from)
++        .find(|path| path.is_file())
++    else {
++        return;
++    };
++    struct Directory(PathBuf);
++    impl Drop for Directory {
++        fn drop(&mut self) {
++            let _ = std::fs::remove_dir_all(&self.0);
++        }
++    }
++    let unique = TraceFile::new();
++    let directory = Directory(unique.0.with_extension("helpers"));
++    let target = directory.0.join("cwd é ' with spaces");
++    std::fs::create_dir_all(&target).unwrap();
++    let target = target.canonicalize().unwrap();
++    let helper = directory.0.join("cwd-helper");
++    std::fs::write(&helper, "#!/bin/sh\n[ \"$4\" = cwd ] || exit 91\nprintf '%s' \"$PWD\" > \"$POTYI_CWD_TEST_RESULT\"\n").unwrap();
++    std::fs::set_permissions(&helper, std::fs::Permissions::from_mode(0o700)).unwrap();
++    let result = directory.0.join("reported-cwd");
++    let quoted = format!("'{}'", target.to_str().unwrap().replace('\'', "'\\''"));
++    let output = Command::new(shell)
++        .arg("-c")
++        .arg(format!(
++            "{}\ncd {quoted} || exit $?\nprintf '%s' \"$PWD\"",
++            setup_helpers("ksh")
++        ))
++        .current_dir(&directory.0)
++        .env("POTYI_TERM_CLIENT", helper)
++        .env("POTYI_TERM_ADDRESS", "test-address")
++        .env("POTYI_TERM_TOKEN", "test-token")
++        .env("POTYI_CWD_TEST_RESULT", &result)
++        .env_remove("ENV")
++        .env_remove("BASH_ENV")
++        .output()
++        .unwrap();
++    assert!(
++        output.status.success(),
++        "{}",
++        String::from_utf8_lossy(&output.stderr)
++    );
++    assert_eq!(output.stdout, target.to_str().unwrap().as_bytes());
++    assert_eq!(std::fs::read(result).unwrap(), output.stdout);
++}
+--- a/src/experimental_terminal/layout.rs
++++ b/src/experimental_terminal/layout.rs
+@@ -640,6 +640,10 @@
+     start: Cursor,
+     hard: bool,
+     fragment: Fragment,
++    projected: bool,
++    text_bytes: usize,
++    segment_count: usize,
++    last_segment: Option<Segment>,
+     width: usize,
+     tab_column: usize,
+     wrap_pixels: usize,
+@@ -651,6 +655,7 @@
+     building: Option<Building>,
+     hard: bool,
+     output_hard: bool,
++    projected: bool,
+ }
+ impl Flow {
+     fn new(cursor: Cursor) -> Self {
+@@ -660,11 +665,25 @@
+             building: None,
+             hard: cursor.byte == 0,
+             output_hard: cursor.byte == 0,
+-        }
++            projected: true,
++        }
++    }
++    // Counting and sparse checkpoints need the exact wrapping state, not a
++    // second copy of the visible text and hit/style segments. Keep their byte
++    // and segment limits identical to the projecting traversal.
++    fn counting(cursor: Cursor) -> Self {
++        let mut flow = Self::new(cursor);
++        flow.projected = false;
++        flow
+     }
+     fn checkpoint(checkpoint: Checkpoint) -> Self {
+         let mut flow = Self::new(checkpoint.cursor);
+         flow.hard = checkpoint.hard;
++        flow
++    }
++    fn counting_checkpoint(checkpoint: Checkpoint) -> Self {
++        let mut flow = Self::checkpoint(checkpoint);
++        flow.projected = false;
+         flow
+     }
+     fn finish(&mut self, build: Building, hard: bool) -> Option<(Cursor, Fragment)> {
+@@ -752,6 +771,10 @@
+                     segments: Vec::new(),
+                     font_columns,
+                 },
++                projected: self.projected,
++                text_bytes: 0,
++                segment_count: 0,
++                last_segment: None,
+                 width: 0,
+                 tab_column: 0,
+                 wrap_pixels: 0,
+@@ -789,10 +812,13 @@
+                     return Ok(self.finish(build, false));
+                 }
+                 if padding != 0 {
+-                    build
+-                        .fragment
+-                        .text
+-                        .extend(std::iter::repeat_n(' ', padding));
++                    if build.projected {
++                        build
++                            .fragment
++                            .text
++                            .extend(std::iter::repeat_n(' ', padding));
++                    }
++                    build.text_bytes += padding;
+                     build.width += padding;
+                 }
+                 let anchor = Cursor {
+@@ -805,10 +831,13 @@
+                     byte: row.text.len(),
+                 }
+                 .anchor(epoch);
+-                let start = build.fragment.text.len();
+-                build.fragment.text.push_str(&row.text);
+-                build.fragment.segments.push(Segment {
+-                    range: start..build.fragment.text.len(),
++                let start = build.text_bytes;
++                build.text_bytes += row.text.len();
++                if build.projected {
++                    build.fragment.text.push_str(&row.text);
++                }
++                let segment = Segment {
++                    range: start..build.text_bytes,
+                     start: anchor,
+                     end: end_anchor,
+                     column: build.width as u16,
+@@ -817,7 +846,12 @@
+                     native: row.native,
+                     color: native_segment_color(row, row.style(0)),
+                     style: row.style(0),
+-                });
++                };
++                build.segment_count += 1;
++                if build.projected {
++                    build.fragment.segments.push(segment.clone());
++                }
++                build.last_segment = Some(segment);
+                 build.fragment.end = end_anchor;
+                 build.width += width;
+                 *entries += 1;
+@@ -902,10 +936,15 @@
+                         last_break: Some((cursor, length)),
+                     } = &build.mode
+                     {
+-                        if *length != 0 && *length < build.fragment.text.len() {
++                        if *length != 0 && *length < build.text_bytes {
+                             self.cursor = *cursor;
+                             self.loaded = None;
+-                            build.fragment.trim(*length, cursor.anchor(epoch));
++                            if build.projected {
++                                build.fragment.trim(*length, cursor.anchor(epoch));
++                            } else {
++                                build.fragment.end = cursor.anchor(epoch);
++                            }
++                            build.text_bytes = *length;
+                         }
+                     }
+                     return Ok(self.finish(build, false));
+@@ -913,25 +952,31 @@
+                 // Legacy wrapping keeps separators on the preceding visual row.
+                 // Still bound very long runs of whitespace rather than buffering
+                 // a transcript-sized logical line.
+-                if build.fragment.text.len() >= MAX_FRAGMENT_BYTES - 4 {
++                if build.text_bytes >= MAX_FRAGMENT_BYTES - 4 {
+                     return Ok(self.finish(build, false));
+                 }
+             }
+             let style = row.style(self.cursor.byte);
+             let color = native_segment_color(row, style);
+-            if build.fragment.text.len() + character.len_utf8().max(width) > MAX_FRAGMENT_BYTES {
++            if build.text_bytes + character.len_utf8().max(width) > MAX_FRAGMENT_BYTES {
+                 return Ok(self.finish(build, false));
+             }
+-            let start = build.fragment.text.len();
++            let start = build.text_bytes;
+             if character == '\t' {
+-                build.fragment.text.extend(std::iter::repeat_n(' ', width));
++                if build.projected {
++                    build.fragment.text.extend(std::iter::repeat_n(' ', width));
++                }
++                build.text_bytes += width;
+             } else {
+-                build.fragment.text.push(character);
++                if build.projected {
++                    build.fragment.text.push(character);
++                }
++                build.text_bytes += character.len_utf8();
+             }
+             self.cursor.byte += character.len_utf8();
+             let end_anchor = self.cursor.anchor(epoch);
+             let tab = character == '\t';
+-            let previous = build.fragment.segments.last_mut();
++            let previous = build.last_segment.as_mut();
+             if let Some(previous) = previous.filter(|previous| {
+                 !tab && previous.end == anchor
+                     && previous.style == style
+@@ -939,11 +984,16 @@
+                     && previous.range.end - previous.range.start
+                         == previous.end.utf8_byte_offset - previous.start.utf8_byte_offset
+             }) {
+-                previous.range.end = build.fragment.text.len();
++                previous.range.end = build.text_bytes;
+                 previous.end = end_anchor;
++                if build.projected {
++                    let projected = build.fragment.segments.last_mut().unwrap();
++                    projected.range.end = build.text_bytes;
++                    projected.end = end_anchor;
++                }
+             } else {
+-                build.fragment.segments.push(Segment {
+-                    range: start..build.fragment.text.len(),
++                let segment = Segment {
++                    range: start..build.text_bytes,
+                     start: anchor,
+                     end: end_anchor,
+                     column: build.width.min(u16::MAX as usize) as u16,
+@@ -952,7 +1002,12 @@
+                     native: row.native,
+                     color,
+                     style,
+-                });
++                };
++                build.segment_count += 1;
++                if build.projected {
++                    build.fragment.segments.push(segment.clone());
++                }
++                build.last_segment = Some(segment);
+             }
+             build.fragment.end = end_anchor;
+             build.width = build.width.saturating_add(width);
+@@ -967,16 +1022,16 @@
+                     });
+             if character.is_whitespace() {
+                 if let Mode::Text { last_break } = &mut build.mode {
+-                    *last_break = Some((self.cursor, build.fragment.text.len()));
++                    *last_break = Some((self.cursor, build.text_bytes));
+                 }
+             }
+             characters += 1;
+-            if build.fragment.text.len() >= MAX_FRAGMENT_BYTES
+-                || build.fragment.segments.len() >= MAX_FRAGMENT_SEGMENTS
++            if build.text_bytes >= MAX_FRAGMENT_BYTES
++                || build.segment_count >= MAX_FRAGMENT_SEGMENTS
+                 || (characters % 64 == 0 && budget.exhausted())
+             {
+-                if build.fragment.text.len() >= MAX_FRAGMENT_BYTES
+-                    || build.fragment.segments.len() >= MAX_FRAGMENT_SEGMENTS
++                if build.text_bytes >= MAX_FRAGMENT_BYTES
++                    || build.segment_count >= MAX_FRAGMENT_SEGMENTS
+                 {
+                     return Ok(self.finish(build, false));
+                 }
+@@ -987,6 +1042,12 @@
+     }
+ }
+ 
++// The cap applies to each projection, including Vec slack. Published rows and
++// Pane rows normally share it. While a query grows or a viewport is replaced,
++// a prior published frame and the Pane's prior frame can remain alive: at most
++// three viewport buffers plus one navigation buffer (4 * MAX_VISIBLE_BYTES),
++// excluding small Arc/Vec headers, Flow scratch and the separately bounded tail.
++// A saved Git Back view owns a separate, frozen Layout/Pane set.
+ struct Query {
+     start: usize,
+     count: usize,
+@@ -994,10 +1055,27 @@
+     flow: Flow,
+     end: u64,
+     tail: Option<Arc<Tail>>,
+-    fragments: Vec<Fragment>,
++    fragments: Arc<Vec<Fragment>>,
+     bytes: usize,
+     revision: u64,
+     ready: bool,
++}
++impl Query {
++    fn frame_mut(fragments: &mut Arc<Vec<Fragment>>) -> &mut Vec<Fragment> {
++        if Arc::get_mut(fragments).is_none() {
++            // A published frame remains immutable for painting and hit tests.
++            // Copy only when this still-growing query next adds a row, retaining
++            // its already-accounted Vec slack and the existing content cap.
++            let mut rows = Vec::with_capacity(fragments.capacity());
++            rows.extend(fragments.iter().cloned());
++            *fragments = Arc::new(rows);
++        }
++        Arc::get_mut(fragments).unwrap()
++    }
++    #[cfg(test)]
++    fn fragments_mut(&mut self) -> &mut Vec<Fragment> {
++        Self::frame_mut(&mut self.fragments)
++    }
+ }
+ struct Published {
+     start: usize,
+@@ -1083,7 +1161,7 @@
+             origin: 0,
+             rebase: None,
+             complete: base == end,
+-            flow: Flow::new(Cursor { id: base, byte: 0 }),
++            flow: Flow::counting(Cursor { id: base, byte: 0 }),
+             last_start: None,
+             last_hard: true,
+             checkpoints: Vec::with_capacity(CHECKPOINTS),
+@@ -1299,12 +1377,12 @@
+                 self.rows = self.rows.saturating_sub(1);
+                 self.checkpoints
+                     .retain(|checkpoint| checkpoint.row < self.rows);
+-                self.flow = Flow::new(start);
++                self.flow = Flow::counting(start);
+                 self.flow.hard = self.last_hard;
+                 self.complete = false;
+             }
+         } else {
+-            self.flow = Flow::new(Cursor {
++            self.flow = Flow::counting(Cursor {
+                 id: self.base,
+                 byte: 0,
+             });
+@@ -1328,7 +1406,7 @@
+             });
+         self.rows = checkpoint.row;
+         self.checkpoints.retain(|point| point.row < checkpoint.row);
+-        self.flow = Flow::checkpoint(checkpoint);
++        self.flow = Flow::counting_checkpoint(checkpoint);
+         self.last_start = None;
+         self.complete = self.flow.finished(self.end);
+         // Prefix queries keep their captured end and bounded screen snapshot.
+@@ -1340,7 +1418,7 @@
+         self.origin = 0;
+         self.rebase = None;
+         self.complete = self.base == self.end;
+-        self.flow = Flow::new(Cursor {
++        self.flow = Flow::counting(Cursor {
+             id: self.base,
+             byte: 0,
+         });
+@@ -1449,7 +1527,7 @@
+         self.base = base;
+         self.rebase = Some(Rebase {
+             target,
+-            flow: Flow::new(Cursor { id: base, byte: 0 }),
++            flow: Flow::counting(Cursor { id: base, byte: 0 }),
+             rows: 0,
+         });
+         self.checkpoints.retain(|point| point.row >= target.row);
+@@ -1462,7 +1540,7 @@
+         };
+         if !retained(&self.flow) {
+             self.rows = target.row;
+-            self.flow = Flow::checkpoint(target);
++            self.flow = Flow::counting_checkpoint(target);
+             self.last_start = None;
+             self.complete = false;
+         }
+@@ -1645,11 +1723,12 @@
+                         query.ready = true;
+                         break;
+                     }
++                    let fragments = Query::frame_mut(&mut query.fragments);
+                     if extra > 0 {
+-                        query.fragments.reserve_exact(extra);
++                        fragments.reserve_exact(extra);
+                     }
++                    fragments.push(fragment);
+                     query.bytes += size;
+-                    query.fragments.push(fragment);
+                     if query.fragments.len() == query.count {
+                         query.ready = true;
+                     }
+@@ -1733,13 +1812,13 @@
+     }
+     /// A distant viewport may return no rows while its bounded projection is
+     /// prepared by poll(). Repeating the same request returns the ready cache.
+-    pub(crate) fn visible(&mut self, start: usize, count: usize) -> io::Result<Vec<Fragment>> {
++    pub(crate) fn request_visible(&mut self, start: usize, count: usize) -> io::Result<()> {
+         self.sync();
+         let start = start.saturating_add(self.origin);
+         if count == 0 {
+             self.query = None;
+             self.published = None;
+-            return Ok(Vec::new());
++            return Ok(());
+         }
+         let mut replace = self.query.is_none();
+         if let Some(query) = &self.query {
+@@ -1753,7 +1832,7 @@
+                     self.published = Some(Published {
+                         start: query.start,
+                         revision: query.revision,
+-                        rows: Arc::new(query.fragments.clone()),
++                        rows: query.fragments.clone(),
+                         tail: query.tail.clone(),
+                     });
+                 }
+@@ -1777,17 +1856,32 @@
+                 flow: Flow::checkpoint(checkpoint),
+                 end: self.end,
+                 tail: self.tail.clone(),
+-                fragments: Vec::new(),
++                fragments: Arc::new(Vec::new()),
+                 bytes: 0,
+                 revision: self.projection_revision,
+                 ready: false,
+             });
+             (self.wake)();
+         }
++        Ok(())
++    }
++    /// Borrowed ownership of a published frame avoids copying every visible
++    /// string/span into the Pane while retaining its exact immutable anchors.
++    pub(crate) fn visible_shared(
++        &mut self,
++        start: usize,
++        count: usize,
++    ) -> io::Result<Arc<Vec<Fragment>>> {
++        self.request_visible(start, count)?;
+         Ok(self
+             .published
+             .as_ref()
+-            .map_or_else(Vec::new, |frame| (*frame.rows).clone()))
++            .map_or_else(|| Arc::new(Vec::new()), |frame| frame.rows.clone()))
++    }
++    #[cfg(test)]
++    pub(crate) fn visible(&mut self, start: usize, count: usize) -> io::Result<Vec<Fragment>> {
++        self.visible_shared(start, count)
++            .map(|rows| (*rows).clone())
+     }
+     /// Actual visual start for the returned cached frame while a newer target
+     /// is being prepared. The frame's anchors remain authoritative.
+@@ -1890,7 +1984,7 @@
+             flow: Flow::checkpoint(checkpoint),
+             end: self.end,
+             tail: self.tail.clone(),
+-            fragments: Vec::new(),
++            fragments: Arc::new(Vec::new()),
+             bytes: 0,
+             revision: self.projection_revision,
+             ready: false,
+--- a/src/experimental_terminal/layout_tests.rs
++++ b/src/experimental_terminal/layout_tests.rs
+@@ -57,6 +57,28 @@
+     }
+     panic!("Viewport did not reach the requested projection")
+ }
++fn shared_view(layout: &mut Layout, start: usize, count: usize) -> Arc<Vec<Fragment>> {
++    for _ in 0..8 {
++        let rows = layout.visible_shared(start, count).unwrap();
++        if layout.query.as_ref().is_some_and(|query| {
++            query.start == start.saturating_add(layout.origin)
++                && query.count == count
++                && query.ready
++                && query.revision == layout.projection_revision
++        }) {
++            return rows;
++        }
++        if layout.complete && layout.len() == 0 {
++            return rows;
++        }
++        drain(layout);
++    }
++    panic!("Shared viewport did not reach the requested projection")
++}
++fn frame_bytes(rows: &Vec<Fragment>) -> usize {
++    rows.iter().map(Fragment::bytes).sum::<usize>()
++        + (rows.capacity() - rows.len()) * mem::size_of::<Fragment>()
++}
+ fn row_at(layout: &mut Layout, anchor: Anchor) -> Option<usize> {
+     let value = layout.row_at(anchor).unwrap();
+     if value.is_some() {
+@@ -64,6 +86,351 @@
+     }
+     drain(layout);
+     layout.row_at(anchor).unwrap()
++}
++
++fn assert_counting_matches_projection(
++    shared: &SharedTranscript,
++    metrics: Metrics,
++    font_columns: bool,
++    pixels: Option<PixelMetrics>,
++) {
++    let (epoch, base, end) = {
++        let store = shared.lock().unwrap();
++        (
++            store.epoch(),
++            store.base_id(),
++            store.base_id() + store.len() as u64,
++        )
++    };
++    let source = Source {
++        store: shared,
++        disk_end: end,
++        tail: None,
++    };
++    let mut projected = Flow::new(Cursor { id: base, byte: 0 });
++    let mut counted = Flow::counting(Cursor { id: base, byte: 0 });
++    let mut projected_widths = ScalarWidths::default();
++    let mut counted_widths = ScalarWidths::default();
++    let mut measure_projected = |character: char| if character == '\u{301}' { 3 } else { 7 };
++    let mut measure_counted = |character: char| if character == '\u{301}' { 3 } else { 7 };
++    let mut projected_measure: Option<&mut dyn FnMut(char) -> i32> = Some(&mut measure_projected);
++    let mut counted_measure: Option<&mut dyn FnMut(char) -> i32> = Some(&mut measure_counted);
++    let deadline = Instant::now() + Duration::from_secs(20);
++    let mut fragments = 0;
++    loop {
++        let mut projected_budget = Budget {
++            deadline,
++            reads: usize::MAX,
++        };
++        let mut counted_budget = Budget {
++            deadline,
++            reads: usize::MAX,
++        };
++        let full = projected
++            .next(
++                &source,
++                end,
++                epoch,
++                metrics,
++                font_columns,
++                pixels,
++                &mut projected_widths,
++                &mut projected_measure,
++                &mut projected_budget,
++            )
++            .unwrap();
++        let shape = counted
++            .next(
++                &source,
++                end,
++                epoch,
++                metrics,
++                font_columns,
++                pixels,
++                &mut counted_widths,
++                &mut counted_measure,
++                &mut counted_budget,
++            )
++            .unwrap();
++        assert_eq!(projected.cursor, counted.cursor);
++        assert_eq!(projected.output_hard, counted.output_hard);
++        match (full, shape) {
++            (Some((start, full)), Some((count_start, shape))) => {
++                assert_eq!(
++                    (start, full.start, full.end),
++                    (count_start, shape.start, shape.end)
++                );
++                assert_eq!(
++                    shape.text.capacity(),
++                    0,
++                    "Counting must not allocate rendered text"
++                );
++                assert_eq!(
++                    shape.segments.capacity(),
++                    0,
++                    "Counting must not allocate hit/style spans"
++                );
++                fragments += 1;
++            }
++            (None, None) => {
++                assert!(projected.finished(end) && counted.finished(end));
++                break;
++            }
++            _ => panic!("Counting and projection disagreed on a visual row"),
++        }
++        assert!(Instant::now() < deadline);
++    }
++    assert!(fragments > 0);
++}
++
++#[test]
++fn shape_only_counting_matches_wrapping_styles_packing_and_source_boundaries() {
++    let shared = Transcript::shared().unwrap();
++    let cwd = cwd();
++    {
++        let mut store = shared.lock().unwrap();
++        store.append_header(&cwd, 1, "ls").unwrap();
++        for name in ["../", "á東京", "space name", "tail"] {
++            store
++                .append_native(&cwd, 1, &native(name, Some(12)))
++                .unwrap();
++        }
++        store
++            .append_plain(&cwd, 2, "error: 東京\ta\u{301} word  ", true)
++            .unwrap();
++        store
++            .append_plain(&cwd, 2, "continued longwordwithoutspaces", false)
++            .unwrap();
++        store
++            .append_plain(&cwd, 3, "source changes prevent joining", true)
++            .unwrap();
++        store
++            .append_plain(&cwd, 4, "new source\n\nlast  ", false)
++            .unwrap();
++        store
++            .append_terminal(&cwd, 4, 32, false, b"\x1b[31m-red\x1b[0m\tplain")
++            .unwrap();
++        store.append_result(&cwd, 4, 7, "Exit 7").unwrap();
++    }
++    for columns in [1, 7, 24, 80] {
++        for font_columns in [false, true] {
++            assert_counting_matches_projection(
++                &shared,
++                Metrics {
++                    columns,
++                    tab_width: 4,
++                },
++                font_columns,
++                None,
++            );
++            assert_counting_matches_projection(
++                &shared,
++                Metrics {
++                    columns,
++                    tab_width: 4,
++                },
++                font_columns,
++                Some(PixelMetrics {
++                    width: usize::from(columns) * 7,
++                    cell: 7,
++                    font_key: 1,
++                }),
++            );
++        }
++    }
++}
++
++#[test]
++fn shape_only_counting_keeps_fragment_byte_and_segment_boundaries() {
++    let shared = Transcript::shared().unwrap();
++    let cwd = cwd();
++    {
++        let mut store = shared.lock().unwrap();
++        store
++            .append_plain(&cwd, 1, &"\t".repeat(MAX_FRAGMENT_SEGMENTS + 17), false)
++            .unwrap();
++        store
++            .append_plain(&cwd, 1, &" ".repeat(MAX_FRAGMENT_BYTES), true)
++            .unwrap();
++        store
++            .append_plain(&cwd, 1, " remainder\u{301} ", false)
++            .unwrap();
++    }
++    assert_counting_matches_projection(
++        &shared,
++        Metrics {
++            columns: u16::MAX,
++            tab_width: 4,
++        },
++        true,
++        None,
++    );
++}
++
++#[test]
++fn shared_view_reuses_ready_frame_without_copying_text_or_segments() {
++    let shared = Transcript::shared().unwrap();
++    let cwd = cwd();
++    {
++        let mut store = shared.lock().unwrap();
++        store.append_header(&cwd, 1, "ls").unwrap();
++        store
++            .append_native(&cwd, 1, &native("file with spaces.txt", Some(24)))
++            .unwrap();
++        store
++            .append_plain(&cwd, 2, "error: source.rs:2:3\t東京a\u{301}  ", false)
++            .unwrap();
++        store.append_result(&cwd, 2, 3, "Exit 3").unwrap();
++    }
++    let mut layout = layout(shared, 32);
++    let first = shared_view(&mut layout, 0, 20);
++    let text = first[0].text.as_ptr();
++    let spans = first[0].segments.as_ptr();
++    let expected = (*first).clone();
++    for _ in 0..20 {
++        layout.request_visible(0, 20).unwrap();
++        layout.poll().unwrap();
++        let next = layout.visible_shared(0, 20).unwrap();
++        assert!(Arc::ptr_eq(&first, &next));
++        assert!(Arc::ptr_eq(
++            &next,
++            &layout.query.as_ref().unwrap().fragments
++        ));
++        assert!(Arc::ptr_eq(&next, &layout.published.as_ref().unwrap().rows));
++        assert_eq!(next[0].text.as_ptr(), text);
++        assert_eq!(next[0].segments.as_ptr(), spans);
++        assert_eq!(&*next, &expected);
++    }
++}
++
++#[test]
++fn growing_shared_frame_preserves_published_anchors_and_byte_budget() {
++    let shared = Transcript::shared().unwrap();
++    let cwd = cwd();
++    {
++        let mut store = shared.lock().unwrap();
++        for text in ["first\t東京", "second a\u{301}", "third", "fourth  "] {
++            store.append_plain(&cwd, 1, text, false).unwrap();
++        }
++    }
++    let mut layout = layout(shared, 40);
++    layout.request_visible(0, 10).unwrap();
++    // Publish exactly one completed visual row before a later poll resumes the
++    // query. This exercises partial frames without depending on a time budget.
++    let mut query = layout.query.take().unwrap();
++    let source = Source {
++        store: &layout.store,
++        disk_end: layout.disk_end,
++        tail: None,
++    };
++    let mut budget = Budget {
++        deadline: Instant::now() + Duration::from_secs(20),
++        reads: usize::MAX,
++    };
++    let (_, first) = query
++        .flow
++        .next(
++            &source,
++            query.end,
++            layout.epoch,
++            layout.metrics,
++            layout.font_columns,
++            layout.pixels,
++            &mut layout.scalar_widths,
++            &mut None,
++            &mut budget,
++        )
++        .unwrap()
++        .unwrap();
++    query.bytes = first.bytes();
++    query.fragments_mut().push(first);
++    query.row += 1;
++    layout.query = Some(query);
++    let captured = layout.visible_shared(0, 10).unwrap();
++    let before = (*captured).clone();
++    assert_eq!(captured.len(), 1);
++    assert!(Arc::ptr_eq(
++        &captured,
++        &layout.query.as_ref().unwrap().fragments
++    ));
++    drain(&mut layout);
++    let current = layout.visible_shared(0, 10).unwrap();
++    assert_eq!(current.len(), 4);
++    assert!(!Arc::ptr_eq(&captured, &current));
++    assert_eq!(
++        &*captured, &before,
++        "Painting and hit-test anchors stay immutable"
++    );
++    assert_eq!(current[0], captured[0]);
++    assert!(frame_bytes(&captured) <= MAX_VISIBLE_BYTES);
++    assert!(frame_bytes(&current) <= MAX_VISIBLE_BYTES);
++    assert!(frame_bytes(&captured) + frame_bytes(&current) <= 2 * MAX_VISIBLE_BYTES);
++    assert!(Arc::ptr_eq(
++        &current,
++        &layout.query.as_ref().unwrap().fragments
++    ));
++    assert!(Arc::ptr_eq(
++        &current,
++        &layout.published.as_ref().unwrap().rows
++    ));
++}
++
++#[test]
++fn old_and_new_shared_viewports_each_keep_the_original_content_cap() {
++    let shared = Transcript::shared().unwrap();
++    let cwd = cwd();
++    {
++        let mut store = shared.lock().unwrap();
++        for row in 0..500 {
++            store
++                .append_plain(&cwd, 1, &format!("{row:03} {}", "w".repeat(900)), false)
++                .unwrap();
++        }
++    }
++    let mut layout = layout(shared.clone(), 1000);
++    let previous = shared_view(&mut layout, 0, 500);
++    assert!(
++        previous.len() > 160,
++        "The viewport must retain its original content allowance"
++    );
++    assert!(
++        previous.len() < 500,
++        "This fixture reaches the original byte cap"
++    );
++    assert!(frame_bytes(&previous) <= MAX_VISIBLE_BYTES);
++    let anchors = (previous[0].start, previous.last().unwrap().end);
++    let next = shared_view(&mut layout, 250, 250);
++    assert!(!Arc::ptr_eq(&previous, &next));
++    assert_eq!((previous[0].start, previous.last().unwrap().end), anchors);
++    assert!(next[0].text.starts_with("250 "));
++    assert!(frame_bytes(&next) <= MAX_VISIBLE_BYTES);
++    assert!(frame_bytes(&previous) + frame_bytes(&next) <= 2 * MAX_VISIBLE_BYTES);
++    drop(next);
++    // Model a Pane still painting the previous frame while Layout retains a
++    // more recent publication and prepares another viewport plus navigation.
++    layout.request_visible(0, 500).unwrap();
++    assert!(layout.navigation_row(400).unwrap().is_none());
++    drain(&mut layout);
++    let buffers = [
++        &previous,
++        &layout.published.as_ref().unwrap().rows,
++        &layout.query.as_ref().unwrap().fragments,
++        &layout.navigation.as_ref().unwrap().fragments,
++    ];
++    for (index, rows) in buffers.iter().enumerate() {
++        assert!(frame_bytes(rows) <= MAX_VISIBLE_BYTES);
++        for earlier in &buffers[..index] {
++            assert!(!Arc::ptr_eq(rows, earlier));
++        }
++    }
++    assert!(buffers.iter().map(|rows| frame_bytes(rows)).sum::<usize>() <= 4 * MAX_VISIBLE_BYTES);
++    // The owned projection stays bounded even while an immutable old frame is
++    // retained for the previous paint. Clear drops every Layout-owned frame.
++    shared.lock().unwrap().clear().unwrap();
++    assert!(layout.visible_shared(0, 500).unwrap().is_empty());
++    assert!(layout.query.is_none());
++    assert!(layout.published.is_none());
++    assert_eq!((previous[0].start, previous.last().unwrap().end), anchors);
+ }
+ 
+ #[test]
+--- a/src/experimental_terminal/lifecycle.rs
++++ b/src/experimental_terminal/lifecycle.rs
+@@ -155,7 +155,7 @@
+             .ok_or_else(|| io::Error::other("Command directory is not valid Unicode"))?;
+         let directory_body = match self.shell {
+             Shell::Posix => format!(
+-                "case \"$POTYI_DRIVER_SHELL\" in *zsh|*bash|*ksh) builtin cd {0} ;; *) command cd {0} ;; esac || return $?\n",
++                "case \"$POTYI_DRIVER_SHELL\" in *zsh|*bash) builtin cd {0} ;; *) command cd {0} ;; esac || return $?\n",
+                 quote_posix(path)
+             ),
+             Shell::Fish => format!(
+@@ -171,7 +171,13 @@
+             .ok_or_else(|| io::Error::other("Command IDs are exhausted; open a new terminal session"))?;
+         let body = if self.production && self.shell != Shell::Windows {
+             self.write_file(&format!("directory-{id}"), &directory_body)?;
+-            format!("{command}\n")
++            if self.shell == Shell::Posix {
++                // The production child receives the exact original -c text,
++                // including trailing newlines or a final backslash.
++                command.to_owned()
++            } else {
++                format!("{command}\n")
++            }
+         } else {
+             format!("{directory_body}{command}\n")
+         };
+@@ -283,21 +289,23 @@
+     case "$__potyi_id" in ''|*[!0-9]*) continue ;; esac
+     [ -f "$POTYI_DRIVER_DIRECTORY/command-$__potyi_id" ] || continue
+     command -p mv "$POTYI_DRIVER_DIRECTORY/command-$__potyi_id" "$POTYI_DRIVER_DIRECTORY/running-command" || exit $?
+-    (
+-        if [ "$POTYI_COMMAND_STDIN_NULL" = 1 ]; then unset BASH_ENV ENV; fi
+-        if [ -n "$POTYI_COMMAND_SHELL" ]; then
+-            # Its -c child owns syntax errors; sh must not parse a different
+-            # language, and arbitrary original shells need not support -n.
+-            :
+-        else
+-            case "$POTYI_DRIVER_SHELL" in
+-                *zsh) "$POTYI_DRIVER_SHELL" -f -n "$POTYI_DRIVER_DIRECTORY/running-command" ;;
+-                *bash) "$POTYI_DRIVER_SHELL" --noprofile --norc -n "$POTYI_DRIVER_DIRECTORY/running-command" ;;
+-                *) "$POTYI_DRIVER_SHELL" -n "$POTYI_DRIVER_DIRECTORY/running-command" ;;
+-            esac
+-        fi
+-    )
+-    __potyi_status=$?
++    __potyi_status=0
++    # Production uses a fresh child, whose syntax/exit failure cannot kill the
++    # dispatcher. Only raw mode sources the body here and needs preflight.
++    if [ "$POTYI_COMMAND_STDIN_NULL" != 1 ]; then
++        (
++            if [ -n "$POTYI_COMMAND_SHELL" ]; then
++                :
++            else
++                case "$POTYI_DRIVER_SHELL" in
++                    *zsh) "$POTYI_DRIVER_SHELL" -f -n "$POTYI_DRIVER_DIRECTORY/running-command" ;;
++                    *bash) "$POTYI_DRIVER_SHELL" --noprofile --norc -n "$POTYI_DRIVER_DIRECTORY/running-command" ;;
++                    *) "$POTYI_DRIVER_SHELL" -n "$POTYI_DRIVER_DIRECTORY/running-command" ;;
++                esac
++            fi
++        )
++        __potyi_status=$?
++    fi
+     if [ "$__potyi_status" -eq 0 ]; then
+         command -p stty sane 2>/dev/null
+         if [ "$POTYI_COMMAND_STDIN_NULL" = 1 ]; then
+@@ -311,11 +319,17 @@
+                     if [ "$POTYI_CHILD_ENV_SET" = 1 ]; then
+                         ENV=$POTYI_CHILD_ENV; export ENV
+                     else unset ENV; fi
++                    # A sentinel retains all trailing newlines through command
++                    # substitution. -c parses the original body as one command
++                    # string; sourcing a file would let zsh execute a prefix
++                    # before a later syntax error that original :term rejects.
++                    __potyi_command=$(command -p cat "$POTYI_DRIVER_DIRECTORY/running-command" && printf '%s' .) || exit $?
++                    __potyi_command=${{__potyi_command%.}}
+                     if [ -n "$POTYI_COMMAND_SHELL" ]; then
+-                        __potyi_command=$(command -p cat "$POTYI_DRIVER_DIRECTORY/running-command") || exit $?
+                         exec "$POTYI_COMMAND_SHELL" -c "$__potyi_command"
+                     else
+-                        exec "$POTYI_DRIVER_SHELL" -c '. "$POTYI_DRIVER_DIRECTORY/helpers"; . "$POTYI_DRIVER_DIRECTORY/running-command"'
++                        exec "$POTYI_DRIVER_SHELL" -c '. "$POTYI_DRIVER_DIRECTORY/helpers"
++'"$__potyi_command"
+                     fi
+                 ) < /dev/null
+                 __potyi_status=$?
+@@ -352,6 +366,8 @@
+     string match -qr '^[0-9]+$' -- "$__potyi_id"; or continue
+     test -f "$POTYI_DRIVER_DIRECTORY/command-$__potyi_id"; or continue
+     "$__potyi_dispatch_mv" "$POTYI_DRIVER_DIRECTORY/command-$__potyi_id" "$POTYI_DRIVER_DIRECTORY/running-command"; or exit $status
++    # Fish retains its existing sourced-body/preflight contract. The POSIX
++    # fresh -c optimization is enabled only where exact-byte parity is tested.
+     "$POTYI_DRIVER_SHELL" --no-config --no-execute "$POTYI_DRIVER_DIRECTORY/running-command"
+     set __potyi_status $status
+     if test $__potyi_status -eq 0
+@@ -395,6 +411,10 @@
+         }
+     }
+ }
++
++#[cfg(test)]
++#[path = "lifecycle_tests.rs"]
++mod dispatch_tests;
+ impl Drop for Lifecycle {
+     fn drop(&mut self) {
+         let _ = fs::remove_dir_all(&self.directory);
+--- a/src/experimental_terminal/lifecycle_tests.rs
++++ b/src/experimental_terminal/lifecycle_tests.rs
+@@ -0,0 +1,446 @@
++// Pötyi - SPDX-License-Identifier: GPL-3.0-or-later
++use super::*;
++
++#[test]
++fn experimental_terminal_lifecycle_cancel_removes_packet_and_rejects_late_completion() {
++    let mut lifecycle = Lifecycle::new(Shell::Posix, "", true).unwrap();
++    lifecycle
++        .prepare("printf CANCELLED", &std::env::temp_dir())
++        .unwrap();
++    let cancelled = lifecycle.current_id().unwrap();
++    assert!(
++        lifecycle
++            .directory
++            .join(format!("command-{cancelled}"))
++            .exists()
++    );
++    assert!(
++        lifecycle
++            .directory
++            .join(format!("directory-{cancelled}"))
++            .exists()
++    );
++    lifecycle.cancel_start();
++    assert!(!lifecycle.running());
++    assert!(
++        !lifecycle
++            .directory
++            .join(format!("command-{cancelled}"))
++            .exists()
++    );
++    assert!(
++        !lifecycle
++            .directory
++            .join(format!("directory-{cancelled}"))
++            .exists()
++    );
++    lifecycle
++        .prepare("printf NEXT", &std::env::temp_dir())
++        .unwrap();
++    let next = lifecycle.current_id().unwrap();
++    assert!(next > cancelled);
++    assert!(!lifecycle.finish(cancelled, 0, std::env::temp_dir()));
++    assert!(!lifecycle.observe_end(cancelled));
++    assert!(lifecycle.running());
++    assert!(lifecycle.take_completion().is_none());
++    assert!(lifecycle.finish(next, 23, std::env::temp_dir()));
++    assert!(!lifecycle.release_after_seal());
++    assert!(lifecycle.observe_end(next));
++    assert!(lifecycle.release_after_seal());
++    assert_eq!(lifecycle.take_completion().unwrap().status, 23);
++}
++
++#[cfg(unix)]
++mod unix {
++    use super::*;
++    use std::{
++        os::unix::fs::PermissionsExt,
++        process::{Command, Stdio},
++    };
++
++    struct DriverFixture {
++        lifecycle: Lifecycle,
++        directory: PathBuf,
++        helper: PathBuf,
++    }
++    struct DriverOutput {
++        statuses: Vec<i32>,
++        text: String,
++        stderr: String,
++    }
++    impl DriverOutput {
++        fn command_stdout(&self) -> String {
++            let mut parts = self
++                .text
++                .strip_prefix("\x1b[2J\x1b[H\x1b]777;potyi-ready\x07")
++                .expect("driver ready marker")
++                .split("TEST_COMPLETE:");
++            let mut output = parts.next().unwrap().to_owned();
++            for part in parts {
++                output.push_str(part.split_once('\n').unwrap().1);
++            }
++            output
++        }
++    }
++    impl DriverFixture {
++        fn new(kind: Shell, production: bool) -> Self {
++            let lifecycle = Lifecycle::new(kind, "", production).unwrap();
++            let directory = lifecycle.directory.join("cwd é ' with spaces");
++            fs::create_dir(&directory).unwrap();
++            let helper = lifecycle.directory.join("completion-helper");
++            fs::write(&helper, "#!/bin/sh\n[ \"$4\" = complete ] || exit 91\nprintf 'TEST_COMPLETE:%s:%s\\n' \"$5\" \"$6\"\n").unwrap();
++            fs::set_permissions(&helper, fs::Permissions::from_mode(0o700)).unwrap();
++            Self {
++                lifecycle,
++                directory,
++                helper,
++            }
++        }
++        fn run(
++            &mut self,
++            shell: &Path,
++            commands: &[&str],
++            child_shell: Option<&Path>,
++        ) -> DriverOutput {
++            let mut packets = String::new();
++            for command in commands {
++                self.lifecycle.prepare(command, &self.directory).unwrap();
++                let id = self.lifecycle.current_id().unwrap();
++                if self.lifecycle.shell == Shell::Fish {
++                    packets.push_str(&format!("{}:{id}\0", self.lifecycle.nonce));
++                } else {
++                    packets.push_str(&format!("{}:{id}\n", self.lifecycle.nonce));
++                }
++                // Prepare the next numbered fixture file; the driver itself
++                // still consumes and completes these commands sequentially.
++                assert!(self.lifecycle.finish(id, 0, self.directory.clone()));
++                assert!(self.lifecycle.observe_end(id));
++                assert!(self.lifecycle.release_after_seal());
++                self.lifecycle.take_completion();
++            }
++            let mut command = Command::new(shell);
++            match shell.file_name().and_then(|name| name.to_str()).unwrap() {
++                "bash" => {
++                    command.args(["--noprofile", "--norc", "-c"]);
++                }
++                "zsh" => {
++                    command.args(["-f", "-c"]);
++                }
++                "fish" => {
++                    command.args(["--no-config", "-c"]);
++                }
++                _ => {
++                    command.arg("-c");
++                }
++            }
++            let mut child = command
++                .arg(self.lifecycle.launch())
++                .current_dir(&self.directory)
++                .env("POTYI_DRIVER_SHELL", child_shell.unwrap_or(shell))
++                .env("POTYI_DRIVER_DIRECTORY", &self.lifecycle.directory)
++                .env("POTYI_DRIVER_NONCE", &self.lifecycle.nonce)
++                .env(
++                    "POTYI_COMMAND_STDIN_NULL",
++                    if self.lifecycle.production { "1" } else { "0" },
++                )
++                .env("POTYI_TERM_CLIENT", &self.helper)
++                .env("POTYI_TERM_ADDRESS", "unused-test-address")
++                .env("POTYI_TERM_TOKEN", "unused-test-token")
++                .env("POTYI_CHILD_BASH_ENV_SET", "0")
++                .env("POTYI_CHILD_ENV_SET", "0")
++                .env("HOME", &self.directory)
++                .env("ZDOTDIR", &self.directory)
++                .env("XDG_CONFIG_HOME", &self.directory)
++                .env_remove("POTYI_COMMAND_SHELL")
++                .env_remove("POTYI_MUTATION")
++                .env_remove("BASH_ENV")
++                .env_remove("ENV")
++                .stdin(Stdio::piped())
++                .stdout(Stdio::piped())
++                .stderr(Stdio::piped())
++                .spawn()
++                .unwrap();
++            child
++                .stdin
++                .take()
++                .unwrap()
++                .write_all(packets.as_bytes())
++                .unwrap();
++            let output = child.wait_with_output().unwrap();
++            let text = String::from_utf8(output.stdout).unwrap();
++            let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
++            assert!(
++                output.status.success(),
++                "driver exited for {}: {text}\n{stderr}",
++                shell.display()
++            );
++            let statuses = text
++                .split("TEST_COMPLETE:")
++                .skip(1)
++                .map(|completion| {
++                    completion
++                        .split_once(':')
++                        .unwrap()
++                        .1
++                        .lines()
++                        .next()
++                        .unwrap()
++                        .parse()
++                        .unwrap()
++                })
++                .collect::<Vec<i32>>();
++            assert_eq!(
++                statuses.len(),
++                commands.len(),
++                "missing completion for {}: {text}\n{stderr}",
++                shell.display()
++            );
++            DriverOutput {
++                statuses,
++                text,
++                stderr,
++            }
++        }
++    }
++    fn available_shells() -> Vec<(PathBuf, Shell)> {
++        let mut shells = vec![(PathBuf::from("/bin/sh"), Shell::Posix)];
++        for name in ["bash", "zsh", "dash", "ksh", "mksh", "ash", "fish"] {
++            for prefix in ["/bin", "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"] {
++                let path = Path::new(prefix).join(name);
++                if path.is_file() {
++                    shells.push((
++                        path,
++                        if name == "fish" {
++                            Shell::Fish
++                        } else {
++                            Shell::Posix
++                        },
++                    ));
++                    break;
++                }
++            }
++        }
++        shells
++    }
++
++    fn fresh_c(shell: &Path, directory: &Path, command: &str) -> std::process::Output {
++        Command::new(shell)
++            .arg("-c")
++            .arg(command)
++            .current_dir(directory)
++            .env("HOME", directory)
++            .env("ZDOTDIR", directory)
++            .env("XDG_CONFIG_HOME", directory)
++            .env_remove("BASH_ENV")
++            .env_remove("ENV")
++            .stdin(Stdio::null())
++            .output()
++            .unwrap()
++    }
++
++    #[test]
++    fn experimental_terminal_production_syntax_exit_and_exec_failures_keep_dispatcher_usable() {
++        for (shell, kind) in available_shells() {
++            let mut fixture = DriverFixture::new(kind, true);
++            let commands = [
++                "printf 'unterminated",
++                "exit 17",
++                "exec /potyi-no-such-command",
++                "printf 'RECOVERED\\n'",
++            ];
++            let references: Vec<_> = commands
++                .iter()
++                .map(|command| fresh_c(&shell, &fixture.directory, command))
++                .collect();
++            let output = fixture.run(&shell, &commands, None);
++            // Some ksh versions accept an unmatched final quote under -c.
++            // Match that shell's actual status and output, including nonzero
++            // syntax statuses on shells that reject this command.
++            assert_eq!(
++                output.statuses,
++                references
++                    .iter()
++                    .map(|reference| reference.status.code().unwrap())
++                    .collect::<Vec<_>>(),
++                "fresh -c statuses differ for {}: {}",
++                shell.display(),
++                output.stderr
++            );
++            assert_eq!(
++                output.command_stdout().as_bytes(),
++                references
++                    .iter()
++                    .flat_map(|reference| reference.stdout.iter().copied())
++                    .collect::<Vec<_>>(),
++                "fresh -c output differs for {}: {}",
++                shell.display(),
++                output.stderr
++            );
++            assert_eq!(
++                output.statuses[1],
++                17,
++                "{}: {}",
++                shell.display(),
++                output.stderr
++            );
++            assert_ne!(
++                output.statuses[2],
++                0,
++                "{}: {}",
++                shell.display(),
++                output.stderr
++            );
++            assert_eq!(
++                output.statuses[3],
++                0,
++                "{}: {}",
++                shell.display(),
++                output.stderr
++            );
++            assert!(output.text.contains("RECOVERED"));
++            assert!(!output.stderr.is_empty());
++        }
++    }
++
++    #[test]
++    fn experimental_terminal_production_keeps_fresh_state_cwd_and_eof_stdin() {
++        for (shell, kind) in available_shells() {
++            let mut fixture = DriverFixture::new(kind, true);
++            let commands = if kind == Shell::Fish {
++                [
++                    "set -gx POTYI_MUTATION changed; builtin cd /; exit 7",
++                    "if set -q POTYI_MUTATION; echo BAD_STATE; else; echo FRESH_STATE; end; pwd; if read supplied; echo BAD_STDIN; else; echo EOF_STDIN; end",
++                ]
++            } else {
++                [
++                    "export POTYI_MUTATION=changed; cd /; exit 7",
++                    "printf 'FRESH_STATE:%s\\n' \"${POTYI_MUTATION-unset}\"; pwd; if read supplied; then printf 'BAD_STDIN\\n'; else printf 'EOF_STDIN\\n'; fi",
++                ]
++            };
++            let output = fixture.run(&shell, &commands, None);
++            assert_eq!(
++                output.statuses,
++                [7, 0],
++                "{}: {}",
++                shell.display(),
++                output.stderr
++            );
++            assert!(output.text.contains("FRESH_STATE"));
++            assert!(output.text.contains("EOF_STDIN"));
++            assert!(!output.text.contains("BAD_STATE"));
++            assert!(!output.text.contains("FRESH_STATE:changed"));
++            assert!(!output.text.contains("BAD_STDIN"));
++            assert!(output.text.contains(fixture.directory.to_str().unwrap()));
++        }
++    }
++
++    #[test]
++    fn experimental_terminal_production_late_syntax_failure_matches_fresh_c_child() {
++        for (shell, kind) in available_shells() {
++            let mut fixture = DriverFixture::new(kind, true);
++            let broken = "printf 'BEFORE_LATE_ERROR\\n'\nprintf 'unterminated";
++            let next = "printf 'AFTER_LATE_ERROR\\n'";
++            let reference = fresh_c(&shell, &fixture.directory, broken);
++            let next_reference = fresh_c(&shell, &fixture.directory, next);
++            let output = fixture.run(&shell, &[broken, next], None);
++            assert_eq!(
++                output.statuses[0],
++                reference.status.code().unwrap(),
++                "late syntax status differs from original -c for {}: {}",
++                shell.display(),
++                output.stderr
++            );
++            assert_eq!(
++                output.statuses[1],
++                0,
++                "{}: {}",
++                shell.display(),
++                output.stderr
++            );
++            assert_eq!(
++                output.command_stdout().as_bytes(),
++                [reference.stdout, next_reference.stdout].concat(),
++                "late syntax output differs from original -c for {}: {}",
++                shell.display(),
++                output.stderr
++            );
++            assert!(output.text.contains("AFTER_LATE_ERROR"));
++        }
++    }
++
++    #[test]
++    fn experimental_terminal_production_preserves_exact_command_text_for_fresh_c() {
++        for (shell, kind) in available_shells() {
++            if kind != Shell::Posix {
++                continue;
++            }
++            for command in [
++                "printf '%s' 'space 東京'",
++                "printf '%s' trailing\\",
++                "printf '%s' slash\\\n",
++                "printf 'newline\\n'\n\n",
++                "printf '%s' comment; # final comment",
++                "printf 'BEFORE_LATE_ERROR\\n'\nprintf 'unterminated",
++                "printf '%s' 'quoted\n\n'\n\n",
++                "return 7; printf 'AFTER_RETURN\\n'",
++            ] {
++                let mut fixture = DriverFixture::new(kind, true);
++                let reference = fresh_c(&shell, &fixture.directory, command);
++                let output = fixture.run(&shell, &[command], None);
++                assert_eq!(
++                    output.statuses,
++                    [reference.status.code().unwrap()],
++                    "status differs for {} and {command:?}: {}",
++                    shell.display(),
++                    output.stderr
++                );
++                assert_eq!(
++                    output.command_stdout().as_bytes(),
++                    reference.stdout,
++                    "output differs for {} and {command:?}: {}",
++                    shell.display(),
++                    output.stderr
++                );
++            }
++        }
++    }
++
++    #[test]
++    fn experimental_terminal_raw_preflight_rejects_invalid_body_before_side_effects() {
++        for (shell, kind) in available_shells() {
++            let mut fixture = DriverFixture::new(kind, false);
++            let output = fixture.run(
++                &shell,
++                &[
++                    "printf 'MUST_NOT_RUN\\n'\nprintf 'unterminated",
++                    "printf 'AFTER_ERROR\\n'",
++                ],
++                None,
++            );
++            assert_ne!(output.statuses[0], 0);
++            assert_eq!(output.statuses[1], 0);
++            assert!(!output.text.contains("MUST_NOT_RUN"));
++            assert!(output.text.contains("AFTER_ERROR"));
++        }
++    }
++
++    #[test]
++    fn experimental_terminal_production_child_launch_failure_keeps_next_command_available() {
++        let mut fixture = DriverFixture::new(Shell::Posix, true);
++        let wrapper = fixture.lifecycle.directory.join("child-shell");
++        let flag = fixture.lifecycle.directory.join("first-launch");
++        let quoted_flag = quote_posix(flag.to_str().unwrap());
++        // Model a child failing before it parses the body. A check-only launch
++        // would consume this first failure and hide which process owns it.
++        fs::write(&wrapper, format!("#!/bin/sh\nif [ ! -e {quoted_flag} ]; then : > {quoted_flag}; exit 126; fi\nexec /bin/sh \"$@\"\n")).unwrap();
++        fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o700)).unwrap();
++        let output = fixture.run(
++            Path::new("/bin/sh"),
++            &["printf MUST_NOT_RUN", "printf 'NEXT_CHILD_READY\\n'"],
++            Some(&wrapper),
++        );
++        assert_eq!(output.statuses, [126, 0]);
++        assert!(!output.text.contains("MUST_NOT_RUN"));
++        assert!(output.text.contains("NEXT_CHILD_READY"));
++    }
++}
+--- a/src/experimental_terminal/literal_output.rs
++++ b/src/experimental_terminal/literal_output.rs
+@@ -47,7 +47,33 @@
+         bytes: &[u8],
+         mut emit: impl FnMut(&str, bool) -> io::Result<()>,
+     ) -> io::Result<()> {
+-        for byte in bytes.iter().copied() {
++        let mut position = 0;
++        while position < bytes.len() {
++            if matches!(self.state, State::Ground) && !self.carriage_return && self.utf8_len == 0 {
++                let remaining = MAX_PARTIAL_BYTES - self.partial.len();
++                let run = bytes[position..]
++                    .iter()
++                    .take(remaining.max(1))
++                    .take_while(|byte| matches!(**byte, b'\t' | 0x20..=0x7f))
++                    .count();
++                if run > 0 {
++                    if remaining == 0 {
++                        emit(&self.partial, true)?;
++                        self.partial.clear();
++                    } else {
++                        // This span contains only ASCII and tabs. Keep the
++                        // byte parser for every control and UTF-8 byte.
++                        self.partial.push_str(
++                            std::str::from_utf8(&bytes[position..position + run])
++                                .expect("ASCII span"),
++                        );
++                        position += run;
++                    }
++                    continue;
++                }
++            }
++            let byte = bytes[position];
++            position += 1;
+             // The driver's CAN prefix recovers a hidden boundary after an
+             // unfinished CSI/OSC. It never contributes visible plain text.
+             if byte == 0x18 {
+@@ -136,11 +162,15 @@
+                     return Ok(());
+                 }
+                 Err(error) => {
+-                    let Some(length) = error.error_len() else { return Ok(()); };
++                    let Some(length) = error.error_len() else {
++                        return Ok(());
++                    };
+                     self.utf8.copy_within(length..self.utf8_len, 0);
+                     self.utf8_len -= length;
+                     self.character('\u{fffd}', emit)?;
+-                    if self.utf8_len == 0 { return Ok(()); }
++                    if self.utf8_len == 0 {
++                        return Ok(());
++                    }
+                 }
+             }
+         }
+--- a/src/experimental_terminal/literal_output_tests.rs
++++ b/src/experimental_terminal/literal_output_tests.rs
+@@ -5,30 +5,49 @@
+     let mut capture = Capture::default();
+     let mut rows = Vec::new();
+     for bytes in chunks {
+-        capture.process(bytes, |text, continued| {
++        capture
++            .process(bytes, |text, continued| {
++                rows.push((text.into(), continued));
++                Ok(())
++            })
++            .unwrap();
++    }
++    let tail = capture.tail().to_string();
++    capture
++        .finish(|text, continued| {
+             rows.push((text.into(), continued));
+             Ok(())
+-        }).unwrap();
+-    }
+-    let tail = capture.tail().to_string();
+-    capture.finish(|text, continued| { rows.push((text.into(), continued)); Ok(()) }).unwrap();
++        })
++        .unwrap();
+     (rows, tail)
+ }
+ 
+ #[test]
+ fn plain_output_retains_tabs_spaces_blank_lines_and_legacy_carriage_returns() {
+     let (rows, tail) = capture(&[b"\ttrail  \r", b"\n\rnext\r", b"end\n\npartial  "]);
+-    assert_eq!(rows, vec![("\ttrail  ".into(), false), ("".into(), false),
+-        ("next".into(), false), ("end".into(), false), ("".into(), false),
+-        ("partial  ".into(), false)]);
++    assert_eq!(
++        rows,
++        vec![
++            ("\ttrail  ".into(), false),
++            ("".into(), false),
++            ("next".into(), false),
++            ("end".into(), false),
++            ("".into(), false),
++            ("partial  ".into(), false)
++        ]
++    );
+     assert_eq!(tail, "partial  ");
+ }
+ 
+ #[test]
+ fn all_chunk_boundaries_preserve_split_utf8_and_escape_sequences() {
+-    let input = "plain\t\x1b[31m東京 é\x1b[0m  \x1b]title\x07\r\nnext\x1b]hidden\x1b\\!\n".as_bytes();
++    let input =
++        "plain\t\x1b[31m東京 é\x1b[0m  \x1b]title\x07\r\nnext\x1b]hidden\x1b\\!\n".as_bytes();
+     let expected = capture(&[input]).0;
+-    assert_eq!(expected, vec![("plain\t東京 é  ".into(), false), ("next!".into(), false)]);
++    assert_eq!(
++        expected,
++        vec![("plain\t東京 é  ".into(), false), ("next!".into(), false)]
++    );
+     for split in 0..=input.len() {
+         assert_eq!(capture(&[&input[..split], &input[split..]]).0, expected);
+     }
+@@ -41,11 +60,15 @@
+     let input = [b'a', 0xff, 0xe2, 0x82, b'x', 0xf0, 0x9f, 0x92, 0xa9];
+     let expected = String::from_utf8_lossy(&input).into_owned();
+     for split in 0..=input.len() {
+-        assert_eq!(capture(&[&input[..split], &input[split..]]).0,
+-            vec![(expected.clone(), false)]);
+-    }
+-    assert_eq!(capture(&[b"first\xe2\x82\r"]).0,
+-        vec![("first".into(), false), ("\u{fffd}".into(), false)]);
++        assert_eq!(
++            capture(&[&input[..split], &input[split..]]).0,
++            vec![(expected.clone(), false)]
++        );
++    }
++    assert_eq!(
++        capture(&[b"first\xe2\x82\r"]).0,
++        vec![("first".into(), false), ("\u{fffd}".into(), false)]
++    );
+ }
+ 
+ #[test]
+@@ -54,22 +77,43 @@
+     let (rows, _) = capture(&[text.as_bytes()]);
+     assert!(rows.len() > 1);
+     assert!(rows.iter().all(|(text, _)| text.len() <= MAX_PARTIAL_BYTES));
+-    assert!(rows[..rows.len() - 1].iter().all(|(_, continued)| *continued));
++    assert!(
++        rows[..rows.len() - 1]
++            .iter()
++            .all(|(_, continued)| *continued)
++    );
+     assert!(!rows.last().unwrap().1);
+-    assert_eq!(rows.iter().map(|(text, _)| text.as_str()).collect::<String>(), text);
++    assert_eq!(
++        rows.iter()
++            .map(|(text, _)| text.as_str())
++            .collect::<String>(),
++        text
++    );
+ }
+ 
+ #[test]
+ fn huge_unterminated_escape_payloads_remain_constant_space_and_can_recovers_boundary() {
+     let mut capture = Capture::default();
+     let mut rows = Vec::new();
+-    capture.process(b"before\x1b]", |_, _| panic!("no line yet")).unwrap();
+-    for _ in 0..100 { capture.process(&[b'x'; 16 * 1024], |_, _| panic!()).unwrap(); }
++    capture
++        .process(b"before\x1b]", |_, _| panic!("no line yet"))
++        .unwrap();
++    for _ in 0..100 {
++        capture
++            .process(&[b'x'; 16 * 1024], |_, _| panic!())
++            .unwrap();
++    }
+     assert_eq!(capture.tail(), "before");
+     assert_eq!(capture.partial.capacity(), MAX_PARTIAL_BYTES);
+-    capture.process(b"\x18\x1b]777;potyi-end;hidden\x07after\n", |text, continued| {
+-        rows.push((text.to_string(), continued)); Ok(())
+-    }).unwrap();
++    capture
++        .process(
++            b"\x18\x1b]777;potyi-end;hidden\x07after\n",
++            |text, continued| {
++                rows.push((text.to_string(), continued));
++                Ok(())
++            },
++        )
++        .unwrap();
+     assert_eq!(rows, [("beforeafter".into(), false)]);
+     capture.reset();
+     assert!(capture.tail().is_empty());
+@@ -79,6 +123,244 @@
+ #[test]
+ fn callback_failure_does_not_clear_the_unwritten_partial_row() {
+     let mut capture = Capture::default();
+-    assert!(capture.process(b"keep\n", |_, _| Err(io::Error::other("disk unavailable"))).is_err());
++    assert!(
++        capture
++            .process(b"keep\n", |_, _| Err(io::Error::other("disk unavailable")))
++            .is_err()
++    );
+     assert_eq!(capture.tail(), "keep");
+ }
++
++// Frozen pre-optimization byte loop. It deliberately shares only the unchanged
++// UTF-8 decoder and row emitter, so the bulk path is checked against the exact
++// previous control, CR, escape and continuation decisions.
++fn process_reference(
++    capture: &mut Capture,
++    bytes: &[u8],
++    mut emit: impl FnMut(&str, bool) -> io::Result<()>,
++) -> io::Result<()> {
++    for byte in bytes.iter().copied() {
++        if byte == 0x18 {
++            capture.state = State::Ground;
++            continue;
++        }
++        match capture.state {
++            State::Ground => match byte {
++                0x1b => capture.state = State::Escape,
++                b'\r' => capture.carriage_return = true,
++                _ => {
++                    if capture.carriage_return {
++                        if byte != b'\n' {
++                            capture.byte(b'\n', &mut emit)?;
++                        }
++                        capture.carriage_return = false;
++                    }
++                    if matches!(byte, b'\n' | b'\t') || byte >= 0x20 {
++                        capture.byte(byte, &mut emit)?;
++                    }
++                }
++            },
++            State::Escape => {
++                capture.state = match byte {
++                    b'[' => State::Csi,
++                    b']' => State::Osc,
++                    _ => State::Ground,
++                };
++            }
++            State::Csi => {
++                if (0x40..=0x7e).contains(&byte) {
++                    capture.state = State::Ground;
++                }
++            }
++            State::Osc => {
++                if byte == 7 {
++                    capture.state = State::Ground;
++                } else if byte == 0x1b {
++                    capture.state = State::OscEscape;
++                }
++            }
++            State::OscEscape => {
++                capture.state = if byte == b'\\' {
++                    State::Ground
++                } else {
++                    State::Osc
++                };
++            }
++        }
++    }
++    Ok(())
++}
++
++fn same_capture_state(actual: &Capture, expected: &Capture) {
++    assert_eq!(actual.tail(), expected.tail());
++    assert_eq!(actual.carriage_return, expected.carriage_return);
++    assert_eq!(actual.utf8_len, expected.utf8_len);
++    assert_eq!(
++        &actual.utf8[..actual.utf8_len],
++        &expected.utf8[..expected.utf8_len]
++    );
++    assert_eq!(
++        std::mem::discriminant(&actual.state),
++        std::mem::discriminant(&expected.state)
++    );
++    assert_eq!(actual.partial.capacity(), MAX_PARTIAL_BYTES);
++    assert!(actual.tail().len() <= MAX_PARTIAL_BYTES);
++}
++
++fn compare_reference(chunks: &[&[u8]]) -> Vec<(String, bool)> {
++    let mut actual = Capture::default();
++    let mut expected = Capture::default();
++    let mut rows = Vec::new();
++    let mut reference_rows = Vec::new();
++    for bytes in chunks {
++        actual
++            .process(bytes, |text, continued| {
++                rows.push((text.into(), continued));
++                Ok(())
++            })
++            .unwrap();
++        process_reference(&mut expected, bytes, |text, continued| {
++            reference_rows.push((text.into(), continued));
++            Ok(())
++        })
++        .unwrap();
++        assert_eq!(rows, reference_rows);
++        same_capture_state(&actual, &expected);
++    }
++    actual
++        .finish(|text, continued| {
++            rows.push((text.into(), continued));
++            Ok(())
++        })
++        .unwrap();
++    expected
++        .finish(|text, continued| {
++            reference_rows.push((text.into(), continued));
++            Ok(())
++        })
++        .unwrap();
++    assert_eq!(rows, reference_rows);
++    same_capture_state(&actual, &expected);
++    rows
++}
++
++#[test]
++fn ascii_runs_match_byte_reference_at_every_control_and_utf8_split() {
++    let cases: &[&[u8]] = &[
++        b"ascii\ttrail  \r\n\rnext\rend\n\npartial  ",
++        "text\t\x1b[31m東京 e\u{301}🙂\x1b[0m \x1b]hidden\x1b\\!\n".as_bytes(),
++        b"a\xff\xe2\x82x\xf0\x9f\x92\xa9\xc0\xaf\xed\xa0\x80\xf4\x90\x80\x80\xe2\x82\r",
++        b"before\xe2\x1b[31m\x82\x18\xac\r\x1b]hide\x07tail\n",
++        b"before\x1b]unfinished\x18\x1b]777;potyi-end;hidden\x07after\n",
++        b"a\x00b\x01c\x7fd\x1b[2\x18e\r\x1b]hidden\x1b\\\tf\n",
++    ];
++    for bytes in cases {
++        for split in 0..=bytes.len() {
++            compare_reference(&[&bytes[..split], &bytes[split..]]);
++        }
++        for chunk_size in [1, 2, 3, 7, 1_024] {
++            let chunks: Vec<_> = bytes.chunks(chunk_size).collect();
++            compare_reference(&chunks);
++        }
++    }
++}
++
++#[test]
++fn ascii_runs_keep_exact_partial_cap_and_mixed_unicode_continuations() {
++    let prefix = "a".repeat(MAX_PARTIAL_BYTES);
++    let input = format!("{prefix}\t東京🙂\n");
++    let expected = vec![(prefix, true), ("\t東京🙂".into(), false)];
++    assert_eq!(compare_reference(&[input.as_bytes()]), expected);
++    let mixed = format!(
++        "{}é{}🙂\r\n{}\tfinal  ",
++        "x".repeat(MAX_PARTIAL_BYTES - 1),
++        "y".repeat(MAX_PARTIAL_BYTES - 3),
++        "東京🙂".repeat(20_000)
++    );
++    for chunk_size in [31, 1_024, 16_384, MAX_PARTIAL_BYTES] {
++        let chunks: Vec<_> = mixed.as_bytes().chunks(chunk_size).collect();
++        compare_reference(&chunks);
++    }
++}
++
++#[test]
++fn ascii_runs_match_reference_across_repeated_controls_and_malformed_bytes() {
++    let tokens: &[&[u8]] = &[
++        b"plain ascii words\t ",
++        "東京🙂é".as_bytes(),
++        b"\n",
++        b"\r",
++        b"\r\n",
++        b"\x1b[31m",
++        b"\x1b[0m",
++        b"\x1b]secret\x07",
++        b"\x1b]secret\x1b\\",
++        b"\x18",
++        b"\0\x01\x7f",
++        b"\xff\xe2",
++        b"\x82\xac",
++        b"\xf0\x9f",
++        b"\x92\xa9",
++        b"\xed\xa0\x80",
++        b"\x1b]unfinished",
++        b"\x1b[unfinished",
++    ];
++    let mut bytes = Vec::new();
++    let mut random = 0x31f0_573du32;
++    for _ in 0..2_048 {
++        random = random.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
++        bytes.extend_from_slice(tokens[random as usize % tokens.len()]);
++    }
++    for chunk_size in [1, 2, 7, 31, 1_024] {
++        let chunks: Vec<_> = bytes.chunks(chunk_size).collect();
++        compare_reference(&chunks);
++    }
++}
++
++#[test]
++fn ascii_runs_preserve_unwritten_row_on_callback_errors_and_finish_errors() {
++    let input = format!("{}xé\nnext\rfinal", "x".repeat(MAX_PARTIAL_BYTES));
++    // Append the incomplete sequence as raw bytes to exercise finish's
++    // replacement after the final CR.
++    let mut bytes = input.into_bytes();
++    bytes.extend_from_slice(b"\xe2\x82\r");
++    for fail_at in 0..6 {
++        let mut actual = Capture::default();
++        let mut expected = Capture::default();
++        let mut actual_calls = 0;
++        let mut expected_calls = 0;
++        let mut actual_rows = Vec::new();
++        let mut expected_rows = Vec::new();
++        let mut emit_actual = |text: &str, continued| {
++            let call = actual_calls;
++            actual_calls += 1;
++            if call == fail_at {
++                return Err(io::Error::other("disk unavailable"));
++            }
++            actual_rows.push((text.to_string(), continued));
++            Ok(())
++        };
++        let mut emit_expected = |text: &str, continued| {
++            let call = expected_calls;
++            expected_calls += 1;
++            if call == fail_at {
++                return Err(io::Error::other("disk unavailable"));
++            }
++            expected_rows.push((text.to_string(), continued));
++            Ok(())
++        };
++        let actual_result = actual.process(&bytes, &mut emit_actual);
++        let expected_result = process_reference(&mut expected, &bytes, &mut emit_expected);
++        assert_eq!(actual_result.is_ok(), expected_result.is_ok());
++        same_capture_state(&actual, &expected);
++        if actual_result.is_ok() {
++            assert_eq!(
++                actual.finish(&mut emit_actual).is_ok(),
++                expected.finish(&mut emit_expected).is_ok()
++            );
++            same_capture_state(&actual, &expected);
++        }
++        assert_eq!(actual_calls, expected_calls);
++        assert_eq!(actual_rows, expected_rows);
++    }
++}
+--- a/src/experimental_terminal/pane.rs
++++ b/src/experimental_terminal/pane.rs
+@@ -63,7 +63,7 @@
+     detail_commit: Option<super::git_detail::Commit>,
+     diagnostic_job: Option<(super::diagnostic_links::Job, bool, Option<Anchor>)>,
+     layout: Layout,
+-    fragments: Vec<Fragment>,
++    fragments: std::sync::Arc<Vec<Fragment>>,
+     zero_native_hits: Vec<ZeroNativeHit>,
+     output_range: Option<output_selection::Range>,
+     pinned_tail: Option<PinnedTail>,
+@@ -139,7 +139,7 @@
+             detail_commit: None,
+             diagnostic_job: None,
+             layout,
+-            fragments: Vec::new(),
++            fragments: std::sync::Arc::new(Vec::new()),
+             zero_native_hits: Vec::new(),
+             output_range: None,
+             pinned_tail: None,
+@@ -566,7 +566,7 @@
+         self.copy_job = None;
+         self.diagnostic_job = None;
+         self.focus_prompt();
+-        self.fragments.clear();
++        self.fragments = std::sync::Arc::new(Vec::new());
+         self.view = None;
+         self.pending_command = None;
+         self.pending_launch_other = false;
+--- a/src/experimental_terminal/pane_git.rs
++++ b/src/experimental_terminal/pane_git.rs
+@@ -11,7 +11,7 @@
+     selection: OutputSelection,
+     range: Option<output_selection::Range>,
+     pinned: Option<PinnedTail>,
+-    fragments: Vec<Fragment>,
++    fragments: std::sync::Arc<Vec<Fragment>>,
+     view: Option<vt100::Parser>,
+     paint: Selection,
+     browsing: bool,
+--- a/src/experimental_terminal/pane_output.rs
++++ b/src/experimental_terminal/pane_output.rs
+@@ -182,7 +182,7 @@
+         font_key: u32, measure: &mut dyn FnMut(char) -> i32) -> io::Result<()> {
+         let (epoch, base) = { let store = self.transcript.lock().unwrap(); (store.epoch(), store.base_id()) };
+         if epoch != self.browse_epoch {
+-            self.fragments.clear();
++            self.fragments = std::sync::Arc::new(Vec::new());
+             self.output_range = None;
+             self.browse_offset = 0;
+             self.browse_follow = true;
+@@ -197,16 +197,32 @@
+         self.browse_base_id = base;
+         if self.browse_follow { self.browse_offset = self.layout.len().saturating_sub(rows as usize); }
+         else if self.layout.complete() { self.browse_offset = self.browse_offset.min(self.layout.len().saturating_sub(rows as usize)); }
+-        self.layout.visible(self.browse_offset, rows as usize)?;
++        self.layout.request_visible(self.browse_offset, rows as usize)?;
+         self.layout.poll_with_measure(measure)?;
+-        let fragments = self.layout.visible(self.browse_offset, rows as usize)?;
++        let fragments = self.layout.visible_shared(self.browse_offset, rows as usize)?;
++        let mut frame_changed = false;
+         if !fragments.is_empty() || self.layout.complete() && self.layout.len() == 0 {
++            frame_changed = !std::sync::Arc::ptr_eq(&self.fragments, &fragments);
+             self.fragments = fragments;
+         }
+         // Fragments are authoritative for normal output; this compatibility
+         // grid stays bounded even when a normal pane is wide or tall.
+         let view_rows = rows.min(super::super::session::MAX_ROWS);
+         let view_cols = cols.min(super::super::session::MAX_COLS);
++        if !frame_changed && self.view.as_ref().is_some_and(|view| view.screen().size() == (view_rows, view_cols)) {
++            // Selection/focus can change without changing the published text.
++            // Reuse its compatibility grid, updating only the cursor state.
++            let cursor = self.output_selection.focused()
++                .then(|| self.output_selection.cursor().and_then(|anchor| self.anchor_point(anchor)))
++                .flatten();
++            let view = self.view.as_mut().unwrap();
++            view.process(b"\x1b[?25l");
++            if let Some(point) = cursor.filter(|point| point.row < view_rows && point.col < view_cols) {
++                view.process(format!("\x1b[{};{}H\x1b[?25h", point.row + 1, point.col + 1).as_bytes());
++            }
++            self.paint_output_selection();
++            return Ok(());
++        }
+         let mut view = vt100::Parser::new(view_rows, view_cols, 0);
+         view.process(b"\x1b[?25l");
+         for (row, fragment) in self.fragments.iter().take(view_rows as usize).enumerate() {
+--- a/src/experimental_terminal/session.rs
++++ b/src/experimental_terminal/session.rs
+@@ -1370,9 +1370,15 @@
+             (&mut self.plain, &self.transcript, &self.origin)
+         {
+             if !self.plain_failed {
+-                if let Err(error) = plain.finish(|text, continued| {
+-                    store.lock().unwrap().append_plain(&origin.directory, origin.source, text, continued).map(|_| ())
+-                }) {
++                // Reuse one lazy guard for this bounded call; a call with no
++                // emitted rows needs no transcript lock.
++                let mut locked = None;
++                let result = plain.finish(|text, continued| {
++                    locked.get_or_insert_with(|| store.lock().unwrap())
++                        .append_plain(&origin.directory, origin.source, text, continued).map(|_| ())
++                });
++                drop(locked);
++                if let Err(error) = result {
+                     self.plain_failed = true;
+                     self.status = Some(format!("Transcript tail write failed: {error}"));
+                 }
+@@ -1410,9 +1416,15 @@
+             if let (Some(plain), Some(store), Some(origin)) =
+                 (&mut self.plain, &self.transcript, &self.origin)
+             {
+-                if let Err(error) = plain.process(&bytes[..capture_end], |text, continued| {
+-                    store.lock().unwrap().append_plain(&origin.directory, origin.source, text, continued).map(|_| ())
+-                }) {
++                // Reuse one lazy guard for this bounded call; a call with no
++                // emitted rows needs no transcript lock.
++                let mut locked = None;
++                let result = plain.process(&bytes[..capture_end], |text, continued| {
++                    locked.get_or_insert_with(|| store.lock().unwrap())
++                        .append_plain(&origin.directory, origin.source, text, continued).map(|_| ())
++                });
++                drop(locked);
++                if let Err(error) = result {
+                     self.plain_failed = true;
+                     self.status = Some(format!("Transcript write failed: {error}"));
+                 }

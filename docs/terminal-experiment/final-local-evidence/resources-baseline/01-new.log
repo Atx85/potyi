@@ -1,0 +1,66 @@
+
+running 1 test
+test app::input::tests::terminal_resource_probe::matched_terminal_resource_probe ... 
+POTYI_TERM_RESOURCE {"event":"ready","phase":"ready","kind":"new","pid":56893,"elapsed_ms":1051.379,"draws":6,"turns":5}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"idle","kind":"new","pid":56893,"elapsed_ms":1051.778,"draws":6,"turns":5}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"idle","kind":"new","pid":56893,"elapsed_ms":3051.860,"draws":6,"turns":465}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"small_command","kind":"new","pid":56893,"elapsed_ms":3051.984,"draws":6,"turns":465}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"small_command","kind":"new","duration_ms":2862.965}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"small_command","kind":"new","pid":56893,"elapsed_ms":5914.978,"draws":11,"turns":1699}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"small_idle","kind":"new","pid":56893,"elapsed_ms":5915.009,"draws":11,"turns":1699}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"small_idle","kind":"new","pid":56893,"elapsed_ms":7915.019,"draws":11,"turns":1792}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"stream_first","kind":"new","pid":56893,"elapsed_ms":7915.060,"draws":11,"turns":1792}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"stream_first","kind":"new","duration_ms":3498.301}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"stream_first","kind":"new","pid":56893,"elapsed_ms":11413.388,"draws":213,"turns":32721}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"plateau_first","kind":"new","pid":56893,"elapsed_ms":11413.405,"draws":213,"turns":32721}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"plateau_first","kind":"new","pid":56893,"elapsed_ms":13413.416,"draws":213,"turns":32967}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"stream_second","kind":"new","pid":56893,"elapsed_ms":13413.456,"draws":213,"turns":32967}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"stream_second","kind":"new","duration_ms":3496.100}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"stream_second","kind":"new","pid":56893,"elapsed_ms":16909.578,"draws":415,"turns":64065}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"plateau_second","kind":"new","pid":56893,"elapsed_ms":16909.589,"draws":415,"turns":64065}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"plateau_second","kind":"new","pid":56893,"elapsed_ms":18909.632,"draws":415,"turns":64354}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"resize","kind":"new","pid":56893,"elapsed_ms":18909.657,"draws":415,"turns":64354}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"resize","kind":"new","duration_ms":3831.594,"resizes":9}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"resize","kind":"new","pid":56893,"elapsed_ms":22741.273,"draws":653,"turns":99976}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copy_selected","kind":"new","pid":56893,"elapsed_ms":22741.532,"draws":653,"turns":99976}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"copy_selected","kind":"new","duration_ms":1.402,"copied_bytes":4096}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copy_selected","kind":"new","pid":56893,"elapsed_ms":23492.957,"draws":655,"turns":100120}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copy_all","kind":"new","pid":56893,"elapsed_ms":23492.992,"draws":655,"turns":100120}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"copy_all","kind":"new","duration_ms":216.643,"copied_bytes":4817806}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copy_all","kind":"new","pid":56893,"elapsed_ms":24459.669,"draws":658,"turns":100997}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copied_idle","kind":"new","pid":56893,"elapsed_ms":24459.691,"draws":658,"turns":100997}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copied_idle","kind":"new","pid":56893,"elapsed_ms":26459.702,"draws":658,"turns":101209}
+
+POTYI_TERM_RESOURCE {"event":"done","phase":"done","kind":"new","pid":56893,"elapsed_ms":26459.725,"draws":658,"turns":101209}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 893 filtered out; finished in 26.53s
+

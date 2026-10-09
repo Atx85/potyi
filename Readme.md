@@ -588,6 +588,10 @@ startup before packaging, and caches Linux build files for subsequent runs.
 
 Mac downloads contain `Potyi.app`; Windows downloads contain `potyi.exe`;
 Linux downloads contain `potyi` and optional desktop integration files.
+Each download includes `potyi-term-helper` beside the editor executable
+(`potyi-term-helper.exe` on Windows, inside `Potyi.app` on Mac). Keep the
+helper there for faster `:term-new` commands. A copied standalone editor
+continues to handle terminal requests itself when that helper is absent.
 The Mac apps are ad-hoc signed, without Apple notarization. Linux builds
 use Ubuntu 22.04 and still require compatible system/display libraries.
 Each build uses `Cargo.lock` and the embedded default settings and fonts.

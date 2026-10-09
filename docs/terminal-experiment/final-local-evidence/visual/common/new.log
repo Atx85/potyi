@@ -1,0 +1,7 @@
+
+running 1 test
+test app::input::tests::terminal_visual_probe::capture_terminal_visual_frames ... POTYI_VISUAL_SCALAR_WIDTHS [('a', 11), ('\u{301}', 9), ('\u{200d}', 0), ('\u{fe0f}', 0), ('界', 11)]
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 900 filtered out; finished in 3.13s
+

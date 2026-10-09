@@ -1,0 +1,50 @@
+{
+  "source_sha256": "a45c4bde2b9fb155d2660973e01270edc6b122c6c339810b877629269c8cd851",
+  "expected_tests": {
+    "macos-app.log": [
+      209,
+      1
+    ],
+    "macos-native-backend.log": [
+      184
+    ],
+    "vt100.log": [
+      2
+    ],
+    "linux-gates.log": [
+      184,
+      2,
+      209
+    ]
+  },
+  "expected_visuals": {
+    "leading": {
+      "scenes": 27,
+      "clipboard": 10
+    },
+    "common": {
+      "scenes": 27,
+      "clipboard": 10
+    }
+  },
+  "log_sources": {
+    "macos-app.log": "/private/tmp/potyi-terminal-optimized-v2-candidate-acceptance.log",
+    "macos-native-backend.log": "/private/tmp/potyi-terminal-optimized-v2-arm-tests.log",
+    "vt100.log": "/private/tmp/potyi-terminal-optimized-v2-vt100.log",
+    "linux-gates.log": "/private/tmp/potyi-terminal-optimized-v2-linux-gates.log",
+    "windows-compilation.log": "/private/tmp/potyi-terminal-optimized-v2-windows-check.log",
+    "release-app-build.log": "/private/tmp/potyi-terminal-optimized-v2-release-build.log",
+    "release-test-build.log": "/private/tmp/potyi-terminal-optimized-v2-release-build.log"
+  },
+  "notes": [
+    "Mac application scope includes209 terminal checks plus1 event-loop wait regression.",
+    "Release app and test builds were recorded sequentially in the same combined build log.",
+    "No candidate sources changed between recorded compilation and final gates."
+  ],
+  "visual_sources": {
+    "leading": "/private/tmp/potyi-terminal-visual/performance-final-v2",
+    "common": "/private/tmp/potyi-terminal-visual/performance-final-common-v2"
+  },
+  "quick_open_source": "/private/tmp/potyi-terminal-visual/performance-final-v2/quick-open",
+  "resource_source": "/private/tmp/potyi-terminal-resources-optimized-final-v2"
+}

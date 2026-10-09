@@ -14,63 +14,49 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-
-use std::fs::{
-    self,
-    File,
-    OpenOptions,
-};
+use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{
-    AtomicU64,
-    Ordering,
-};
-use std::time::Instant;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
-pub(crate) mod recovery;
+mod line_index;
+mod line_scan;
 mod line_view;
+pub(crate) mod recovery;
+use line_index::LineIndex;
 mod shared_view;
+mod view;
+pub use view::PieceTable;
+#[cfg(test)]
+mod line_index_tests;
 mod mouse_selection;
-pub(crate) use mouse_selection::MouseSelection;
+#[cfg(test)]
+mod save_tests;
 use line_view::LineViewCache;
+pub(crate) use mouse_selection::MouseSelection;
 
-
-const PIECE_TABLE_CHUNK_SIZE: usize =
-    64 * 1024;
-
+const PIECE_TABLE_CHUNK_SIZE: usize = 64 * 1024;
 
 #[cfg(windows)]
 use std::os::windows::fs::FileExt;
 
 #[cfg(unix)]
-use std::os::unix::fs::{
-    FileExt,
-    OpenOptionsExt,
-};
+use std::os::unix::fs::{FileExt, OpenOptionsExt};
 
-fn read_at(
-    file: &File,
-    buffer: &mut [u8],
-    offset: u64,
-) -> io::Result<usize> {
+fn read_at(file: &File, buffer: &mut [u8], offset: u64) -> io::Result<usize> {
     #[cfg(windows)]
-    {
-        file.seek_read(buffer, offset)
-    }
+    let count = file.seek_read(buffer, offset)?;
 
     #[cfg(unix)]
-    {
-        file.read_at(buffer, offset)
-    }
+    let count = file.read_at(buffer, offset)?;
+    #[cfg(test)]
+    crate::benchmarks::scaling::record_read(count);
+    Ok(count)
 }
 
-fn write_at(
-    file: &File,
-    buffer: &[u8],
-    offset: u64,
-) -> io::Result<usize> {
+fn write_at(file: &File, buffer: &[u8], offset: u64) -> io::Result<usize> {
     #[cfg(windows)]
     {
         file.seek_write(buffer, offset)
@@ -82,42 +68,25 @@ fn write_at(
     }
 }
 
-fn write_all_at(
-    file: &File,
-    mut buffer: &[u8],
-    mut offset: u64,
-) -> io::Result<()> {
+fn write_all_at(file: &File, mut buffer: &[u8], mut offset: u64) -> io::Result<()> {
     while !buffer.is_empty() {
-        let written =
-            write_at(
-                file,
-                buffer,
-                offset,
-            )?;
+        let written = write_at(file, buffer, offset)?;
 
         if written == 0 {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::WriteZero,
-                    "failed to append to edit store",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::WriteZero,
+                "failed to append to edit store",
+            ));
         }
 
         buffer = &buffer[written..];
-        offset = offset
-            .checked_add(written as u64)
-            .ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "edit store offset overflow",
-                )
-            })?;
+        offset = offset.checked_add(written as u64).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "edit store offset overflow")
+        })?;
     }
 
     Ok(())
 }
-
 
 // ==========================================================================
 // File-backed edit store
@@ -137,31 +106,17 @@ struct EditStore {
 
 impl EditStore {
     fn create() -> io::Result<Self> {
-        static NEXT_FILE: AtomicU64 =
-            AtomicU64::new(0);
+        static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
 
         for _ in 0..1024 {
-            let number =
-                NEXT_FILE.fetch_add(
-                    1,
-                    Ordering::Relaxed,
-                );
+            let number = NEXT_FILE.fetch_add(1, Ordering::Relaxed);
 
-            let path =
-                std::env::temp_dir().join(
-                    format!(
-                        "potyi-edits-{}-{number}.tmp",
-                        std::process::id(),
-                    )
-                );
+            let path = std::env::temp_dir()
+                .join(format!("potyi-edits-{}-{number}.tmp", std::process::id(),));
 
-            let mut options =
-                OpenOptions::new();
+            let mut options = OpenOptions::new();
 
-            options
-                .read(true)
-                .write(true)
-                .create_new(true);
+            options.read(true).write(true).create_new(true);
 
             #[cfg(unix)]
             options.mode(0o600);
@@ -176,20 +131,16 @@ impl EditStore {
                     });
                 }
 
-                Err(error)
-                    if error.kind()
-                        == io::ErrorKind::AlreadyExists => {}
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
 
                 Err(error) => return Err(error),
             }
         }
 
-        Err(
-            io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                "could not create a unique Pötyi edit store",
-            )
-        )
+        Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "could not create a unique Pötyi edit store",
+        ))
     }
 
     fn file(&self) -> &File {
@@ -202,65 +153,37 @@ impl EditStore {
         *self.length.lock().unwrap()
     }
 
-    fn append(
-        &self,
-        bytes: &[u8],
-    ) -> io::Result<usize> {
+    fn append(&self, bytes: &[u8]) -> io::Result<usize> {
         let mut length = self.length.lock().unwrap();
         let start = *length;
 
-        let new_length =
-            start.checked_add(bytes.len())
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "edit store length overflow",
-                    )
-                })?;
+        let new_length = start.checked_add(bytes.len()).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidInput, "edit store length overflow")
+        })?;
 
-        write_all_at(
-            self.file(),
-            bytes,
-            start as u64,
-        )?;
+        write_all_at(self.file(), bytes, start as u64)?;
 
         *length = new_length;
 
         Ok(start)
     }
 
-    fn read_into(
-        &self,
-        position: usize,
-        buffer: &mut [u8],
-    ) -> io::Result<usize> {
-        let end =
-            position.checked_add(buffer.len())
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "edit store range overflow",
-                    )
-                })?;
+    fn read_into(&self, position: usize, buffer: &mut [u8]) -> io::Result<usize> {
+        let end = position.checked_add(buffer.len()).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidInput, "edit store range overflow")
+        })?;
 
         if end > self.len() {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    "edit store range is outside the file",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "edit store range is outside the file",
+            ));
         }
 
         let mut total = 0usize;
 
         while total < buffer.len() {
-            let read =
-                read_at(
-                    self.file(),
-                    &mut buffer[total..],
-                    (position + total) as u64,
-                )?;
+            let read = read_at(self.file(), &mut buffer[total..], (position + total) as u64)?;
 
             if read == 0 {
                 break;
@@ -277,10 +200,11 @@ impl Drop for EditStore {
     fn drop(&mut self) {
         // Windows cannot remove an open file, so close it explicitly first.
         drop(self.file.take());
-        if self.remove_on_drop { let _ = fs::remove_file(&self.path); }
+        if self.remove_on_drop {
+            let _ = fs::remove_file(&self.path);
+        }
     }
 }
-
 
 // ==========================================================================
 // Piece table
@@ -295,19 +219,22 @@ pub struct Piece {
 
 /// An opaque piece-table state used to swap a batch edit in and out.
 ///
-/// The add buffer is append-only, so retaining only the previous pieces and
-/// logical length is enough to make replace-all undo and redo constant-time.
+/// The add buffer is append-only. Undo/redo swaps piece layouts, logical
+/// lengths and precomputed position maps without copying the document text.
 #[derive(Clone)]
 pub(crate) struct PieceTableSnapshot {
     pieces: Vec<Piece>,
     length: usize,
+    // Maps positions from the current text back into this snapshot.
+    view_changes: shared_view::PositionChanges,
+    inverse_view_changes: shared_view::PositionChanges,
 }
 
 // ==========================================================================
 // Cursor
 // ==========================================================================
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Cursor {
     pub position: usize,
     pub anchor: usize,
@@ -334,9 +261,11 @@ struct LineInfo {
 // Piece table
 // ==========================================================================
 
-pub struct PieceTable {
+pub(super) struct Document {
     revision: u64,
+    view_history: shared_view::ViewHistory,
     line_views: std::cell::RefCell<LineViewCache>,
+    line_scan: std::cell::RefCell<line_scan::LineScanBuffer>,
     original: Arc<File>,
     original_length: usize,
 
@@ -344,7 +273,7 @@ pub struct PieceTable {
     pub pieces: Vec<Piece>,
     pub length: usize,
 
-    line_cache: Vec<LineInfo>,
+    line_cache: LineIndex,
     all_lines_cached: bool,
 
     pub(crate) cursor: Cursor,
@@ -358,10 +287,12 @@ fn next_document_revision() -> u64 {
     NEXT.fetch_add(1, Ordering::Relaxed)
 }
 
-impl PieceTable {
+impl Document {
     /// Changes on every text mutation, including undo, redo and batch edits.
     /// Globally unique across documents, so reopening a path invalidates replies.
-    pub(crate) fn revision(&self) -> u64 { self.revision }
+    pub(crate) fn revision(&self) -> u64 {
+        self.revision
+    }
 
     // ---------------------------------------------------------------------
     // Basic
@@ -376,9 +307,7 @@ impl PieceTable {
     }
 
     #[cfg(test)]
-    pub(crate) fn edit_store_len(
-        &self,
-    ) -> usize {
+    pub(crate) fn edit_store_len(&self) -> usize {
         self.add.len()
     }
 
@@ -403,37 +332,37 @@ impl PieceTable {
         if metadata.is_dir() {
             return Err(io::Error::new(
                 io::ErrorKind::IsADirectory,
-                format!("{} is a directory, not a text file", Path::new(path).display()),
+                format!(
+                    "{} is a directory, not a text file",
+                    Path::new(path).display()
+                ),
             ));
         }
 
-        let original_length = usize::try_from(
-            metadata.len(),
-        )
-        .map_err(|_| {
+        let original_length = usize::try_from(metadata.len()).map_err(|_| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
                 "file is too large for this platform",
             )
         })?;
 
-        let pieces =
-            if original_length == 0 {
-                Vec::new()
-            } else {
-                vec![
-                    Piece {
-                        start: 0,
-                        length: original_length,
-                        original: true,
-                    }
-                ]
-            };
+        let pieces = if original_length == 0 {
+            Vec::new()
+        } else {
+            vec![Piece {
+                start: 0,
+                length: original_length,
+                original: true,
+            }]
+        };
 
+        let revision = next_document_revision();
         let table = Self {
             recovery: Default::default(),
-            revision: next_document_revision(),
+            revision,
+            view_history: shared_view::ViewHistory::new(revision),
             line_views: Default::default(),
+            line_scan: Default::default(),
             original: Arc::new(original),
             original_length,
 
@@ -442,17 +371,13 @@ impl PieceTable {
             length: original_length,
 
             // First line is a lazy placeholder.
-line_cache: if original_length == 0 {
-    vec![LineInfo {
-        start: 0,
-        end: 0,
-        length: 0,
-    }]
-} else {
-    Vec::new()
-},
+            line_cache: if original_length == 0 {
+                LineIndex::empty_document()
+            } else {
+                LineIndex::default()
+            },
 
-all_lines_cached: original_length == 0,
+            all_lines_cached: original_length == 0,
 
             secondary_cursors: Vec::new(),
             cursor: Cursor {
@@ -468,11 +393,7 @@ all_lines_cached: original_length == 0,
             },
         };
 
-        println!(
-            "PieceTable::open({}): {:?}",
-            path,
-            started.elapsed()
-        );
+        println!("PieceTable::open({}): {:?}", path, started.elapsed());
 
         Ok(table)
     }
@@ -489,10 +410,13 @@ all_lines_cached: original_length == 0,
             File::open("/dev/null")?
         };
 
+        let revision = next_document_revision();
         Ok(Self {
             recovery: Default::default(),
-            revision: next_document_revision(),
+            revision,
+            view_history: shared_view::ViewHistory::new(revision),
             line_views: Default::default(),
+            line_scan: Default::default(),
             original: Arc::new(original),
             original_length: 0,
 
@@ -500,7 +424,7 @@ all_lines_cached: original_length == 0,
             pieces: Vec::new(),
             length: 0,
 
-            line_cache: Vec::new(),
+            line_cache: LineIndex::default(),
             all_lines_cached: false,
 
             secondary_cursors: Vec::new(),
@@ -517,39 +441,34 @@ all_lines_cached: original_length == 0,
         })
     }
 
-    pub fn move_cursor_to_line_column(
-    &mut self,
-    line: usize,
-    column: usize,
-) -> io::Result<()> {
-    self.ensure_line_cached(line)?;
+    pub fn move_cursor_to_line_column(&mut self, line: usize, column: usize) -> io::Result<()> {
+        self.ensure_line_cached(line)?;
 
-    let start = self.line_start(line)?;
+        let start = self.line_start(line)?;
 
-    let position = self.position_at_column(
-        start,
-        column,
-    )?;
+        let position = self.position_at_column(start, column)?;
 
-    self.move_cursor(position)
-}
+        self.move_cursor(position)
+    }
     // ---------------------------------------------------------------------
     // Saving
     // ---------------------------------------------------------------------
 
-    fn temporary_path(
-        path: &Path,
-    ) -> PathBuf {
+    fn temporary_path(path: &Path) -> PathBuf {
         let mut temporary = path.to_path_buf();
-        temporary.set_file_name(format!(".potyi-save-{}-{}-{}.tmp", std::process::id(), next_document_revision(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()));
+        temporary.set_file_name(format!(
+            ".potyi-save-{}-{}-{}.tmp",
+            std::process::id(),
+            next_document_revision(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
         temporary
     }
 
-    pub fn write_to(
-        &self,
-        path: &Path,
-    ) -> io::Result<()> {
+    pub fn write_to(&self, path: &Path) -> io::Result<()> {
         self.write_to_destination(path, true)
     }
 
@@ -558,17 +477,48 @@ all_lines_cached: original_length == 0,
     }
 
     fn write_to_destination(&self, path: &Path, overwrite: bool) -> io::Result<()> {
-        let temporary_path =
-            Self::temporary_path(path);
+        // Replace a symlink's target, keeping the link (and any link chain)
+        // intact. A dangling link is an error rather than a new destination.
+        let destination = if overwrite {
+            match fs::symlink_metadata(path) {
+                Ok(metadata) if metadata.file_type().is_symlink() => fs::canonicalize(path)?,
+                Ok(_) => path.to_path_buf(),
+                Err(error) if error.kind() == io::ErrorKind::NotFound => path.to_path_buf(),
+                Err(error) => return Err(error),
+            }
+        } else {
+            path.to_path_buf()
+        };
+        let path = destination.as_path();
+        let permissions = if overwrite {
+            match fs::metadata(path) {
+                Ok(metadata) => Some(metadata.permissions()),
+                Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+                Err(error) => return Err(error),
+            }
+        } else {
+            None
+        };
+        let temporary_path = Self::temporary_path(path);
 
-        let mut output =
-            OpenOptions::new().write(true).create_new(true).open(&temporary_path)?;
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        // Keep staged contents private until the original permissions are
+        // restored. Newly created documents still use the process's umask.
+        #[cfg(unix)]
+        if permissions.is_some() {
+            options.mode(0o600);
+        }
+        let mut output = options.open(&temporary_path)?;
         struct TemporarySave(PathBuf);
-        impl Drop for TemporarySave { fn drop(&mut self) { let _ = fs::remove_file(&self.0); } }
+        impl Drop for TemporarySave {
+            fn drop(&mut self) {
+                let _ = fs::remove_file(&self.0);
+            }
+        }
         let _temporary = TemporarySave(temporary_path.clone());
 
-        let mut buffer =
-            [0u8; 64 * 1024];
+        let mut buffer = [0u8; 64 * 1024];
 
         for piece in &self.pieces {
             if piece.length == 0 {
@@ -576,91 +526,60 @@ all_lines_cached: original_length == 0,
             }
 
             if piece.original {
-                let mut remaining =
-                    piece.length;
+                let mut remaining = piece.length;
 
-                let mut source_position =
-                    piece.start;
+                let mut source_position = piece.start;
 
                 while remaining > 0 {
-                    let amount =
-                        remaining.min(
-                            buffer.len()
-                        );
+                    let amount = remaining.min(buffer.len());
 
-                    let read =
-                        read_at(
-                            &self.original,
-                            &mut buffer[..amount],
-                            source_position as u64,
-                        )?;
+                    let read = read_at(
+                        &self.original,
+                        &mut buffer[..amount],
+                        source_position as u64,
+                    )?;
 
                     if read != amount {
-                        return Err(
-                            io::Error::new(
-                                io::ErrorKind::UnexpectedEof,
-                                "unexpected end of original file",
-                            )
-                        );
+                        return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "unexpected end of original file",
+                        ));
                     }
 
-                    output.write_all(
-                        &buffer[..read],
-                    )?;
+                    output.write_all(&buffer[..read])?;
 
                     source_position += read;
                     remaining -= read;
                 }
             } else {
-                let end =
-                    piece.start
-                        .checked_add(piece.length)
-                        .ok_or_else(|| {
-                            io::Error::new(
-                                io::ErrorKind::InvalidData,
-                                "piece range overflow",
-                            )
-                        })?;
+                let end = piece.start.checked_add(piece.length).ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData, "piece range overflow")
+                })?;
 
                 if end > self.add.len() {
-                    return Err(
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "piece references data outside add buffer",
-                        )
-                    );
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "piece references data outside add buffer",
+                    ));
                 }
 
-                let mut remaining =
-                    piece.length;
+                let mut remaining = piece.length;
 
-                let mut source_position =
-                    piece.start;
+                let mut source_position = piece.start;
 
                 while remaining > 0 {
-                    let amount =
-                        remaining.min(
-                            buffer.len()
-                        );
+                    let amount = remaining.min(buffer.len());
 
-                    let read =
-                        self.add.read_into(
-                            source_position,
-                            &mut buffer[..amount],
-                        )?;
+                    let read = self.add.read_into(source_position, &mut buffer[..amount])?;
 
                     if read != amount {
-                        return Err(
-                            io::Error::new(
-                                io::ErrorKind::UnexpectedEof,
-                                "unexpected end of edit store",
-                            )
-                        );
+                        return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "unexpected end of edit store",
+                        ));
                     }
 
-                    output.write_all(
-                        &buffer[..read],
-                    )?;
+                    output.write_all(&buffer[..read])?;
 
                     source_position += read;
                     remaining -= read;
@@ -668,6 +587,9 @@ all_lines_cached: original_length == 0,
             }
         }
 
+        if let Some(permissions) = permissions {
+            output.set_permissions(permissions)?;
+        }
         output.sync_all()?;
         drop(output);
 
@@ -681,7 +603,11 @@ all_lines_cached: original_length == 0,
             // Publish atomically: never delete the user's file before replacement.
             fs::rename(&temporary_path, path)?;
         }
-        recovery::sync_directory(path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or_else(|| Path::new(".")))?;
+        recovery::sync_directory(
+            path.parent()
+                .filter(|p| !p.as_os_str().is_empty())
+                .unwrap_or_else(|| Path::new(".")),
+        )?;
         Ok(())
     }
 
@@ -694,72 +620,45 @@ all_lines_cached: original_length == 0,
     /// Add-buffer pieces are borrowed directly. Original-file pieces use one
     /// fixed-size buffer whose contents are valid for the duration of each
     /// callback.
-    pub(crate) fn visit_chunks<F>(
-        &self,
-        mut visit: F,
-    ) -> io::Result<()>
+    pub(crate) fn visit_chunks<F>(&self, mut visit: F) -> io::Result<()>
     where
         F: FnMut(&[u8]) -> io::Result<()>,
     {
-        let mut buffer =
-            vec![0u8;
-                PIECE_TABLE_CHUNK_SIZE];
+        let mut buffer = vec![0u8; PIECE_TABLE_CHUNK_SIZE];
 
         for piece in &self.pieces {
             if piece.length == 0 {
                 continue;
             }
 
-            let piece_end =
-                piece.start
-                    .checked_add(
-                        piece.length
-                    )
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "piece source range overflow",
-                        )
-                    })?;
+            let piece_end = piece.start.checked_add(piece.length).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "piece source range overflow")
+            })?;
 
             if piece.original {
-                if piece_end
-                    > self.original_length
-                {
-                    return Err(
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "piece references data outside original file",
-                        )
-                    );
+                if piece_end > self.original_length {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "piece references data outside original file",
+                    ));
                 }
 
-                let mut source_position =
-                    piece.start;
+                let mut source_position = piece.start;
 
-                while source_position
-                    < piece_end
-                {
-                    let amount =
-                        (piece_end
-                            - source_position)
-                            .min(buffer.len());
+                while source_position < piece_end {
+                    let amount = (piece_end - source_position).min(buffer.len());
 
-                    let read =
-                        read_at(
-                            &self.original,
-                            &mut buffer[..amount],
-                            source_position
-                                as u64,
-                        )?;
+                    let read = read_at(
+                        &self.original,
+                        &mut buffer[..amount],
+                        source_position as u64,
+                    )?;
 
                     if read != amount {
-                        return Err(
-                            io::Error::new(
-                                io::ErrorKind::UnexpectedEof,
-                                "unexpected end of original file",
-                            )
-                        );
+                        return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "unexpected end of original file",
+                        ));
                     }
 
                     visit(&buffer[..read])?;
@@ -768,38 +667,24 @@ all_lines_cached: original_length == 0,
                 }
             } else {
                 if piece_end > self.add.len() {
-                    return Err(
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "piece references data outside edit store",
-                        )
-                    );
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "piece references data outside edit store",
+                    ));
                 }
 
-                let mut source_position =
-                    piece.start;
+                let mut source_position = piece.start;
 
-                while source_position
-                    < piece_end
-                {
-                    let amount =
-                        (piece_end
-                            - source_position)
-                            .min(buffer.len());
+                while source_position < piece_end {
+                    let amount = (piece_end - source_position).min(buffer.len());
 
-                    let read =
-                        self.add.read_into(
-                            source_position,
-                            &mut buffer[..amount],
-                        )?;
+                    let read = self.add.read_into(source_position, &mut buffer[..amount])?;
 
                     if read != amount {
-                        return Err(
-                            io::Error::new(
-                                io::ErrorKind::UnexpectedEof,
-                                "unexpected end of edit store",
-                            )
-                        );
+                        return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "unexpected end of edit store",
+                        ));
                     }
 
                     visit(&buffer[..read])?;
@@ -812,45 +697,26 @@ all_lines_cached: original_length == 0,
         Ok(())
     }
 
-    pub fn read_range_into(
-        &self,
-        position: usize,
-        buffer: &mut [u8],
-    ) -> io::Result<usize> {
-        if buffer.is_empty()
-            || position >= self.len()
-        {
+    pub fn read_range_into(&self, position: usize, buffer: &mut [u8]) -> io::Result<usize> {
+        if buffer.is_empty() || position >= self.len() {
             return Ok(0);
         }
 
-        let requested_end =
-            position
-                .saturating_add(buffer.len())
-                .min(self.len());
+        let requested_end = position.saturating_add(buffer.len()).min(self.len());
 
-        let mut current_position =
-            0usize;
+        let mut current_position = 0usize;
 
-        let mut output_position =
-            0usize;
+        let mut output_position = 0usize;
 
         for piece in &self.pieces {
-            let piece_start =
-                current_position;
+            let piece_start = current_position;
 
-            let piece_end =
-                current_position
-                    .checked_add(piece.length)
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "piece range overflow",
-                        )
-                    })?;
+            let piece_end = current_position.checked_add(piece.length).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "piece range overflow")
+            })?;
 
             if piece_end <= position {
-                current_position =
-                    piece_end;
+                current_position = piece_end;
 
                 continue;
             }
@@ -859,107 +725,69 @@ all_lines_cached: original_length == 0,
                 break;
             }
 
-            let read_start =
-                position.max(piece_start);
+            let read_start = position.max(piece_start);
 
-            let read_end =
-                requested_end.min(piece_end);
+            let read_end = requested_end.min(piece_end);
 
-            let read_length =
-                read_end - read_start;
+            let read_length = read_end - read_start;
 
-            let piece_offset =
-                read_start - piece_start;
+            let piece_offset = read_start - piece_start;
 
-            let source_position =
-                piece.start + piece_offset;
+            let source_position = piece.start + piece_offset;
 
             if piece.original {
-                let read =
-                    read_at(
-                        &self.original,
-                        &mut buffer[
-                            output_position
-                                ..output_position
-                                    + read_length
-                        ],
-                        source_position as u64,
-                    )?;
+                let read = read_at(
+                    &self.original,
+                    &mut buffer[output_position..output_position + read_length],
+                    source_position as u64,
+                )?;
 
                 if read != read_length {
-                    return Err(
-                        io::Error::new(
-                            io::ErrorKind::UnexpectedEof,
-                            "unexpected end of original file",
-                        )
-                    );
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "unexpected end of original file",
+                    ));
                 }
             } else {
-                let read =
-                    self.add.read_into(
-                        source_position,
-                        &mut buffer[
-                            output_position
-                                ..output_position
-                                    + read_length
-                        ],
-                    )?;
+                let read = self.add.read_into(
+                    source_position,
+                    &mut buffer[output_position..output_position + read_length],
+                )?;
 
                 if read != read_length {
-                    return Err(
-                        io::Error::new(
-                            io::ErrorKind::UnexpectedEof,
-                            "unexpected end of edit store",
-                        )
-                    );
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "unexpected end of edit store",
+                    ));
                 }
             }
 
-            output_position +=
-                read_length;
+            output_position += read_length;
 
-            current_position =
-                piece_end;
+            current_position = piece_end;
         }
 
         Ok(output_position)
     }
 
-    pub fn read_range(
-        &self,
-        position: usize,
-        length: usize,
-    ) -> io::Result<Vec<u8>> {
+    pub fn read_range(&self, position: usize, length: usize) -> io::Result<Vec<u8>> {
         if length == 0 {
             return Ok(Vec::new());
         }
 
-        let mut buffer =
-            vec![0u8; length];
+        let mut buffer = vec![0u8; length];
 
-        let count =
-            self.read_range_into(
-                position,
-                &mut buffer,
-            )?;
+        let count = self.read_range_into(position, &mut buffer)?;
 
         buffer.truncate(count);
 
         Ok(buffer)
     }
 
-    pub fn byte_at(
-        &self,
-        position: usize,
-    ) -> io::Result<Option<u8>> {
-        let mut byte =
-            [0u8; 1];
+    pub fn byte_at(&self, position: usize) -> io::Result<Option<u8>> {
+        let mut byte = [0u8; 1];
 
-        if self.read_range_into(
-            position,
-            &mut byte,
-        )? == 0
-        {
+        if self.read_range_into(position, &mut byte)? == 0 {
             Ok(None)
         } else {
             Ok(Some(byte[0]))
@@ -970,9 +798,7 @@ all_lines_cached: original_length == 0,
     // UTF-8
     // ---------------------------------------------------------------------
 
-    fn char_width_from_byte(
-        byte: u8,
-    ) -> io::Result<usize> {
+    fn char_width_from_byte(byte: u8) -> io::Result<usize> {
         match byte {
             0x00..=0x7F => Ok(1),
 
@@ -982,87 +808,53 @@ all_lines_cached: original_length == 0,
 
             0xF0..=0xF4 => Ok(4),
 
-            _ => Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
-                        "invalid UTF-8 leading byte: 0x{byte:02X}"
-                    ),
-                )
-            ),
+            _ => Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("invalid UTF-8 leading byte: 0x{byte:02X}"),
+            )),
         }
     }
 
-    fn char_width_at(
-        &self,
-        position: usize,
-    ) -> io::Result<usize> {
+    fn char_width_at(&self, position: usize) -> io::Result<usize> {
         if position >= self.len() {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    "position is at or beyond end of document",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "position is at or beyond end of document",
+            ));
         }
 
-        let remaining =
-            self.len() - position;
+        let remaining = self.len() - position;
 
-        let width =
-            Self::char_width_from_byte(
-                self.byte_at(position)?
-                    .unwrap(),
-            )?;
+        let width = Self::char_width_from_byte(self.byte_at(position)?.unwrap())?;
 
         if width > remaining {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
-                        "incomplete UTF-8 character at byte {position}"
-                    ),
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("incomplete UTF-8 character at byte {position}"),
+            ));
         }
 
-        let bytes =
-            self.read_range(
-                position,
-                width,
-            )?;
+        let bytes = self.read_range(position, width)?;
 
-        std::str::from_utf8(&bytes)
-            .map_err(|error| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
-                        "invalid UTF-8 at byte {position}: {error}"
-                    ),
-                )
-            })?;
+        std::str::from_utf8(&bytes).map_err(|error| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("invalid UTF-8 at byte {position}: {error}"),
+            )
+        })?;
 
         Ok(width)
     }
 
-    fn validate_utf8(
-        bytes: &[u8],
-        absolute_position: usize,
-    ) -> io::Result<()> {
-        std::str::from_utf8(bytes)
-            .map_err(|error| {
-                let offset =
-                    error.valid_up_to();
+    fn validate_utf8(bytes: &[u8], absolute_position: usize) -> io::Result<()> {
+        std::str::from_utf8(bytes).map_err(|error| {
+            let offset = error.valid_up_to();
 
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
-                        "invalid UTF-8 at byte {}",
-                        absolute_position
-                            + offset
-                    ),
-                )
-            })?;
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("invalid UTF-8 at byte {}", absolute_position + offset),
+            )
+        })?;
 
         Ok(())
     }
@@ -1071,204 +863,123 @@ all_lines_cached: original_length == 0,
     // Line cache
     // ---------------------------------------------------------------------
 
-
-    fn discover_next_line(
-    &mut self,
-) -> io::Result<bool> {
-    if self.all_lines_cached {
-        return Ok(false);
-    }
-
-    let start =
-        if let Some(previous) =
-            self.line_cache.last().copied()
-        {
-            if previous.end < self.len() {
-                previous.end + 1
-            } else {
-                self.all_lines_cached = true;
-                return Ok(false);
-            }
-        } else {
-            0
-        };
-
-    if start > self.len() {
-        self.all_lines_cached = true;
-        return Ok(false);
-    }
-
-    if start == self.len() {
-        self.line_cache.push(
-            LineInfo {
-                start,
-                end: start,
-                length: 0,
-            }
-        );
-
-        self.all_lines_cached = true;
-
-        return Ok(true);
-    }
-
-    const SCAN_SIZE: usize = 64 * 1024;
-
-    let line_start = start;
-    let mut position = start;
-    let mut char_count = 0usize;
-
-    loop {
-        let remaining =
-            self.len() - position;
-
-        if remaining == 0 {
-            self.line_cache.push(
-                LineInfo {
-                    start: line_start,
-                    end: position,
-                    length: char_count,
-                }
-            );
-
-            self.all_lines_cached = true;
-
-            return Ok(true);
+    fn discover_next_line(&mut self) -> io::Result<bool> {
+        if self.line_cache.local_done() {
+            return Ok(false);
         }
+        #[cfg(test)]
+        crate::benchmarks::scaling::record_line_discovery();
+        let line_start = self.line_cache.next_start();
+        let mut position = line_start;
+        let mut char_count = 0usize;
+        let mut trailing_cr = false;
+        let mut scan = self.line_scan.borrow_mut();
 
-        let amount =
-            remaining.min(SCAN_SIZE);
-
-        let bytes =
-            self.read_range(
-                position,
-                amount,
-            )?;
-
-        if bytes.is_empty() {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    "unexpected end of document",
-                )
-            );
-        }
-
-        let mut offset = 0usize;
-
-        while offset < bytes.len() {
-            let byte = bytes[offset];
-
-            if byte == b'\n' {
-                let end =
-                    position + offset;
-                let has_carriage_return =
-                    if offset > 0 {
-                        bytes[offset - 1] == b'\r'
-                    } else {
-                        position > line_start
-                            && self.byte_at(
-                                position - 1
-                            )? == Some(b'\r')
-                    };
-
+        loop {
+            if position == self.len() {
                 self.line_cache.push(
                     LineInfo {
                         start: line_start,
-                        end,
-                        length: char_count
-                            .saturating_sub(
-                                has_carriage_return as usize
-                            ),
-                    }
+                        end: position,
+                        length: char_count,
+                    },
+                    true,
                 );
-
+                self.all_lines_cached = true;
                 return Ok(true);
             }
 
-            let width =
-                Self::char_width_from_byte(
-                    byte,
-                )?;
-
-            if offset + width > bytes.len() {
-                let absolute =
-                    position + offset;
-
-                let width =
-                    self.char_width_at(
-                        absolute,
-                    )?;
-
-                offset += width;
-            } else {
-                Self::validate_utf8(
-                    &bytes[
-                        offset
-                            ..offset + width
-                    ],
-                    position + offset,
-                )?;
-
-                offset += width;
+            let bytes = scan.read(self, position)?;
+            if bytes.is_empty() {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "unexpected end of document",
+                ));
             }
 
-            char_count += 1;
+            // Search and validate a slice at a time rather than decoding each
+            // character separately. Stop at this line: read-ahead must not
+            // validate an unrelated later line containing malformed UTF-8.
+            let newline = memchr::memchr(b'\n', bytes);
+            let end = newline.unwrap_or(bytes.len());
+            let text = match std::str::from_utf8(&bytes[..end]) {
+                Ok(text) => text,
+                Err(error)
+                    if error.error_len().is_none()
+                        && newline.is_none()
+                        && position + end < self.len() =>
+                {
+                    // A multi-byte character straddles the existing buffer.
+                    // Validate it with the bounded character reader, then
+                    // refill beyond it; no carry buffer or allocation is added.
+                    let valid = error.valid_up_to();
+                    char_count += std::str::from_utf8(&bytes[..valid])
+                        .unwrap()
+                        .chars()
+                        .count();
+                    let width = self.char_width_at(position + valid)?;
+                    char_count += 1;
+                    position += valid + width;
+                    trailing_cr = false;
+                    continue;
+                }
+                Err(error) => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("invalid UTF-8 at byte {}", position + error.valid_up_to()),
+                    ));
+                }
+            };
+            char_count += text.chars().count();
+            let has_carriage_return = if end == 0 {
+                trailing_cr
+            } else {
+                bytes[end - 1] == b'\r'
+            };
+            if newline.is_some() {
+                self.line_cache.push(
+                    LineInfo {
+                        start: line_start,
+                        end: position + end,
+                        length: char_count.saturating_sub(has_carriage_return as usize),
+                    },
+                    false,
+                );
+                return Ok(true);
+            }
+            position += end;
+            trailing_cr = has_carriage_return;
         }
-
-        position += offset;
     }
-}
-    
-    pub fn ensure_line_cached(
-        &mut self,
-        line: usize,
-    ) -> io::Result<()> {
-        while self.line_cache.len()
-            <= line
-            && !self.all_lines_cached
-        {
+
+    pub fn ensure_line_cached(&mut self, line: usize) -> io::Result<()> {
+        self.line_cache.prepare_line(line);
+        while self.line_cache.get(line).is_none() && !self.line_cache.local_done() {
             self.discover_next_line()?;
         }
 
         Ok(())
     }
 
-
-    fn ensure_position_cached(
-    &mut self,
-    position: usize,
-) -> io::Result<()> {
-    if position > self.len() {
-        return Err(
-            io::Error::new(
+    fn ensure_position_cached(&mut self, position: usize) -> io::Result<()> {
+        if position > self.len() {
+            return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "position is outside document",
-            )
-        );
-    }
-
-    while !self.all_lines_cached {
-        if let Some(last) =
-            self.line_cache.last().copied()
-        {
-            if position <= last.end {
-                break;
-            }
+            ));
         }
 
-        if !self.discover_next_line()? {
-            break;
+        self.line_cache.prepare_position(position);
+        while !self.line_cache.contains_position(position) && !self.line_cache.local_done() {
+            self.discover_next_line()?;
         }
+
+        Ok(())
     }
 
-    Ok(())
-}
-    
-    pub fn line_count(
-        &mut self,
-    ) -> io::Result<usize> {
-        while !self.all_lines_cached {
+    pub fn line_count(&mut self) -> io::Result<usize> {
+        self.line_cache.prepare_count();
+        while !self.line_cache.complete() {
             self.discover_next_line()?;
         }
 
@@ -1279,68 +990,47 @@ all_lines_cached: original_length == 0,
     // Line access
     // ---------------------------------------------------------------------
 
-    pub fn line_start(
-        &mut self,
-        line: usize,
-    ) -> io::Result<usize> {
+    pub fn line_start(&mut self, line: usize) -> io::Result<usize> {
         self.ensure_line_cached(line)?;
 
         if line >= self.line_cache.len() {
             return Ok(self.len());
         }
 
-        Ok(
-            self.line_cache[line].start
-        )
+        Ok(self.line_cache[line].start)
     }
 
-    pub fn line_length(
-        &mut self,
-        line: usize,
-    ) -> io::Result<usize> {
+    pub fn line_length(&mut self, line: usize) -> io::Result<usize> {
         self.ensure_line_cached(line)?;
 
         if line >= self.line_cache.len() {
             return Ok(0);
         }
 
-        Ok(
-            self.line_cache[line].length
-        )
+        Ok(self.line_cache[line].length)
     }
 
-    pub fn line_text(
-        &mut self,
-        line: usize,
-    ) -> io::Result<String> {
+    pub fn line_text(&mut self, line: usize) -> io::Result<String> {
         self.ensure_line_cached(line)?;
 
         if line >= self.line_cache.len() {
             return Ok(String::new());
         }
 
-        let info =
-            self.line_cache[line];
+        let info = self.line_cache[line];
 
         if info.end <= info.start {
             return Ok(String::new());
         }
 
-        let bytes =
-            self.read_range(
-                info.start,
-                info.end - info.start,
-            )?;
+        let bytes = self.read_range(info.start, info.end - info.start)?;
 
-        let mut text = String::from_utf8(bytes)
-            .map_err(|error| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
-                        "invalid UTF-8: {error}"
-                    ),
-                )
-            })?;
+        let mut text = String::from_utf8(bytes).map_err(|error| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("invalid UTF-8: {error}"),
+            )
+        })?;
 
         if text.ends_with('\r') {
             text.pop();
@@ -1349,255 +1039,150 @@ all_lines_cached: original_length == 0,
         Ok(text)
     }
 
-    pub fn line_text_from_start(
-        &mut self,
-        start: usize,
-    ) -> io::Result<(String, usize)> {
+    pub fn line_text_from_start(&mut self, start: usize) -> io::Result<(String, usize)> {
         if start >= self.len() {
-            return Ok((
-                String::new(),
-                self.len(),
-            ));
+            return Ok((String::new(), self.len()));
         }
 
-        self.ensure_position_cached(
-            start
-        )?;
+        self.ensure_position_cached(start)?;
 
         for info in &self.line_cache {
             if info.start == start {
-                let length =
-                    info.end - info.start;
+                let length = info.end - info.start;
 
                 if length == 0 {
-                    let next =
-                        if info.end < self.len()
-                            && self.byte_at(
-                                info.end
-                            )? == Some(b'\n')
-                        {
-                            info.end + 1
-                        } else {
-                            info.end
-                        };
-
-                    return Ok((
-                        String::new(),
-                        next,
-                    ));
-                }
-
-                let bytes =
-                    self.read_range(
-                        info.start,
-                        length,
-                    )?;
-
-                    let mut text =
-                        String::from_utf8(
-                            bytes
-                        )
-                    .map_err(|error| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            format!(
-                                "invalid UTF-8: {error}"
-                            ),
-                        )
-                    })?;
-
-                    if text.ends_with('\r') {
-                        text.pop();
-                    }
-
-                let next =
-                    if info.end < self.len() {
+                    let next = if info.end < self.len() && self.byte_at(info.end)? == Some(b'\n') {
                         info.end + 1
                     } else {
                         info.end
                     };
 
-                return Ok((
-                    text,
-                    next,
-                ));
+                    return Ok((String::new(), next));
+                }
+
+                let bytes = self.read_range(info.start, length)?;
+
+                let mut text = String::from_utf8(bytes).map_err(|error| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("invalid UTF-8: {error}"),
+                    )
+                })?;
+
+                if text.ends_with('\r') {
+                    text.pop();
+                }
+
+                let next = if info.end < self.len() {
+                    info.end + 1
+                } else {
+                    info.end
+                };
+
+                return Ok((text, next));
             }
         }
 
-        const SCAN_SIZE: usize =
-            64 * 1024;
+        const SCAN_SIZE: usize = 64 * 1024;
 
-        let mut position =
-            start;
+        let mut position = start;
 
         loop {
-            let remaining =
-                self.len() - position;
+            let remaining = self.len() - position;
 
-            let amount =
-                remaining.min(
-                    SCAN_SIZE
-                );
+            let amount = remaining.min(SCAN_SIZE);
 
-            let bytes =
-                self.read_range(
-                    position,
-                    amount,
-                )?;
+            let bytes = self.read_range(position, amount)?;
 
             if bytes.is_empty() {
                 break;
             }
 
-            if let Some(offset) =
-                bytes.iter().position(
-                    |&byte| byte == b'\n'
-                )
-            {
-                let end =
-                    position + offset;
+            if let Some(offset) = bytes.iter().position(|&byte| byte == b'\n') {
+                let end = position + offset;
 
-                let text_bytes =
-                    self.read_range(
-                        start,
-                        end - start,
-                    )?;
+                let text_bytes = self.read_range(start, end - start)?;
 
-                let text =
-                    String::from_utf8(
-                        text_bytes,
+                let text = String::from_utf8(text_bytes).map_err(|error| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!("invalid UTF-8: {error}"),
                     )
-                    .map_err(|error| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            format!(
-                                "invalid UTF-8: {error}"
-                            ),
-                        )
-                    })?;
+                })?;
 
-                return Ok((
-                    text,
-                    end + 1,
-                ));
+                return Ok((text, end + 1));
             }
 
-            position +=
-                bytes.len();
+            position += bytes.len();
         }
 
         let text =
-            String::from_utf8(
-                self.read_range(
-                    start,
-                    self.len() - start,
-                )?,
-            )
-            .map_err(|error| {
+            String::from_utf8(self.read_range(start, self.len() - start)?).map_err(|error| {
                 io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!(
-                        "invalid UTF-8: {error}"
-                    ),
+                    format!("invalid UTF-8: {error}"),
                 )
             })?;
 
-        Ok((
-            text,
-            self.len(),
-        ))
+        Ok((text, self.len()))
     }
 
     // ---------------------------------------------------------------------
     // Line navigation
     // ---------------------------------------------------------------------
 
-    pub fn next_line_start_from(
-        &mut self,
-        start: usize,
-    ) -> io::Result<Option<usize>> {
+    pub fn next_line_start_from(&mut self, start: usize) -> io::Result<Option<usize>> {
         let index = self.line_cache.partition_point(|info| info.end < start);
-        if let Some(info) = self.line_cache.get(index).filter(|info| info.start <= start) {
+        if let Some(info) = self
+            .line_cache
+            .get(index)
+            .filter(|info| info.start <= start)
+        {
             return Ok((info.end < self.len()).then_some(info.end + 1));
         }
 
-        let mut position =
-            start;
+        let mut position = start;
 
         while position < self.len() {
-            let bytes =
-                self.read_range(
-                    position,
-                    (self.len() - position)
-                        .min(64 * 1024),
-                )?;
+            let bytes = self.read_range(position, (self.len() - position).min(64 * 1024))?;
 
-            if let Some(offset) =
-                bytes.iter().position(
-                    |&byte| byte == b'\n'
-                )
-            {
-                return Ok(
-                    Some(
-                        position
-                            + offset
-                            + 1
-                    )
-                );
+            if let Some(offset) = bytes.iter().position(|&byte| byte == b'\n') {
+                return Ok(Some(position + offset + 1));
             }
 
-            position +=
-                bytes.len();
+            position += bytes.len();
         }
 
         Ok(None)
     }
 
-    pub fn previous_line_start_from(
-        &mut self,
-        start: usize,
-    ) -> io::Result<usize> {
+    pub fn previous_line_start_from(&mut self, start: usize) -> io::Result<usize> {
         if start == 0 {
             return Ok(0);
         }
 
         let index = self.line_cache.partition_point(|info| info.start < start);
         if let Some(info) = index.checked_sub(1).and_then(|i| self.line_cache.get(i)) {
-            if start <= info.end.saturating_add(1) { return Ok(info.start); }
+            if start <= info.end.saturating_add(1) {
+                return Ok(info.start);
+            }
         }
 
-        let mut position =
-            start;
+        let mut position = start;
 
         if position > 0 {
             position -= 1;
         }
 
         loop {
-            let window_start =
-                position.saturating_sub(
-                    64 * 1024
-                );
+            let window_start = position.saturating_sub(64 * 1024);
 
-            let bytes =
-                self.read_range(
-                    window_start,
-                    position
-                        .saturating_sub(
-                            window_start
-                        ),
-                )?;
+            let bytes = self.read_range(window_start, position.saturating_sub(window_start))?;
 
             if !bytes.is_empty() {
-                for i in
-                    (0..bytes.len()).rev()
-                {
+                for i in (0..bytes.len()).rev() {
                     if bytes[i] == b'\n' {
-                        return Ok(
-                            window_start
-                                + i
-                                + 1
-                        );
+                        return Ok(window_start + i + 1);
                     }
                 }
             }
@@ -1606,10 +1191,7 @@ all_lines_cached: original_length == 0,
                 return Ok(0);
             }
 
-            position =
-                position.saturating_sub(
-                    64 * 1024
-                );
+            position = position.saturating_sub(64 * 1024);
         }
     }
 
@@ -1617,230 +1199,121 @@ all_lines_cached: original_length == 0,
     // Cursor
     // ---------------------------------------------------------------------
 
-    fn ensure_boundary(
-        &self,
-        position: usize,
-    ) -> io::Result<()> {
+    fn ensure_boundary(&self, position: usize) -> io::Result<()> {
         if position > self.len() {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "position is outside document",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "position is outside document",
+            ));
         }
 
-        if position == 0
-            || position == self.len()
-        {
+        if position == 0 || position == self.len() {
             return Ok(());
         }
 
-        let byte =
-            self.byte_at(position)?
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::UnexpectedEof,
-                        "invalid document position",
-                    )
-                })?;
+        let byte = self.byte_at(position)?.ok_or_else(|| {
+            io::Error::new(io::ErrorKind::UnexpectedEof, "invalid document position")
+        })?;
 
         if (byte & 0xC0) == 0x80 {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "position is not a UTF-8 character boundary",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "position is not a UTF-8 character boundary",
+            ));
         }
 
         Ok(())
     }
 
-    pub fn previous_char_boundary(
-        &self,
-        position: usize,
-    ) -> io::Result<usize> {
+    pub fn previous_char_boundary(&self, position: usize) -> io::Result<usize> {
         if position == 0 {
             return Ok(0);
         }
 
         if position > self.len() {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "cursor position is outside document",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "cursor position is outside document",
+            ));
         }
 
-        let window_start =
-            position.saturating_sub(4);
+        let window_start = position.saturating_sub(4);
 
-        let bytes =
-            self.read_range(
-                window_start,
-                position - window_start,
-            )?;
+        let bytes = self.read_range(window_start, position - window_start)?;
 
-        let mut index =
-            bytes.len()
-                .saturating_sub(1);
+        let mut index = bytes.len().saturating_sub(1);
 
-        while index > 0
-            && (bytes[index] & 0xC0)
-                == 0x80
-        {
+        while index > 0 && (bytes[index] & 0xC0) == 0x80 {
             index -= 1;
         }
 
-        Ok(
-            window_start + index
-        )
+        Ok(window_start + index)
     }
 
-    pub fn next_char_boundary(
-        &self,
-        position: usize,
-    ) -> io::Result<usize> {
+    pub fn next_char_boundary(&self, position: usize) -> io::Result<usize> {
         if position >= self.len() {
             return Ok(self.len());
         }
 
-        let width =
-            self.char_width_at(
-                position
-            )?;
+        let width = self.char_width_at(position)?;
 
-        Ok(
-            position
-                .checked_add(width)
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "cursor position overflow",
-                    )
-                })?
-        )
+        Ok(position.checked_add(width).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "cursor position overflow")
+        })?)
     }
 
-    pub fn line_column_at(
-        &mut self,
-        position: usize,
-    ) -> io::Result<(usize, usize)> {
-        let position =
-            position.min(self.len());
+    pub fn line_column_at(&mut self, position: usize) -> io::Result<(usize, usize)> {
+        let position = position.min(self.len());
 
-        self.ensure_boundary(
-            position
-        )?;
+        self.ensure_boundary(position)?;
 
-        self.ensure_position_cached(
-            position
-        )?;
+        self.ensure_position_cached(position)?;
 
-        let mut line_index =
-            0usize;
+        let line_index = self.line_cache.partition_point(|info| info.end < position);
 
-        for (
-            index,
-            info
-        ) in self.line_cache
-            .iter()
-            .enumerate()
-        {
-            if position >= info.start
-                && position <= info.end
-            {
-                line_index =
-                    index;
-
-                break;
-            }
-        }
-
-        let info =
-            self.line_cache[
-                line_index
-            ];
+        let info = self.line_cache[line_index];
 
         Ok((line_index, self.cached_column_at_position(info, position)?))
     }
 
-    pub fn cursor_line_column(
-        &self,
-    ) -> io::Result<(usize, usize)> {
-        Ok((
-            self.cursor.line,
-            self.cursor.column,
-        ))
+    pub fn cursor_line_column(&self) -> io::Result<(usize, usize)> {
+        Ok((self.cursor.line, self.cursor.column))
     }
 
-    pub fn move_cursor(
-        &mut self,
-        position: usize,
-    ) -> io::Result<()> {
-        let position =
-            position.min(
-                self.len()
-            );
+    pub fn move_cursor(&mut self, position: usize) -> io::Result<()> {
+        let position = position.min(self.len());
 
-        self.ensure_boundary(
-            position
-        )?;
+        self.ensure_boundary(position)?;
 
-        let (line, column) =
-            self.line_column_at(
-                position
-            )?;
+        let (line, column) = self.line_column_at(position)?;
 
-        self.cursor.position =
-            position;
+        self.cursor.position = position;
 
-        self.cursor.line =
-            line;
+        self.cursor.line = line;
 
-        self.cursor.column =
-            column;
+        self.cursor.column = column;
 
-        self.cursor.anchor =
-            position;
+        self.cursor.anchor = position;
 
-        self.cursor.anchor_line =
-            line;
+        self.cursor.anchor_line = line;
 
-        self.cursor.anchor_column =
-            column;
+        self.cursor.anchor_column = column;
 
-        self.cursor.desired_column =
-            None;
+        self.cursor.desired_column = None;
 
         Ok(())
     }
 
-    pub fn selection_start(
-        &self,
-    ) -> usize {
-        self.cursor.position
-            .min(
-                self.cursor.anchor
-            )
+    pub fn selection_start(&self) -> usize {
+        self.cursor.position.min(self.cursor.anchor)
     }
 
-    pub fn selection_end(
-        &self,
-    ) -> usize {
-        self.cursor.position
-            .max(
-                self.cursor.anchor
-            )
+    pub fn selection_end(&self) -> usize {
+        self.cursor.position.max(self.cursor.anchor)
     }
 
-    pub fn has_selection(
-        &self,
-    ) -> bool {
-        self.cursor.position
-            != self.cursor.anchor
+    pub fn has_selection(&self) -> bool {
+        self.cursor.position != self.cursor.anchor
     }
 
     // ---------------------------------------------------------------------
@@ -1924,12 +1397,7 @@ all_lines_cached: original_length == 0,
         self.navigate_to(position, selecting)
     }
 
-    pub fn move_page(
-        &mut self,
-        forward: bool,
-        lines: usize,
-        selecting: bool,
-    ) -> io::Result<()> {
+    pub fn move_page(&mut self, forward: bool, lines: usize, selecting: bool) -> io::Result<()> {
         let desired = self.cursor.desired_column.unwrap_or(self.cursor.column);
         let target = if forward {
             self.cursor.line.saturating_add(lines.max(1))
@@ -1955,727 +1423,457 @@ all_lines_cached: original_length == 0,
         self.navigate_to(position, true)
     }
 
-
-    fn position_at_column(
-    &self,
-    start: usize,
-    column: usize,
-) -> io::Result<usize> {
-    if column == 0 {
-        return Ok(start);
-    }
-    if let Some(position) = self.cached_position_at_column(start, column)? {
-        return Ok(position);
-    }
-
-    if start >= self.len() {
-        return Ok(start);
-    }
-
-    // Read only the target line, not the rest of the document.
-    let mut position = start;
-    let mut current_column = 0usize;
-
-    const SCAN_SIZE: usize = 64 * 1024;
-
-    while position < self.len()
-        && current_column < column
-    {
-        let remaining =
-            self.len() - position;
-
-        let amount =
-            remaining.min(SCAN_SIZE);
-
-        let bytes =
-            self.read_range(
-                position,
-                amount,
-            )?;
-
-        if bytes.is_empty() {
-            break;
+    fn position_at_column(&self, start: usize, column: usize) -> io::Result<usize> {
+        if column == 0 {
+            return Ok(start);
+        }
+        if let Some(position) = self.cached_position_at_column(start, column)? {
+            return Ok(position);
         }
 
-        let mut offset = 0usize;
+        if start >= self.len() {
+            return Ok(start);
+        }
 
-        while offset < bytes.len()
-            && current_column < column
-        {
-            let byte =
-                bytes[offset];
+        // Read only the target line, not the rest of the document.
+        let mut position = start;
+        let mut current_column = 0usize;
 
-            if byte == b'\n' {
-                return Ok(position + offset);
-            }
+        const SCAN_SIZE: usize = 64 * 1024;
 
-            let width =
-                Self::char_width_from_byte(
-                    byte,
-                )?;
+        while position < self.len() && current_column < column {
+            let remaining = self.len() - position;
 
-            if offset + width > bytes.len() {
-                // The UTF-8 character crosses the read boundary.
-                let absolute =
-                    position + offset;
+            let amount = remaining.min(SCAN_SIZE);
 
-                let width =
-                    self.char_width_at(
-                        absolute,
-                    )?;
+            let bytes = self.read_range(position, amount)?;
 
-                offset += width;
-                current_column += 1;
-
+            if bytes.is_empty() {
                 break;
             }
 
-            Self::validate_utf8(
-                &bytes[
-                    offset
-                        ..offset + width
-                ],
-                position + offset,
-            )?;
+            let mut offset = 0usize;
 
-            offset += width;
-            current_column += 1;
-        }
+            while offset < bytes.len() && current_column < column {
+                let byte = bytes[offset];
 
-        position += offset;
+                if byte == b'\n' {
+                    return Ok(position + offset);
+                }
 
-        // We reached the end of this chunk.
-        if offset == bytes.len() {
-            continue;
-        }
+                let width = Self::char_width_from_byte(byte)?;
 
-        if current_column >= column {
-            break;
-        }
-    }
+                if offset + width > bytes.len() {
+                    // The UTF-8 character crosses the read boundary.
+                    let absolute = position + offset;
 
-    Ok(position)
-}
-    
-    pub(crate) fn current_line_start(
-        &mut self,
-    ) -> io::Result<usize> {
-        self.ensure_position_cached(
-            self.cursor.position
-        )?;
+                    let width = self.char_width_at(absolute)?;
 
-        for info in
-            self.line_cache.iter()
-        {
-            if self.cursor.position
-                >= info.start
-                && self.cursor.position
-                    <= info.end
-            {
-                return Ok(
-                    info.start
-                );
-            }
-        }
+                    offset += width;
+                    current_column += 1;
 
-        Ok(0)
-    }
+                    break;
+                }
 
-    fn line_length_from_start(
-    &self,
-    start: usize,
-) -> io::Result<usize> {
-    if let Ok(index) = self.line_cache.binary_search_by_key(&start, |info| info.start) {
-        return Ok(self.line_cache[index].length);
-    }
-    let mut position = start;
-
-    const SCAN_SIZE: usize = 64 * 1024;
-
-    let mut character_count = 0usize;
-
-    while position < self.len() {
-        let remaining =
-            self.len() - position;
-
-        let amount =
-            remaining.min(SCAN_SIZE);
-
-        let bytes =
-            self.read_range(
-                position,
-                amount,
-            )?;
-
-        if bytes.is_empty() {
-            break;
-        }
-
-        let mut offset = 0usize;
-
-        while offset < bytes.len() {
-            let byte =
-                bytes[offset];
-
-            if byte == b'\n' {
-                let has_carriage_return =
-                    if offset > 0 {
-                        bytes[offset - 1] == b'\r'
-                    } else {
-                        position > start
-                            && self.byte_at(
-                                position - 1
-                            )? == Some(b'\r')
-                    };
-
-                return Ok(
-                    character_count
-                        .saturating_sub(
-                            has_carriage_return as usize
-                        )
-                );
-            }
-
-            let width =
-                Self::char_width_from_byte(
-                    byte,
-                )?;
-
-            if offset + width > bytes.len() {
-                let absolute =
-                    position + offset;
-
-                let width =
-                    self.char_width_at(
-                        absolute,
-                    )?;
+                Self::validate_utf8(&bytes[offset..offset + width], position + offset)?;
 
                 offset += width;
-                character_count += 1;
+                current_column += 1;
+            }
+
+            position += offset;
+
+            // We reached the end of this chunk.
+            if offset == bytes.len() {
                 continue;
             }
 
-            Self::validate_utf8(
-                &bytes[
-                    offset
-                        ..offset + width
-                ],
-                position + offset,
-            )?;
-
-            offset += width;
-            character_count += 1;
-        }
-
-        position += offset;
-    }
-
-    Ok(character_count)
-}
-    
-    pub fn cursor_left(
-        &mut self,
-    ) -> io::Result<()> {
-        if self.cursor.position == 0 {
-            return Ok(());
-        }
-
-        let position =
-            self.previous_char_boundary(
-                self.cursor.position
-            )?;
-
-        let byte =
-            self.byte_at(position)?;
-
-        self.cursor.position =
-            position;
-
-        self.cursor.desired_column =
-            None;
-
-        if byte == Some(b'\n') {
-            self.cursor.line =
-                self.cursor.line
-                    .saturating_sub(1);
-
-            let start =
-                self.current_line_start()?;
-
-            self.cursor.column =
-                self.line_length_from_start(
-                    start
-                )?;
-        } else {
-            self.cursor.column =
-                self.cursor.column
-                    .saturating_sub(1);
-        }
-
-        self.cursor.anchor =
-            position;
-
-        self.cursor.anchor_line =
-            self.cursor.line;
-
-        self.cursor.anchor_column =
-            self.cursor.column;
-
-        Ok(())
-    }
-
-    pub fn cursor_right(
-        &mut self,
-    ) -> io::Result<()> {
-        if self.cursor.position
-            >= self.len()
-        {
-            return Ok(());
-        }
-
-        let byte =
-            self.byte_at(
-                self.cursor.position
-            )?;
-
-        let position =
-            self.next_char_boundary(
-                self.cursor.position
-            )?;
-
-        self.cursor.position =
-            position;
-
-        self.cursor.desired_column =
-            None;
-
-        if byte == Some(b'\n') {
-            self.cursor.line += 1;
-            self.cursor.column = 0;
-        } else {
-            self.cursor.column += 1;
-        }
-
-        self.cursor.anchor =
-            position;
-
-        self.cursor.anchor_line =
-            self.cursor.line;
-
-        self.cursor.anchor_column =
-            self.cursor.column;
-
-        Ok(())
-    }
-
-    pub fn cursor_up(
-        &mut self,
-    ) -> io::Result<()> {
-        if self.has_selection() {
-            return self.move_cursor(
-                self.selection_start()
-            );
-        }
-
-        if self.cursor.line == 0 {
-            return Ok(());
-        }
-
-        let desired =
-            *self.cursor
-                .desired_column
-                .get_or_insert(
-                    self.cursor.column
-                );
-
-        self.ensure_line_cached(self.cursor.line - 1)?;
-        let info = self.line_cache[self.cursor.line - 1];
-        let start = info.start;
-        let length = info.length;
-
-        let column =
-            desired.min(length);
-
-        let position =
-            self.position_at_column(
-                start,
-                column,
-            )?;
-
-        self.cursor.position =
-            position;
-
-        self.cursor.line -= 1;
-
-        self.cursor.column =
-            column;
-
-        self.cursor.anchor =
-            position;
-
-        self.cursor.anchor_line =
-            self.cursor.line;
-
-        self.cursor.anchor_column =
-            column;
-
-        Ok(())
-    }
-
-    pub fn cursor_down(
-        &mut self,
-    ) -> io::Result<()> {
-        if self.has_selection() {
-            return self.move_cursor(
-                self.selection_end()
-            );
-        }
-
-        self.ensure_line_cached(
-            self.cursor.line + 1
-        )?;
-
-        if self.cursor.line + 1
-            >= self.line_cache.len()
-        {
-            return Ok(());
-        }
-
-        let desired =
-            *self.cursor
-                .desired_column
-                .get_or_insert(
-                    self.cursor.column
-                );
-
-        let info =
-            self.line_cache[
-                self.cursor.line + 1
-            ];
-
-        let column =
-            desired.min(info.length);
-
-        let position =
-            self.position_at_column(
-                info.start,
-                column,
-            )?;
-
-        self.cursor.position =
-            position;
-
-        self.cursor.line += 1;
-
-        self.cursor.column =
-            column;
-
-        self.cursor.anchor =
-            position;
-
-        self.cursor.anchor_line =
-            self.cursor.line;
-
-        self.cursor.anchor_column =
-            column;
-
-        Ok(())
-    }
-
-    pub fn select_left(
-        &mut self,
-    ) -> io::Result<()> {
-        if self.cursor.position == 0 {
-            return Ok(());
-        }
-
-        let position =
-            self.previous_char_boundary(
-                self.cursor.position
-            )?;
-
-        let byte =
-            self.byte_at(position)?;
-
-        self.cursor.position =
-            position;
-
-        if byte == Some(b'\n') {
-            self.cursor.line =
-                self.cursor.line
-                    .saturating_sub(1);
-
-            let start =
-                self.current_line_start()?;
-
-            self.cursor.column =
-                self.line_length_from_start(
-                    start
-                )?;
-        } else {
-            self.cursor.column =
-                self.cursor.column
-                    .saturating_sub(1);
-        }
-
-        self.cursor.desired_column =
-            None;
-
-        Ok(())
-    }
-
-    pub fn select_right(
-        &mut self,
-    ) -> io::Result<()> {
-        if self.cursor.position
-            >= self.len()
-        {
-            return Ok(());
-        }
-
-        let byte =
-            self.byte_at(
-                self.cursor.position
-            )?;
-
-        let position =
-            self.next_char_boundary(
-                self.cursor.position
-            )?;
-
-        self.cursor.position =
-            position;
-
-        if byte == Some(b'\n') {
-            self.cursor.line += 1;
-            self.cursor.column = 0;
-        } else {
-            self.cursor.column += 1;
-        }
-
-        self.cursor.desired_column =
-            None;
-
-        Ok(())
-    }
-
-    pub fn select_up(
-        &mut self,
-    ) -> io::Result<()> {
-        let anchor =
-            self.cursor.anchor;
-
-        if self.cursor.line == 0 {
-            return Ok(());
-        }
-
-        self.ensure_line_cached(self.cursor.line - 1)?;
-        let info = self.line_cache[self.cursor.line - 1];
-        let start = info.start;
-        let length = info.length;
-
-        let column =
-            self.cursor.column
-                .min(length);
-
-        let position =
-            self.position_at_column(
-                start,
-                column,
-            )?;
-
-        self.cursor.position =
-            position;
-
-        self.cursor.line -= 1;
-
-        self.cursor.column =
-            column;
-
-        self.cursor.anchor =
-            anchor;
-
-        self.cursor.desired_column =
-            None;
-
-        Ok(())
-    }
-
-    pub fn select_down(
-        &mut self,
-    ) -> io::Result<()> {
-        let anchor =
-            self.cursor.anchor;
-
-        self.ensure_line_cached(
-            self.cursor.line + 1
-        )?;
-
-        if self.cursor.line + 1
-            >= self.line_cache.len()
-        {
-            return Ok(());
-        }
-
-        let info =
-            self.line_cache[
-                self.cursor.line + 1
-            ];
-
-        let column =
-            self.cursor.column
-                .min(info.length);
-
-        let position =
-            self.position_at_column(
-                info.start,
-                column,
-            )?;
-
-        self.cursor.position =
-            position;
-
-        self.cursor.line += 1;
-
-        self.cursor.column =
-            column;
-
-        self.cursor.anchor =
-            anchor;
-
-        self.cursor.desired_column =
-            None;
-
-        Ok(())
-    }
-
-    pub fn cursor_home(
-        &mut self,
-    ) -> io::Result<()> {
-        let position =
-            self.current_line_start()?;
-
-        self.cursor.position =
-            position;
-
-        self.cursor.column =
-            0;
-
-        self.cursor.anchor =
-            position;
-
-        self.cursor.anchor_line =
-            self.cursor.line;
-
-        self.cursor.anchor_column =
-            0;
-
-        self.cursor.desired_column =
-            None;
-
-        Ok(())
-    }
-
-    pub fn current_line_end(
-        &mut self,
-    ) -> io::Result<usize> {
-        self.ensure_position_cached(
-            self.cursor.position
-        )?;
-
-        for info in
-            self.line_cache.iter()
-        {
-            if self.cursor.position
-                >= info.start
-                && self.cursor.position
-                    <= info.end
-            {
-                return Ok(info.end);
+            if current_column >= column {
+                break;
             }
         }
 
-        Ok(self.len())
+        Ok(position)
     }
 
-    pub fn cursor_end(
-    &mut self,
-) -> io::Result<()> {
-    let start =
-        self.current_line_start()?;
+    pub(crate) fn current_line_start(&mut self) -> io::Result<usize> {
+        self.ensure_position_cached(self.cursor.position)?;
 
-    let position =
-        self.current_line_end()?;
+        let index = self
+            .line_cache
+            .partition_point(|info| info.end < self.cursor.position);
+        Ok(self.line_cache.get(index).map_or(0, |info| info.start))
+    }
 
-    let length =
-        self.line_length_from_start(
-            start,
-        )?;
+    fn line_length_from_start(&self, start: usize) -> io::Result<usize> {
+        if let Ok(index) = self
+            .line_cache
+            .binary_search_by_key(&start, |info| info.start)
+        {
+            return Ok(self.line_cache[index].length);
+        }
+        let mut position = start;
 
-    self.cursor.position =
-        position;
+        const SCAN_SIZE: usize = 64 * 1024;
 
-    self.cursor.column =
-        length;
+        let mut character_count = 0usize;
 
-    self.cursor.anchor =
-        position;
+        while position < self.len() {
+            let remaining = self.len() - position;
 
-    self.cursor.anchor_line =
-        self.cursor.line;
+            let amount = remaining.min(SCAN_SIZE);
 
-    self.cursor.anchor_column =
-        length;
+            let bytes = self.read_range(position, amount)?;
 
-    self.cursor.desired_column =
-        None;
+            if bytes.is_empty() {
+                break;
+            }
 
-    Ok(())
-}
+            let mut offset = 0usize;
+
+            while offset < bytes.len() {
+                let byte = bytes[offset];
+
+                if byte == b'\n' {
+                    let has_carriage_return = if offset > 0 {
+                        bytes[offset - 1] == b'\r'
+                    } else {
+                        position > start && self.byte_at(position - 1)? == Some(b'\r')
+                    };
+
+                    return Ok(character_count.saturating_sub(has_carriage_return as usize));
+                }
+
+                let width = Self::char_width_from_byte(byte)?;
+
+                if offset + width > bytes.len() {
+                    let absolute = position + offset;
+
+                    let width = self.char_width_at(absolute)?;
+
+                    offset += width;
+                    character_count += 1;
+                    continue;
+                }
+
+                Self::validate_utf8(&bytes[offset..offset + width], position + offset)?;
+
+                offset += width;
+                character_count += 1;
+            }
+
+            position += offset;
+        }
+
+        Ok(character_count)
+    }
+
+    pub fn cursor_left(&mut self) -> io::Result<()> {
+        if self.cursor.position == 0 {
+            return Ok(());
+        }
+
+        let position = self.previous_char_boundary(self.cursor.position)?;
+
+        let byte = self.byte_at(position)?;
+
+        self.cursor.position = position;
+
+        self.cursor.desired_column = None;
+
+        if byte == Some(b'\n') {
+            self.cursor.line = self.cursor.line.saturating_sub(1);
+
+            let start = self.current_line_start()?;
+
+            self.cursor.column = self.line_length_from_start(start)?;
+        } else {
+            self.cursor.column = self.cursor.column.saturating_sub(1);
+        }
+
+        self.cursor.anchor = position;
+
+        self.cursor.anchor_line = self.cursor.line;
+
+        self.cursor.anchor_column = self.cursor.column;
+
+        Ok(())
+    }
+
+    pub fn cursor_right(&mut self) -> io::Result<()> {
+        if self.cursor.position >= self.len() {
+            return Ok(());
+        }
+
+        let byte = self.byte_at(self.cursor.position)?;
+
+        let position = self.next_char_boundary(self.cursor.position)?;
+
+        self.cursor.position = position;
+
+        self.cursor.desired_column = None;
+
+        if byte == Some(b'\n') {
+            self.cursor.line += 1;
+            self.cursor.column = 0;
+        } else {
+            self.cursor.column += 1;
+        }
+
+        self.cursor.anchor = position;
+
+        self.cursor.anchor_line = self.cursor.line;
+
+        self.cursor.anchor_column = self.cursor.column;
+
+        Ok(())
+    }
+
+    pub fn cursor_up(&mut self) -> io::Result<()> {
+        if self.has_selection() {
+            return self.move_cursor(self.selection_start());
+        }
+
+        if self.cursor.line == 0 {
+            return Ok(());
+        }
+
+        let desired = *self.cursor.desired_column.get_or_insert(self.cursor.column);
+
+        self.ensure_line_cached(self.cursor.line - 1)?;
+        let info = self.line_cache[self.cursor.line - 1];
+        let start = info.start;
+        let length = info.length;
+
+        let column = desired.min(length);
+
+        let position = self.position_at_column(start, column)?;
+
+        self.cursor.position = position;
+
+        self.cursor.line -= 1;
+
+        self.cursor.column = column;
+
+        self.cursor.anchor = position;
+
+        self.cursor.anchor_line = self.cursor.line;
+
+        self.cursor.anchor_column = column;
+
+        Ok(())
+    }
+
+    pub fn cursor_down(&mut self) -> io::Result<()> {
+        if self.has_selection() {
+            return self.move_cursor(self.selection_end());
+        }
+
+        self.ensure_line_cached(self.cursor.line + 1)?;
+
+        if self.cursor.line + 1 >= self.line_cache.len() {
+            return Ok(());
+        }
+
+        let desired = *self.cursor.desired_column.get_or_insert(self.cursor.column);
+
+        let info = self.line_cache[self.cursor.line + 1];
+
+        let column = desired.min(info.length);
+
+        let position = self.position_at_column(info.start, column)?;
+
+        self.cursor.position = position;
+
+        self.cursor.line += 1;
+
+        self.cursor.column = column;
+
+        self.cursor.anchor = position;
+
+        self.cursor.anchor_line = self.cursor.line;
+
+        self.cursor.anchor_column = column;
+
+        Ok(())
+    }
+
+    pub fn select_left(&mut self) -> io::Result<()> {
+        if self.cursor.position == 0 {
+            return Ok(());
+        }
+
+        let position = self.previous_char_boundary(self.cursor.position)?;
+
+        let byte = self.byte_at(position)?;
+
+        self.cursor.position = position;
+
+        if byte == Some(b'\n') {
+            self.cursor.line = self.cursor.line.saturating_sub(1);
+
+            let start = self.current_line_start()?;
+
+            self.cursor.column = self.line_length_from_start(start)?;
+        } else {
+            self.cursor.column = self.cursor.column.saturating_sub(1);
+        }
+
+        self.cursor.desired_column = None;
+
+        Ok(())
+    }
+
+    pub fn select_right(&mut self) -> io::Result<()> {
+        if self.cursor.position >= self.len() {
+            return Ok(());
+        }
+
+        let byte = self.byte_at(self.cursor.position)?;
+
+        let position = self.next_char_boundary(self.cursor.position)?;
+
+        self.cursor.position = position;
+
+        if byte == Some(b'\n') {
+            self.cursor.line += 1;
+            self.cursor.column = 0;
+        } else {
+            self.cursor.column += 1;
+        }
+
+        self.cursor.desired_column = None;
+
+        Ok(())
+    }
+
+    pub fn select_up(&mut self) -> io::Result<()> {
+        let anchor = self.cursor.anchor;
+
+        if self.cursor.line == 0 {
+            return Ok(());
+        }
+
+        self.ensure_line_cached(self.cursor.line - 1)?;
+        let info = self.line_cache[self.cursor.line - 1];
+        let start = info.start;
+        let length = info.length;
+
+        let column = self.cursor.column.min(length);
+
+        let position = self.position_at_column(start, column)?;
+
+        self.cursor.position = position;
+
+        self.cursor.line -= 1;
+
+        self.cursor.column = column;
+
+        self.cursor.anchor = anchor;
+
+        self.cursor.desired_column = None;
+
+        Ok(())
+    }
+
+    pub fn select_down(&mut self) -> io::Result<()> {
+        let anchor = self.cursor.anchor;
+
+        self.ensure_line_cached(self.cursor.line + 1)?;
+
+        if self.cursor.line + 1 >= self.line_cache.len() {
+            return Ok(());
+        }
+
+        let info = self.line_cache[self.cursor.line + 1];
+
+        let column = self.cursor.column.min(info.length);
+
+        let position = self.position_at_column(info.start, column)?;
+
+        self.cursor.position = position;
+
+        self.cursor.line += 1;
+
+        self.cursor.column = column;
+
+        self.cursor.anchor = anchor;
+
+        self.cursor.desired_column = None;
+
+        Ok(())
+    }
+
+    pub fn cursor_home(&mut self) -> io::Result<()> {
+        let position = self.current_line_start()?;
+
+        self.cursor.position = position;
+
+        self.cursor.column = 0;
+
+        self.cursor.anchor = position;
+
+        self.cursor.anchor_line = self.cursor.line;
+
+        self.cursor.anchor_column = 0;
+
+        self.cursor.desired_column = None;
+
+        Ok(())
+    }
+
+    pub fn current_line_end(&mut self) -> io::Result<usize> {
+        self.ensure_position_cached(self.cursor.position)?;
+
+        let index = self
+            .line_cache
+            .partition_point(|info| info.end < self.cursor.position);
+        Ok(self
+            .line_cache
+            .get(index)
+            .map_or(self.len(), |info| info.end))
+    }
+
+    pub fn cursor_end(&mut self) -> io::Result<()> {
+        let start = self.current_line_start()?;
+
+        let position = self.current_line_end()?;
+
+        let length = self.line_length_from_start(start)?;
+
+        self.cursor.position = position;
+
+        self.cursor.column = length;
+
+        self.cursor.anchor = position;
+
+        self.cursor.anchor_line = self.cursor.line;
+
+        self.cursor.anchor_column = length;
+
+        self.cursor.desired_column = None;
+
+        Ok(())
+    }
 
     // ---------------------------------------------------------------------
     // Editing
     // ---------------------------------------------------------------------
 
-    fn push_merged_piece(
-        pieces: &mut Vec<Piece>,
-        piece: Piece,
-    ) -> io::Result<()> {
+    fn push_merged_piece(pieces: &mut Vec<Piece>, piece: Piece) -> io::Result<()> {
         if piece.length == 0 {
             return Ok(());
         }
 
-        if let Some(previous) =
-            pieces.last_mut()
-        {
-            let previous_end =
-                previous.start
-                    .checked_add(
-                        previous.length
-                    )
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "piece source range overflow",
-                        )
-                    })?;
+        if let Some(previous) = pieces.last_mut() {
+            let previous_end = previous.start.checked_add(previous.length).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "piece source range overflow")
+            })?;
 
-            if previous.original
-                == piece.original
-                && previous_end
-                    == piece.start
-            {
-                previous.length =
-                    previous.length
-                        .checked_add(
-                            piece.length
-                        )
-                        .ok_or_else(|| {
-                            io::Error::new(
-                                io::ErrorKind::InvalidData,
-                                "merged piece length overflow",
-                            )
-                        })?;
+            if previous.original == piece.original && previous_end == piece.start {
+                previous.length = previous.length.checked_add(piece.length).ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData, "merged piece length overflow")
+                })?;
 
                 return Ok(());
             }
@@ -2695,43 +1893,29 @@ all_lines_cached: original_length == 0,
         piece_offset: &mut usize,
         logical_position: &mut usize,
     ) -> io::Result<()> {
-        if target < *logical_position
-            || target > self.len()
-        {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "replacement ranges are not in ascending order",
-                )
-            );
+        if target < *logical_position || target > self.len() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "replacement ranges are not in ascending order",
+            ));
         }
 
         while *logical_position < target {
-            let piece =
-                self.pieces
-                    .get(*piece_index)
-                    .copied()
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "pieces end before the logical document",
-                        )
-                    })?;
+            let piece = self.pieces.get(*piece_index).copied().ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "pieces end before the logical document",
+                )
+            })?;
 
-            if *piece_offset
-                > piece.length
-            {
-                return Err(
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "piece cursor is outside its piece",
-                    )
-                );
+            if *piece_offset > piece.length {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "piece cursor is outside its piece",
+                ));
             }
 
-            let available =
-                piece.length
-                    - *piece_offset;
+            let available = piece.length - *piece_offset;
 
             if available == 0 {
                 *piece_index += 1;
@@ -2739,46 +1923,27 @@ all_lines_cached: original_length == 0,
                 continue;
             }
 
-            let amount =
-                (target - *logical_position)
-                    .min(available);
+            let amount = (target - *logical_position).min(available);
 
-            let source_start =
-                piece.start
-                    .checked_add(
-                        *piece_offset
-                    )
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "piece source range overflow",
-                        )
-                    })?;
+            let source_start = piece.start.checked_add(*piece_offset).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "piece source range overflow")
+            })?;
 
-            let source_end =
-                source_start
-                    .checked_add(amount)
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "piece source range overflow",
-                        )
-                    })?;
+            let source_end = source_start.checked_add(amount).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "piece source range overflow")
+            })?;
 
-            let source_length =
-                if piece.original {
-                    self.original_length
-                } else {
-                    self.add.len()
-                };
+            let source_length = if piece.original {
+                self.original_length
+            } else {
+                self.add.len()
+            };
 
             if source_end > source_length {
-                return Err(
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "piece references data outside its source buffer",
-                    )
-                );
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "piece references data outside its source buffer",
+                ));
             }
 
             if copy {
@@ -2787,26 +1952,20 @@ all_lines_cached: original_length == 0,
                     Piece {
                         start: source_start,
                         length: amount,
-                        original:
-                            piece.original,
+                        original: piece.original,
                     },
                 )?;
             }
 
             *piece_offset += amount;
-            *logical_position =
-                logical_position
-                    .checked_add(amount)
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "logical document position overflow",
-                        )
-                    })?;
+            *logical_position = logical_position.checked_add(amount).ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "logical document position overflow",
+                )
+            })?;
 
-            if *piece_offset
-                == piece.length
-            {
+            if *piece_offset == piece.length {
                 *piece_index += 1;
                 *piece_offset = 0;
             }
@@ -2821,113 +1980,73 @@ all_lines_cached: original_length == 0,
         piece_index: &mut usize,
         piece_offset: &mut usize,
     ) -> io::Result<()> {
-        if logical_position == 0
-            || logical_position == self.len()
-        {
+        if logical_position == 0 || logical_position == self.len() {
             return Ok(());
         }
 
-        while let Some(piece) =
-            self.pieces.get(*piece_index)
-        {
-            if *piece_offset
-                > piece.length
-            {
-                return Err(
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "piece cursor is outside its piece",
-                    )
-                );
+        while let Some(piece) = self.pieces.get(*piece_index) {
+            if *piece_offset > piece.length {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "piece cursor is outside its piece",
+                ));
             }
 
-            if *piece_offset
-                == piece.length
-            {
+            if *piece_offset == piece.length {
                 *piece_index += 1;
                 *piece_offset = 0;
                 continue;
             }
 
-            let source_position =
-                piece.start
-                    .checked_add(
-                        *piece_offset
-                    )
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "piece source range overflow",
-                        )
-                    })?;
+            let source_position = piece.start.checked_add(*piece_offset).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "piece source range overflow")
+            })?;
 
-            let byte =
-                if piece.original {
-                    if source_position
-                        >= self.original_length
-                    {
-                        return Err(
-                            io::Error::new(
-                                io::ErrorKind::InvalidData,
-                                "piece references data outside original file",
-                            )
-                        );
-                    }
+            let byte = if piece.original {
+                if source_position >= self.original_length {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "piece references data outside original file",
+                    ));
+                }
 
-                    let mut byte = [0u8; 1];
+                let mut byte = [0u8; 1];
 
-                    if read_at(
-                        &self.original,
-                        &mut byte,
-                        source_position as u64,
-                    )? != 1
-                    {
-                        return Err(
-                            io::Error::new(
-                                io::ErrorKind::UnexpectedEof,
-                                "unexpected end of original file",
-                            )
-                        );
-                    }
+                if read_at(&self.original, &mut byte, source_position as u64)? != 1 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "unexpected end of original file",
+                    ));
+                }
 
-                    byte[0]
-                } else {
-                    let mut byte = [0u8; 1];
+                byte[0]
+            } else {
+                let mut byte = [0u8; 1];
 
-                    if self.add.read_into(
-                        source_position,
-                        &mut byte,
-                    )? != 1
-                    {
-                        return Err(
-                            io::Error::new(
-                                io::ErrorKind::UnexpectedEof,
-                                "unexpected end of edit store",
-                            )
-                        );
-                    }
+                if self.add.read_into(source_position, &mut byte)? != 1 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "unexpected end of edit store",
+                    ));
+                }
 
-                    byte[0]
-                };
+                byte[0]
+            };
 
             if (byte & 0xC0) == 0x80 {
-                return Err(
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "position is not a UTF-8 character boundary",
-                    )
-                );
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "position is not a UTF-8 character boundary",
+                ));
             }
 
             return Ok(());
         }
 
-        Err(
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                "pieces end before the logical document",
-            )
-        )
+        Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "pieces end before the logical document",
+        ))
     }
 
     /// Replaces ascending, non-overlapping runs from the current document.
@@ -2949,138 +2068,106 @@ all_lines_cached: original_length == 0,
         replacement: &str,
     ) -> io::Result<Option<PieceTableSnapshot>>
     where
-        I: Iterator<
-            Item = (usize, usize, usize),
-        >,
+        I: Iterator<Item = (usize, usize, usize)>,
     {
-        let document_length =
-            self.len();
+        let document_length = self.len();
 
-        let replacement_length =
-            replacement.len();
+        let replacement_length = replacement.len();
 
-        let block_repetition_limit =
-            if replacement_length == 0 {
-                1
-            } else {
-                (PIECE_TABLE_CHUNK_SIZE
-                    / replacement_length)
-                    .max(1)
-            };
+        let block_repetition_limit = if replacement_length == 0 {
+            1
+        } else {
+            (PIECE_TABLE_CHUNK_SIZE / replacement_length).max(1)
+        };
 
-        let block_length_limit =
-            replacement_length
-                .checked_mul(
-                    block_repetition_limit
+        let block_length_limit = replacement_length
+            .checked_mul(block_repetition_limit)
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "replacement block length overflow",
                 )
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "replacement block length overflow",
-                    )
-                })?;
+            })?;
 
-        let add_start =
-            self.add.len();
+        let add_start = self.add.len();
 
         let mut deleted_length = 0usize;
         let mut inserted_length = 0usize;
         let mut previous_end = 0usize;
         let mut first_position = None;
         let mut required_block_length = 0usize;
+        let mut view_changes = Vec::new();
 
-        let mut pieces =
-            Vec::with_capacity(
-                self.pieces.len()
-            );
+        let mut pieces = Vec::with_capacity(self.pieces.len());
 
         let mut piece_index = 0usize;
         let mut piece_offset = 0usize;
         let mut logical_position = 0usize;
 
-        for (start, end, repetitions)
-            in runs
-        {
+        for (start, end, repetitions) in runs {
             if start > end {
-                return Err(
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "replacement range start is after its end",
-                    )
-                );
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "replacement range start is after its end",
+                ));
             }
 
             if end > document_length {
-                return Err(
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "replacement range is outside document",
-                    )
-                );
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "replacement range is outside document",
+                ));
             }
 
-            if first_position.is_some()
-                && start < previous_end
-            {
-                return Err(
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "replacement ranges overlap or are not ascending",
-                    )
-                );
+            if first_position.is_some() && start < previous_end {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "replacement ranges overlap or are not ascending",
+                ));
             }
 
             if repetitions == 0 {
-                return Err(
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "replacement run repetition count is zero",
-                    )
-                );
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "replacement run repetition count is zero",
+                ));
             }
 
-            deleted_length =
-                deleted_length
-                    .checked_add(end - start)
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidInput,
-                            "total replacement range length overflow",
-                        )
-                    })?;
+            deleted_length = deleted_length.checked_add(end - start).ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "total replacement range length overflow",
+                )
+            })?;
 
             let run_inserted_length =
-                replacement_length
-                    .checked_mul(repetitions)
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidInput,
-                            "replacement result length overflow",
-                        )
-                    })?;
-
-            inserted_length =
-                inserted_length
-                    .checked_add(
-                        run_inserted_length
+                replacement_length.checked_mul(repetitions).ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "replacement result length overflow",
                     )
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidInput,
-                            "replacement result length overflow",
-                        )
-                    })?;
+                })?;
 
-            first_position
-                .get_or_insert(start);
+            view_changes.push(shared_view::PositionChange {
+                start,
+                removed: end - start,
+                inserted: run_inserted_length,
+            });
+
+            inserted_length = inserted_length
+                .checked_add(run_inserted_length)
+                .ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "replacement result length overflow",
+                    )
+                })?;
+
+            first_position.get_or_insert(start);
 
             document_length
                 .checked_sub(deleted_length)
-                .and_then(|length| {
-                    length.checked_add(
-                        inserted_length
-                    )
-                })
+                .and_then(|length| length.checked_add(inserted_length))
                 .ok_or_else(|| {
                     io::Error::new(
                         io::ErrorKind::InvalidInput,
@@ -3097,39 +2184,23 @@ all_lines_cached: original_length == 0,
                 &mut logical_position,
             )?;
 
-            self.ensure_piece_cursor_boundary(
-                start,
-                &mut piece_index,
-                &mut piece_offset,
-            )?;
+            self.ensure_piece_cursor_boundary(start, &mut piece_index, &mut piece_offset)?;
 
             if replacement_length > 0 {
-                let full_blocks =
-                    repetitions
-                        / block_repetition_limit;
+                let full_blocks = repetitions / block_repetition_limit;
 
-                let remainder =
-                    repetitions
-                        % block_repetition_limit;
+                let remainder = repetitions % block_repetition_limit;
 
-                let insertion_pieces =
-                    full_blocks
-                        .checked_add(
-                            usize::from(
-                                remainder > 0
-                            )
+                let insertion_pieces = full_blocks
+                    .checked_add(usize::from(remainder > 0))
+                    .ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "replacement piece count overflow",
                         )
-                        .ok_or_else(|| {
-                            io::Error::new(
-                                io::ErrorKind::InvalidInput,
-                                "replacement piece count overflow",
-                            )
-                        })?;
+                    })?;
 
-                pieces.try_reserve(
-                    insertion_pieces
-                )
-                .map_err(|_| {
+                pieces.try_reserve(insertion_pieces).map_err(|_| {
                     io::Error::new(
                         io::ErrorKind::Other,
                         "could not allocate replacement pieces",
@@ -3141,8 +2212,7 @@ all_lines_cached: original_length == 0,
                         &mut pieces,
                         Piece {
                             start: add_start,
-                            length:
-                                block_length_limit,
+                            length: block_length_limit,
                             original: false,
                         },
                     )?;
@@ -3150,47 +2220,35 @@ all_lines_cached: original_length == 0,
 
                 if remainder > 0 {
                     let remainder_length =
-                        replacement_length
-                            .checked_mul(
-                                remainder
+                        replacement_length.checked_mul(remainder).ok_or_else(|| {
+                            io::Error::new(
+                                io::ErrorKind::InvalidInput,
+                                "replacement block length overflow",
                             )
-                            .ok_or_else(|| {
-                                io::Error::new(
-                                    io::ErrorKind::InvalidInput,
-                                    "replacement block length overflow",
-                                )
-                            })?;
+                        })?;
 
                     Self::push_merged_piece(
                         &mut pieces,
                         Piece {
                             start: add_start,
-                            length:
-                                remainder_length,
+                            length: remainder_length,
                             original: false,
                         },
                     )?;
                 }
 
-                let run_block_length =
-                    if full_blocks > 0 {
-                        block_length_limit
-                    } else {
-                        replacement_length
-                            .checked_mul(
-                                remainder
-                            )
-                            .ok_or_else(|| {
-                                io::Error::new(
-                                    io::ErrorKind::InvalidInput,
-                                    "replacement block length overflow",
-                                )
-                            })?
-                    };
+                let run_block_length = if full_blocks > 0 {
+                    block_length_limit
+                } else {
+                    replacement_length.checked_mul(remainder).ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "replacement block length overflow",
+                        )
+                    })?
+                };
 
-                required_block_length =
-                    required_block_length
-                        .max(run_block_length);
+                required_block_length = required_block_length.max(run_block_length);
             }
 
             self.consume_pieces_until(
@@ -3202,18 +2260,12 @@ all_lines_cached: original_length == 0,
                 &mut logical_position,
             )?;
 
-            self.ensure_piece_cursor_boundary(
-                end,
-                &mut piece_index,
-                &mut piece_offset,
-            )?;
+            self.ensure_piece_cursor_boundary(end, &mut piece_index, &mut piece_offset)?;
 
             previous_end = end;
         }
 
-        let Some(first_position) =
-            first_position
-        else {
+        let Some(first_position) = first_position else {
             return Ok(None);
         };
 
@@ -3226,97 +2278,64 @@ all_lines_cached: original_length == 0,
             &mut logical_position,
         )?;
 
-        while piece_index
-            < self.pieces.len()
-            && self.pieces[piece_index]
-                .length
-                == 0
-        {
+        while piece_index < self.pieces.len() && self.pieces[piece_index].length == 0 {
             piece_index += 1;
         }
 
-        if piece_index
-            != self.pieces.len()
-        {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "pieces extend beyond the logical document",
-                )
-            );
+        if piece_index != self.pieces.len() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "pieces extend beyond the logical document",
+            ));
         }
 
-        let final_length =
-            document_length
-                .checked_sub(deleted_length)
-                .and_then(|length| {
-                    length.checked_add(
-                        inserted_length
-                    )
-                })
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "replacement result length overflow",
-                    )
-                })?;
-
-        add_start
-            .checked_add(
-                required_block_length
-            )
+        let final_length = document_length
+            .checked_sub(deleted_length)
+            .and_then(|length| length.checked_add(inserted_length))
             .ok_or_else(|| {
                 io::Error::new(
                     io::ErrorKind::InvalidInput,
-                    "add buffer length overflow",
+                    "replacement result length overflow",
                 )
             })?;
 
+        add_start
+            .checked_add(required_block_length)
+            .ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidInput, "add buffer length overflow")
+            })?;
+
         if required_block_length > 0 {
-            let repetitions =
-                required_block_length
-                    / replacement_length;
+            let repetitions = required_block_length / replacement_length;
 
             if repetitions == 1 {
-                self.add.append(
-                    replacement.as_bytes()
-                )?;
+                self.add.append(replacement.as_bytes())?;
             } else {
-                let mut block =
-                    Vec::with_capacity(
-                        required_block_length
-                    );
+                let mut block = Vec::with_capacity(required_block_length);
 
                 for _ in 0..repetitions {
-                    block.extend_from_slice(
-                        replacement.as_bytes()
-                    );
+                    block.extend_from_slice(replacement.as_bytes());
                 }
 
                 self.add.append(&block)?;
             }
         }
 
-        let previous_pieces =
-            std::mem::replace(
-                &mut self.pieces,
-                pieces,
-            );
+        let view_changes = shared_view::PositionChanges::Multiple(view_changes.into());
+        let snapshot_changes = view_changes.inverse();
+        let inverse_snapshot_changes = view_changes.clone();
+        let previous_pieces = std::mem::replace(&mut self.pieces, pieces);
 
-        let previous_length =
-            std::mem::replace(
-                &mut self.length,
-                final_length,
-            );
+        let previous_length = std::mem::replace(&mut self.length, final_length);
 
-        self.invalidate_line_cache_from_position(
-            first_position
-        );
+        self.invalidate_line_cache_from_position(first_position, view_changes);
 
         self.recovery_snapshot();
         Ok(Some(PieceTableSnapshot {
             pieces: previous_pieces,
             length: previous_length,
+            view_changes: snapshot_changes,
+            inverse_view_changes: inverse_snapshot_changes,
         }))
     }
 
@@ -3332,12 +2351,7 @@ all_lines_cached: original_length == 0,
     where
         I: Iterator<Item = (usize, usize)>,
     {
-        self.replace_runs(
-            ranges.map(|(start, end)| {
-                (start, end, 1)
-            }),
-            replacement,
-        )
+        self.replace_runs(ranges.map(|(start, end)| (start, end, 1)), replacement)
     }
 
     /// Stage a bounded UTF-8 stream in the edit store, then replace the
@@ -3361,12 +2375,22 @@ all_lines_cached: original_length == 0,
                 };
                 if read == 0 {
                     if pending != 0 {
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, "Formatter output ends inside a UTF-8 character"));
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "Formatter output ends inside a UTF-8 character",
+                        ));
                     }
                     break;
                 }
-                length = length.checked_add(read).filter(|length| *length <= max_bytes)
-                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Formatter output exceeds the size limit"))?;
+                length = length
+                    .checked_add(read)
+                    .filter(|length| *length <= max_bytes)
+                    .ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "Formatter output exceeds the size limit",
+                        )
+                    })?;
                 let end = pending + read;
                 let valid = match std::str::from_utf8(&buffer[..end]) {
                     Ok(_) => end,
@@ -3384,7 +2408,10 @@ all_lines_cached: original_length == 0,
                 self.visit_chunks(|bytes| {
                     let read = self.add.read_into(offset, &mut buffer[..bytes.len()])?;
                     if read != bytes.len() {
-                        return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "Incomplete formatter output"));
+                        return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "Incomplete formatter output",
+                        ));
                     }
                     identical &= bytes == &buffer[..bytes.len()];
                     offset += bytes.len();
@@ -3402,14 +2429,28 @@ all_lines_cached: original_length == 0,
                 staged.map(|_| None)
             }
             Ok((length, false)) => {
-                let pieces = if length == 0 { Vec::new() } else {
-                    vec![Piece { start: add_start, length, original: false }]
+                let pieces = if length == 0 {
+                    Vec::new()
+                } else {
+                    vec![Piece {
+                        start: add_start,
+                        length,
+                        original: false,
+                    }]
                 };
+                let view_changes: shared_view::PositionChanges = [shared_view::PositionChange {
+                    start: 0,
+                    removed: self.len(),
+                    inserted: length,
+                }]
+                .into();
                 let snapshot = PieceTableSnapshot {
                     pieces: std::mem::replace(&mut self.pieces, pieces),
                     length: std::mem::replace(&mut self.length, length),
+                    view_changes: view_changes.inverse(),
+                    inverse_view_changes: view_changes.clone(),
                 };
-                self.invalidate_line_cache_from_position(0);
+                self.invalidate_line_cache_from_position(0, view_changes);
                 self.recovery_snapshot();
                 Ok(Some(snapshot))
             }
@@ -3418,47 +2459,34 @@ all_lines_cached: original_length == 0,
 
     /// Swaps the current logical state with a snapshot returned by
     /// [`Self::replace_ranges`]. Calling this repeatedly toggles undo/redo.
-    pub(crate) fn swap_snapshot(
-        &mut self,
-        snapshot: &mut PieceTableSnapshot,
-    ) {
+    pub(crate) fn swap_snapshot(&mut self, snapshot: &mut PieceTableSnapshot) {
+        let view_changes = snapshot.view_changes.clone();
+        // Both directions were prepared with the snapshot, so undo/redo does
+        // not rebuild a potentially large replacement map.
         std::mem::swap(
-            &mut self.pieces,
-            &mut snapshot.pieces,
+            &mut snapshot.view_changes,
+            &mut snapshot.inverse_view_changes,
         );
+        std::mem::swap(&mut self.pieces, &mut snapshot.pieces);
 
-        std::mem::swap(
-            &mut self.length,
-            &mut snapshot.length,
-        );
+        std::mem::swap(&mut self.length, &mut snapshot.length);
 
-        self.invalidate_line_cache_from_position(0);
+        self.invalidate_line_cache_from_position(0, view_changes);
         self.recovery_snapshot();
     }
 
     /// Captures a logical range as references to the original file or edit
     /// store. Undo can retain these small records without retaining the text.
-    pub(crate) fn capture_range(
-        &self,
-        position: usize,
-        length: usize,
-    ) -> io::Result<Vec<Piece>> {
-        let end =
-            position.checked_add(length)
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "capture range overflow",
-                    )
-                })?;
+    pub(crate) fn capture_range(&self, position: usize, length: usize) -> io::Result<Vec<Piece>> {
+        let end = position
+            .checked_add(length)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "capture range overflow"))?;
 
         if end > self.len() {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "capture range is outside document",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "capture range is outside document",
+            ));
         }
 
         self.ensure_boundary(position)?;
@@ -3472,15 +2500,9 @@ all_lines_cached: original_length == 0,
         let mut logical_position = 0usize;
 
         for piece in &self.pieces {
-            let piece_end =
-                logical_position
-                    .checked_add(piece.length)
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "piece range overflow",
-                        )
-                    })?;
+            let piece_end = logical_position.checked_add(piece.length).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "piece range overflow")
+            })?;
 
             if piece_end <= position {
                 logical_position = piece_end;
@@ -3491,22 +2513,15 @@ all_lines_cached: original_length == 0,
                 break;
             }
 
-            let overlap_start =
-                position.max(logical_position);
+            let overlap_start = position.max(logical_position);
 
-            let overlap_end =
-                end.min(piece_end);
+            let overlap_end = end.min(piece_end);
 
             Self::push_merged_piece(
                 &mut captured,
                 Piece {
-                    start:
-                        piece.start
-                            + overlap_start
-                            - logical_position,
-                    length:
-                        overlap_end
-                            - overlap_start,
+                    start: piece.start + overlap_start - logical_position,
+                    length: overlap_end - overlap_start,
                     original: piece.original,
                 },
             )?;
@@ -3514,30 +2529,18 @@ all_lines_cached: original_length == 0,
             logical_position = piece_end;
         }
 
-        let captured_length =
-            captured.iter()
-                .try_fold(
-                    0usize,
-                    |total, piece| {
-                        total.checked_add(
-                            piece.length
-                        )
-                    },
-                )
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "captured range length overflow",
-                    )
-                })?;
+        let captured_length = captured
+            .iter()
+            .try_fold(0usize, |total, piece| total.checked_add(piece.length))
+            .ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "captured range length overflow")
+            })?;
 
         if captured_length != length {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "pieces end before capture range",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "pieces end before capture range",
+            ));
         }
 
         Ok(captured)
@@ -3554,52 +2557,33 @@ all_lines_cached: original_length == 0,
             return Ok(false);
         }
 
-        let end =
-            position.checked_add(length)
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "comparison range overflow",
-                    )
-                })?;
+        let end = position.checked_add(length).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidInput, "comparison range overflow")
+        })?;
 
         if end > self.len() {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "comparison range is outside document",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "comparison range is outside document",
+            ));
         }
 
         let mut buffer = [0u8; 4096];
         let mut compared = 0usize;
 
         while compared < length {
-            let amount =
-                (length - compared)
-                    .min(buffer.len());
+            let amount = (length - compared).min(buffer.len());
 
-            let read =
-                self.read_range_into(
-                    position + compared,
-                    &mut buffer[..amount],
-                )?;
+            let read = self.read_range_into(position + compared, &mut buffer[..amount])?;
 
             if read != amount {
-                return Err(
-                    io::Error::new(
-                        io::ErrorKind::UnexpectedEof,
-                        "unexpected end of comparison range",
-                    )
-                );
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "unexpected end of comparison range",
+                ));
             }
 
-            if buffer[..read]
-                != expected[
-                    compared..compared + read
-                ]
-            {
+            if buffer[..read] != expected[compared..compared + read] {
                 return Ok(false);
             }
 
@@ -3609,52 +2593,34 @@ all_lines_cached: original_length == 0,
         Ok(true)
     }
 
-    fn validate_source_piece(
-        &self,
-        piece: Piece,
-    ) -> io::Result<()> {
-        let source_end =
-            piece.start
-                .checked_add(piece.length)
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "stored piece range overflow",
-                    )
-                })?;
+    fn validate_source_piece(&self, piece: Piece) -> io::Result<()> {
+        let source_end = piece.start.checked_add(piece.length).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "stored piece range overflow")
+        })?;
 
-        let source_length =
-            if piece.original {
-                self.original_length
-            } else {
-                self.add.len()
-            };
+        let source_length = if piece.original {
+            self.original_length
+        } else {
+            self.add.len()
+        };
 
         if source_end > source_length {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "stored piece is outside its source",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "stored piece is outside its source",
+            ));
         }
 
         Ok(())
     }
 
     /// Inserts existing source references without copying their text.
-    pub(crate) fn insert_pieces(
-        &mut self,
-        position: usize,
-        pieces: &[Piece],
-    ) -> io::Result<()> {
+    pub(crate) fn insert_pieces(&mut self, position: usize, pieces: &[Piece]) -> io::Result<()> {
         if position > self.len() {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "insert position is outside document",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "insert position is outside document",
+            ));
         }
 
         self.ensure_boundary(position)?;
@@ -3664,36 +2630,22 @@ all_lines_cached: original_length == 0,
         for piece in pieces {
             self.validate_source_piece(*piece)?;
 
-            insertion_length =
-                insertion_length
-                    .checked_add(piece.length)
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            "inserted piece length overflow",
-                        )
-                    })?;
+            insertion_length = insertion_length.checked_add(piece.length).ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "inserted piece length overflow")
+            })?;
         }
 
         if insertion_length == 0 {
             return Ok(());
         }
 
-        self.length
-            .checked_add(insertion_length)
-            .ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "document length overflow",
-                )
-            })?;
+        self.length.checked_add(insertion_length).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "document length overflow")
+        })?;
 
         if self.pieces.is_empty() {
             for piece in pieces {
-                Self::push_merged_piece(
-                    &mut self.pieces,
-                    *piece,
-                )?;
+                Self::push_merged_piece(&mut self.pieces, *piece)?;
             }
         } else {
             let mut current = 0usize;
@@ -3705,10 +2657,7 @@ all_lines_cached: original_length == 0,
                 if position <= end {
                     let offset = position - current;
 
-                    let mut replacement =
-                        Vec::with_capacity(
-                            pieces.len() + 2
-                        );
+                    let mut replacement = Vec::with_capacity(pieces.len() + 2);
 
                     if offset > 0 {
                         Self::push_merged_piece(
@@ -3722,29 +2671,21 @@ all_lines_cached: original_length == 0,
                     }
 
                     for inserted in pieces {
-                        Self::push_merged_piece(
-                            &mut replacement,
-                            *inserted,
-                        )?;
+                        Self::push_merged_piece(&mut replacement, *inserted)?;
                     }
 
                     if offset < piece.length {
                         Self::push_merged_piece(
                             &mut replacement,
                             Piece {
-                                start:
-                                    piece.start + offset,
-                                length:
-                                    piece.length - offset,
+                                start: piece.start + offset,
+                                length: piece.length - offset,
                                 original: piece.original,
                             },
                         )?;
                     }
 
-                    self.pieces.splice(
-                        i..=i,
-                        replacement,
-                    );
+                    self.pieces.splice(i..=i, replacement);
 
                     break;
                 }
@@ -3756,7 +2697,13 @@ all_lines_cached: original_length == 0,
         self.length += insertion_length;
 
         self.invalidate_line_cache_from_position(
-            position
+            position,
+            [shared_view::PositionChange {
+                start: position,
+                removed: 0,
+                inserted: insertion_length,
+            }]
+            .into(),
         );
 
         self.record_recovery(recovery::Change::Insert(position, pieces));
@@ -3764,25 +2711,19 @@ all_lines_cached: original_length == 0,
     }
 
     /// Appends valid UTF-8 text without making it part of the document yet.
-    pub(crate) fn store_text(
-        &mut self,
-        text: &str,
-    ) -> io::Result<Option<Piece>> {
+    pub(crate) fn store_text(&mut self, text: &str) -> io::Result<Option<Piece>> {
         if text.is_empty() {
             return Ok(None);
         }
 
         let bytes = text.as_bytes();
 
-        std::str::from_utf8(bytes)
-            .map_err(|error| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
-                        "inserted text is not valid UTF-8: {error}"
-                    ),
-                )
-            })?;
+        std::str::from_utf8(bytes).map_err(|error| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("inserted text is not valid UTF-8: {error}"),
+            )
+        })?;
 
         let piece = Piece {
             start: self.add.append(bytes)?,
@@ -3793,193 +2734,134 @@ all_lines_cached: original_length == 0,
         Ok(Some(piece))
     }
 
-    pub fn insert(
-        &mut self,
-        position: usize,
-        text: &str,
-    ) -> io::Result<()> {
+    pub fn insert(&mut self, position: usize, text: &str) -> io::Result<()> {
         if position > self.len() {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "insert position is outside document",
-                )
-            );
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "insert position is outside document",
+            ));
         }
 
         self.ensure_boundary(position)?;
 
-        if let Some(piece) =
-            self.store_text(text)?
-        {
-            self.insert_pieces(
-                position,
-                std::slice::from_ref(
-                    &piece
-                ),
-            )?;
+        if let Some(piece) = self.store_text(text)? {
+            self.insert_pieces(position, std::slice::from_ref(&piece))?;
         }
 
         Ok(())
     }
 
-    pub fn delete(
-        &mut self,
-        position: usize,
-        length: usize,
-    ) -> io::Result<()> {
+    pub fn delete(&mut self, position: usize, length: usize) -> io::Result<()> {
         if length == 0 {
             return Ok(());
         }
 
-        let end =
-            position
-                .checked_add(length)
-                .ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "delete range overflow",
-                    )
-                })?;
+        let end = position
+            .checked_add(length)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "delete range overflow"))?;
 
-        if position > self.len()
-            || end > self.len()
-        {
-            return Err(
-                io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "delete range outside document",
-                )
-            );
+        if position > self.len() || end > self.len() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "delete range outside document",
+            ));
         }
 
-        self.ensure_boundary(
-            position
-        )?;
+        self.ensure_boundary(position)?;
 
-        self.ensure_boundary(
-            end
-        )?;
+        self.ensure_boundary(end)?;
 
-        let mut current =
-            0usize;
+        let mut current = 0usize;
 
-        let mut pieces =
-            Vec::with_capacity(
-                self.pieces.len()
-            );
+        let mut pieces = Vec::with_capacity(self.pieces.len());
 
-        for piece in
-            &self.pieces
-        {
-            let piece_start =
-                current;
+        for piece in &self.pieces {
+            let piece_start = current;
 
-            let piece_end =
-                current + piece.length;
+            let piece_end = current + piece.length;
 
-            if piece_end <= position
-                || piece_start >= end
-            {
+            if piece_end <= position || piece_start >= end {
                 pieces.push(*piece);
             } else {
                 if piece_start < position {
-                    pieces.push(
-                        Piece {
-                            start:
-                                piece.start,
-                            length:
-                                position
-                                    - piece_start,
-                            original:
-                                piece.original,
-                        }
-                    );
+                    pieces.push(Piece {
+                        start: piece.start,
+                        length: position - piece_start,
+                        original: piece.original,
+                    });
                 }
 
                 if piece_end > end {
-                    let skip =
-                        end - piece_start;
+                    let skip = end - piece_start;
 
-                    pieces.push(
-                        Piece {
-                            start:
-                                piece.start
-                                    + skip,
-                            length:
-                                piece.length
-                                    - skip,
-                            original:
-                                piece.original,
-                        }
-                    );
+                    pieces.push(Piece {
+                        start: piece.start + skip,
+                        length: piece.length - skip,
+                        original: piece.original,
+                    });
                 }
             }
 
-            current =
-                piece_end;
+            current = piece_end;
         }
 
-        self.pieces =
-            pieces;
+        self.pieces = pieces;
 
-        self.length -=
-            length;
+        self.length -= length;
 
         self.invalidate_line_cache_from_position(
-            position
+            position,
+            [shared_view::PositionChange {
+                start: position,
+                removed: length,
+                inserted: 0,
+            }]
+            .into(),
         );
 
         self.record_recovery(recovery::Change::Delete(position, length));
         Ok(())
     }
 
- 
- fn invalidate_line_cache_from_position(
-    &mut self,
-    _position: usize,
-) {
-    self.revision = next_document_revision();
-    self.line_cache.clear();
+    fn invalidate_line_cache_from_position(
+        &mut self,
+        position: usize,
+        view_changes: shared_view::PositionChanges,
+    ) {
+        let before = self.revision;
+        self.revision = next_document_revision();
+        self.view_history
+            .record(before, self.revision, view_changes);
+        // The index still describes pre-edit coordinates here. The line containing
+        // the edit can change (including CRLF or a removed newline); earlier lines
+        // remain exact. A terminal line with end == position must also be discarded.
+        let affected_start = self.line_cache.invalidate(position);
+        self.line_scan.get_mut().clear();
+        self.line_views
+            .get_mut()
+            .invalidate_from(affected_start, self.revision);
 
-    if self.len() == 0 {
-        self.line_cache.push(
-            LineInfo {
-                start: 0,
-                end: 0,
-                length: 0,
-            }
-        );
-
-        self.all_lines_cached = true;
-    } else {
-        self.all_lines_cached = false;
+        if self.len() == 0 {
+            self.line_cache = LineIndex::empty_document();
+            self.all_lines_cached = true;
+        } else {
+            self.all_lines_cached = false;
+        }
     }
-}
- 
-    
+
     // ---------------------------------------------------------------------
     // Text
     // ---------------------------------------------------------------------
 
-    pub fn text(
-        &self,
-    ) -> io::Result<String> {
-        let bytes =
-            self.read_range(
-                0,
-                self.len(),
-            )?;
+    pub fn text(&self) -> io::Result<String> {
+        let bytes = self.read_range(0, self.len())?;
 
-        String::from_utf8(bytes)
-            .map_err(|error| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
-                        "document contains invalid UTF-8: {error}"
-                    ),
-                )
-            })
+        String::from_utf8(bytes).map_err(|error| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("document contains invalid UTF-8: {error}"),
+            )
+        })
     }
 
     // ---------------------------------------------------------------------
@@ -3987,23 +2869,12 @@ all_lines_cached: original_length == 0,
     // ---------------------------------------------------------------------
 
     #[allow(dead_code)]
-    pub fn debug(
-        &self,
-    ) {
-        println!(
-            "Original file: {} bytes",
-            self.original_length
-        );
+    pub fn debug(&self) {
+        println!("Original file: {} bytes", self.original_length);
 
-        println!(
-            "Add buffer: {} bytes",
-            self.add.len()
-        );
+        println!("Add buffer: {} bytes", self.add.len());
 
-        println!(
-            "Pieces: {}",
-            self.pieces.len()
-        );
+        println!("Pieces: {}", self.pieces.len());
 
         println!(
             "Line cache: {} lines, complete={}",
@@ -4013,9 +2884,7 @@ all_lines_cached: original_length == 0,
 
         println!(
             "Cursor: position={} line={} column={}",
-            self.cursor.position,
-            self.cursor.line,
-            self.cursor.column
+            self.cursor.position, self.cursor.line, self.cursor.column
         );
     }
 }
@@ -4026,14 +2895,22 @@ all_lines_cached: original_length == 0,
 
 #[cfg(test)]
 mod tests {
+    use super::Document as PieceTable;
     use super::*;
 
     #[test]
     fn streamed_formatting_is_file_backed_and_snapshot_undoable() {
         let mut table = PieceTable::empty().unwrap();
         table.insert(0, "original").unwrap();
-        let formatted = format!("{}🙂\n{}", "a".repeat(PIECE_TABLE_CHUNK_SIZE - 1), "line\n".repeat(100_000));
-        let mut snapshot = table.replace_from_reader(&mut io::Cursor::new(formatted.as_bytes()), formatted.len()).unwrap().unwrap();
+        let formatted = format!(
+            "{}🙂\n{}",
+            "a".repeat(PIECE_TABLE_CHUNK_SIZE - 1),
+            "line\n".repeat(100_000)
+        );
+        let mut snapshot = table
+            .replace_from_reader(&mut io::Cursor::new(formatted.as_bytes()), formatted.len())
+            .unwrap()
+            .unwrap();
         assert_eq!(table.pieces.len(), 1);
         assert!(table.cached_line_count() <= 1); // At most the lazy first-line placeholder.
         assert_eq!(table.text().unwrap(), formatted);
@@ -4049,12 +2926,21 @@ mod tests {
         table.insert(0, "é original\n").unwrap();
         let before = table.add.len();
         for _ in 0..3 {
-            assert!(table.replace_from_reader(&mut io::Cursor::new("é original\n".as_bytes()), 100).unwrap().is_none());
+            assert!(
+                table
+                    .replace_from_reader(&mut io::Cursor::new("é original\n".as_bytes()), 100)
+                    .unwrap()
+                    .is_none()
+            );
             assert_eq!(table.add.len(), before);
             assert_eq!(table.add.file().metadata().unwrap().len(), before as u64);
         }
         for bytes in [vec![b'x'; 101], vec![b'x', 0xff], vec![b'x', 0xe2, 0x82]] {
-            assert!(table.replace_from_reader(&mut io::Cursor::new(bytes), 100).is_err());
+            assert!(
+                table
+                    .replace_from_reader(&mut io::Cursor::new(bytes), 100)
+                    .is_err()
+            );
             assert_eq!(table.text().unwrap(), "é original\n");
             assert_eq!(table.add.len(), before);
             assert_eq!(table.add.file().metadata().unwrap().len(), before as u64);
@@ -4066,7 +2952,9 @@ mod tests {
         struct FailingReader(bool);
         impl Read for FailingReader {
             fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
-                if self.0 { return Err(io::Error::other("fixture read failure")); }
+                if self.0 {
+                    return Err(io::Error::other("fixture read failure"));
+                }
                 self.0 = true;
                 bytes[..4].copy_from_slice(b"good");
                 Ok(4)
@@ -4075,67 +2963,45 @@ mod tests {
         let mut table = PieceTable::empty().unwrap();
         table.insert(0, "original").unwrap();
         let before = table.add.len();
-        assert!(table.replace_from_reader(&mut FailingReader(false), 100).is_err());
+        assert!(
+            table
+                .replace_from_reader(&mut FailingReader(false), 100)
+                .is_err()
+        );
         assert_eq!(table.text().unwrap(), "original");
         assert_eq!(table.add.len(), before);
     }
     use std::io::Write;
-    use std::sync::atomic::{
-        AtomicUsize,
-        Ordering,
-    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Instant;
 
-    fn table_with_text(
-        text: &str,
-    ) -> PieceTable {
-        let mut table =
-            PieceTable::empty()
-                .unwrap();
+    fn table_with_text(text: &str) -> PieceTable {
+        let mut table = PieceTable::empty().unwrap();
 
-        table.insert(0, text)
-            .unwrap();
+        table.insert(0, text).unwrap();
 
         table
     }
 
     #[test]
     fn scroll_line_boundary_lookups_do_not_materialize_line_cache() {
-        let mut table =
-            table_with_text("one\ntwo\nthree\n");
+        let mut table = table_with_text("one\ntwo\nthree\n");
 
         assert!(table.line_cache.is_empty());
-        assert_eq!(
-            table.next_line_start_from(0).unwrap(),
-            Some(4),
-        );
+        assert_eq!(table.next_line_start_from(0).unwrap(), Some(4),);
         assert!(table.line_cache.is_empty());
 
-        assert_eq!(
-            table.previous_line_start_from(8).unwrap(),
-            4,
-        );
+        assert_eq!(table.previous_line_start_from(8).unwrap(), 4,);
         assert!(table.line_cache.is_empty());
     }
 
     #[test]
     fn crlf_line_text_excludes_carriage_return() {
-        let mut table = table_with_text(
-            "one\r\ntwo\r\n",
-        );
+        let mut table = table_with_text("one\r\ntwo\r\n");
 
-        assert_eq!(
-            table.line_text(0).unwrap(),
-            "one",
-        );
-        assert_eq!(
-            table.line_length(0).unwrap(),
-            3,
-        );
-        assert_eq!(
-            table.line_text(1).unwrap(),
-            "two",
-        );
+        assert_eq!(table.line_text(0).unwrap(), "one",);
+        assert_eq!(table.line_length(0).unwrap(), 3,);
+        assert_eq!(table.line_text(1).unwrap(), "two",);
     }
 
     #[test]
@@ -4143,33 +3009,19 @@ mod tests {
         let path;
 
         {
-            let mut table =
-                PieceTable::empty()
-                    .unwrap();
+            let mut table = PieceTable::empty().unwrap();
 
             path = table.add.path.clone();
 
             assert!(path.exists());
 
-            table.insert(0, "édit")
-                .unwrap();
+            table.insert(0, "édit").unwrap();
 
-            assert_eq!(
-                table.add.len(),
-                "édit".len(),
-            );
+            assert_eq!(table.add.len(), "édit".len(),);
 
-            assert_eq!(
-                std::fs::metadata(&path)
-                    .unwrap()
-                    .len(),
-                "édit".len() as u64,
-            );
+            assert_eq!(std::fs::metadata(&path).unwrap().len(), "édit".len() as u64,);
 
-            assert_eq!(
-                table.text().unwrap(),
-                "édit",
-            );
+            assert_eq!(table.text().unwrap(), "édit",);
         }
 
         assert!(!path.exists());
@@ -4177,134 +3029,70 @@ mod tests {
 
     #[test]
     fn captured_pieces_restore_text_without_appending_again() {
-        let mut table =
-            table_with_text("aéz");
+        let mut table = table_with_text("aéz");
 
-        let stored_length =
-            table.add.len();
+        let stored_length = table.add.len();
 
-        let captured =
-            table.capture_range(
-                1,
-                "é".len(),
-            )
-            .unwrap();
+        let captured = table.capture_range(1, "é".len()).unwrap();
 
-        table.delete(
-            1,
-            "é".len(),
-        )
-        .unwrap();
+        table.delete(1, "é".len()).unwrap();
 
-        table.insert_pieces(
-            1,
-            &captured,
-        )
-        .unwrap();
+        table.insert_pieces(1, &captured).unwrap();
 
-        assert_eq!(
-            table.text().unwrap(),
-            "aéz",
-        );
+        assert_eq!(table.text().unwrap(), "aéz",);
 
-        assert_eq!(
-            table.add.len(),
-            stored_length,
-        );
+        assert_eq!(table.add.len(), stored_length,);
     }
 
-    fn piece_layout(
-        table: &PieceTable,
-    ) -> Vec<(usize, usize, bool)> {
-        table.pieces
+    fn piece_layout(table: &PieceTable) -> Vec<(usize, usize, bool)> {
+        table
+            .pieces
             .iter()
-            .map(|piece| {
-                (
-                    piece.start,
-                    piece.length,
-                    piece.original,
-                )
-            })
+            .map(|piece| (piece.start, piece.length, piece.original))
             .collect()
     }
 
-    fn original_table(
-        text: &str,
-    ) -> (PieceTable, PathBuf) {
-        static NEXT_PATH:
-            AtomicUsize =
-                AtomicUsize::new(0);
+    fn original_table(text: &str) -> (PieceTable, PathBuf) {
+        static NEXT_PATH: AtomicUsize = AtomicUsize::new(0);
 
-        let mut path =
-            std::env::temp_dir();
+        let mut path = std::env::temp_dir();
 
         path.push(format!(
             "potyi_replace_ranges_{}_{}.txt",
             std::process::id(),
-            NEXT_PATH.fetch_add(
-                1,
-                Ordering::Relaxed,
-            ),
+            NEXT_PATH.fetch_add(1, Ordering::Relaxed,),
         ));
 
-        std::fs::write(
-            &path,
-            text.as_bytes(),
-        )
-        .unwrap();
+        std::fs::write(&path, text.as_bytes()).unwrap();
 
-        let table =
-            PieceTable::open(
-                &path.to_string_lossy()
-            )
-            .unwrap();
+        let table = PieceTable::open(&path.to_string_lossy()).unwrap();
 
         (table, path)
     }
 
     #[test]
     fn replace_ranges_reuses_one_add_copy_and_snapshot_swaps() {
-        let mut table =
-            table_with_text(
-                "one two one"
-            );
+        let mut table = table_with_text("one two one");
 
-        table.line_count()
-            .unwrap();
+        table.line_count().unwrap();
 
-        let add_length =
-            table.add.len();
+        let add_length = table.add.len();
 
-        let mut snapshot =
-            table.replace_ranges(
-                vec![
-                    (0, 3),
-                    (8, 11),
-                ]
-                .into_iter(),
-                "X",
-            )
+        let mut snapshot = table
+            .replace_ranges(vec![(0, 3), (8, 11)].into_iter(), "X")
             .unwrap()
             .unwrap();
 
-        assert_eq!(
-            table.text().unwrap(),
-            "X two X",
-        );
+        assert_eq!(table.text().unwrap(), "X two X",);
+
+        assert_eq!(table.add.len(), add_length + 1,);
 
         assert_eq!(
-            table.add.len(),
-            add_length + 1,
-        );
-
-        assert_eq!(
-            table.pieces
+            table
+                .pieces
                 .iter()
                 .filter(|piece| {
-                    !piece.original
-                        && piece.start
-                            == add_length
-                        && piece.length == 1
+                    !piece.original && piece.start == add_length && piece.length == 1
                 })
                 .count(),
             2,
@@ -4312,130 +3100,78 @@ mod tests {
 
         assert!(table.line_cache.is_empty());
 
-        table.swap_snapshot(
-            &mut snapshot
-        );
+        table.swap_snapshot(&mut snapshot);
 
-        assert_eq!(
-            table.text().unwrap(),
-            "one two one",
-        );
+        assert_eq!(table.text().unwrap(), "one two one",);
 
-        assert_eq!(
-            table.add.len(),
-            add_length + 1,
-        );
+        assert_eq!(table.add.len(), add_length + 1,);
 
-        table.swap_snapshot(
-            &mut snapshot
-        );
+        table.swap_snapshot(&mut snapshot);
 
-        assert_eq!(
-            table.text().unwrap(),
-            "X two X",
-        );
+        assert_eq!(table.text().unwrap(), "X two X",);
     }
 
     #[test]
     fn replace_ranges_supports_adjacent_deletions() {
-        let mut table =
-            table_with_text("abcdef");
+        let mut table = table_with_text("abcdef");
 
-        table.replace_ranges(
-            vec![(1, 3), (3, 5)]
-                .into_iter(),
-            "",
-        )
-        .unwrap()
-        .unwrap();
+        table
+            .replace_ranges(vec![(1, 3), (3, 5)].into_iter(), "")
+            .unwrap()
+            .unwrap();
 
-        assert_eq!(
-            table.text().unwrap(),
-            "af",
-        );
+        assert_eq!(table.text().unwrap(), "af",);
     }
 
     #[test]
     fn replace_ranges_supports_zero_width_ranges_in_empty_document() {
-        let mut table =
-            PieceTable::empty()
-                .unwrap();
+        let mut table = PieceTable::empty().unwrap();
 
-        let add_length =
-            table.add.len();
+        let add_length = table.add.len();
 
-        table.replace_ranges(
-            vec![(0, 0), (0, 0)]
-                .into_iter(),
-            "é",
-        )
-        .unwrap()
-        .unwrap();
+        table
+            .replace_ranges(vec![(0, 0), (0, 0)].into_iter(), "é")
+            .unwrap()
+            .unwrap();
 
-        assert_eq!(
-            table.text().unwrap(),
-            "éé",
-        );
+        assert_eq!(table.text().unwrap(), "éé",);
 
-        assert_eq!(
-            table.add.len(),
-            add_length + "é".len(),
-        );
+        assert_eq!(table.add.len(), add_length + "é".len(),);
     }
 
     #[test]
     fn replace_ranges_uses_utf8_byte_ranges() {
-        let mut table =
-            table_with_text("aé😀z");
+        let mut table = table_with_text("aé😀z");
 
-        table.replace_ranges(
-            vec![(1, 3), (3, 7)]
-                .into_iter(),
-            "λ",
-        )
-        .unwrap()
-        .unwrap();
+        table
+            .replace_ranges(vec![(1, 3), (3, 7)].into_iter(), "λ")
+            .unwrap()
+            .unwrap();
 
-        assert_eq!(
-            table.text().unwrap(),
-            "aλλz",
-        );
+        assert_eq!(table.text().unwrap(), "aλλz",);
     }
 
     #[test]
     fn replace_ranges_validation_failures_are_atomic() {
-        let mut table =
-            table_with_text("aébcd");
+        let mut table = table_with_text("aébcd");
 
-        table.line_count()
-            .unwrap();
+        table.line_count().unwrap();
 
-        let text =
-            table.text().unwrap();
+        let text = table.text().unwrap();
 
-        let layout =
-            piece_layout(&table);
+        let layout = piece_layout(&table);
 
-        let add_length =
-            table.add.len();
+        let add_length = table.add.len();
 
-        let length =
-            table.len();
+        let length = table.len();
 
-        let cache =
-            table.line_cache
-                .iter()
-                .map(|line| {
-                    (
-                        line.start,
-                        line.end,
-                        line.length,
-                    )
-                })
-                .collect::<Vec<_>>();
+        let cache = table
+            .line_cache
+            .iter()
+            .map(|line| (line.start, line.end, line.length))
+            .collect::<Vec<_>>();
 
-        let all_lines_cached =
-            table.all_lines_cached;
+        let all_lines_cached = table.all_lines_cached;
 
         for ranges in [
             vec![(3, 2)],
@@ -4444,229 +3180,128 @@ mod tests {
             vec![(2, 3)],
         ] {
             assert!(
-                table.replace_ranges(
-                    ranges.into_iter(),
-                    "replacement",
-                )
-                .is_err()
+                table
+                    .replace_ranges(ranges.into_iter(), "replacement",)
+                    .is_err()
             );
 
-            assert_eq!(
-                table.text().unwrap(),
-                text,
-            );
+            assert_eq!(table.text().unwrap(), text,);
+
+            assert_eq!(piece_layout(&table), layout,);
+
+            assert_eq!(table.add.len(), add_length,);
+
+            assert_eq!(table.len(), length,);
 
             assert_eq!(
-                piece_layout(&table),
-                layout,
-            );
-
-            assert_eq!(
-                table.add.len(),
-                add_length,
-            );
-
-            assert_eq!(
-                table.len(),
-                length,
-            );
-
-            assert_eq!(
-                table.line_cache
+                table
+                    .line_cache
                     .iter()
-                    .map(|line| {
-                        (
-                            line.start,
-                            line.end,
-                            line.length,
-                        )
-                    })
+                    .map(|line| { (line.start, line.end, line.length,) })
                     .collect::<Vec<_>>(),
                 cache,
             );
 
-            assert_eq!(
-                table.all_lines_cached,
-                all_lines_cached,
-            );
+            assert_eq!(table.all_lines_cached, all_lines_cached,);
         }
     }
 
     #[test]
     fn replace_ranges_handles_mixed_sources_and_merges_neighbors() {
-        let (mut table, path) =
-            original_table("abcdef");
+        let (mut table, path) = original_table("abcdef");
 
-        table.insert(3, "XYZ")
-            .unwrap();
+        table.insert(3, "XYZ").unwrap();
 
-        assert!(
-            table.pieces.iter()
-                .any(|piece| piece.original)
-        );
+        assert!(table.pieces.iter().any(|piece| piece.original));
 
-        assert!(
-            table.pieces.iter()
-                .any(|piece| !piece.original)
-        );
+        assert!(table.pieces.iter().any(|piece| !piece.original));
 
-        let mut deletion =
-            table.replace_ranges(
-                vec![(3, 6)].into_iter(),
-                "",
-            )
+        let mut deletion = table
+            .replace_ranges(vec![(3, 6)].into_iter(), "")
             .unwrap()
             .unwrap();
 
-        assert_eq!(
-            table.text().unwrap(),
-            "abcdef",
-        );
+        assert_eq!(table.text().unwrap(), "abcdef",);
 
         assert_eq!(table.pieces.len(), 1);
         assert!(table.pieces[0].original);
         assert_eq!(table.pieces[0].start, 0);
         assert_eq!(table.pieces[0].length, 6);
 
-        table.swap_snapshot(
-            &mut deletion
-        );
+        table.swap_snapshot(&mut deletion);
 
-        table.replace_ranges(
-            vec![(2, 7)].into_iter(),
-            "Q",
-        )
-        .unwrap()
-        .unwrap();
+        table
+            .replace_ranges(vec![(2, 7)].into_iter(), "Q")
+            .unwrap()
+            .unwrap();
 
-        assert_eq!(
-            table.text().unwrap(),
-            "abQef",
-        );
+        assert_eq!(table.text().unwrap(), "abQef",);
 
         drop(table);
-        std::fs::remove_file(path)
-            .ok();
+        std::fs::remove_file(path).ok();
     }
 
     #[test]
     fn replace_ranges_empty_iterator_is_no_op() {
-        let mut table =
-            table_with_text("unchanged");
+        let mut table = table_with_text("unchanged");
 
-        let layout =
-            piece_layout(&table);
+        let layout = piece_layout(&table);
 
-        let add_length =
-            table.add.len();
+        let add_length = table.add.len();
 
-        let snapshot =
-            table.replace_ranges(
-                std::iter::empty(),
-                "unused",
-            )
-            .unwrap();
+        let snapshot = table.replace_ranges(std::iter::empty(), "unused").unwrap();
 
         assert!(snapshot.is_none());
-        assert_eq!(
-            table.text().unwrap(),
-            "unchanged",
-        );
-        assert_eq!(
-            piece_layout(&table),
-            layout,
-        );
-        assert_eq!(
-            table.add.len(),
-            add_length,
-        );
+        assert_eq!(table.text().unwrap(), "unchanged",);
+        assert_eq!(piece_layout(&table), layout,);
+        assert_eq!(table.add.len(), add_length,);
     }
 
     #[test]
     fn replace_runs_compacts_dense_output_and_snapshot_swaps() {
-        let mut table =
-            PieceTable::empty()
-                .unwrap();
+        let mut table = PieceTable::empty().unwrap();
 
-        let repetitions =
-            10 * 1024 * 1024;
+        let repetitions = 10 * 1024 * 1024;
 
-        let mut snapshot =
-            table.replace_runs(
-                vec![(0, 0, repetitions)]
-                    .into_iter(),
-                "x",
-            )
+        let mut snapshot = table
+            .replace_runs(vec![(0, 0, repetitions)].into_iter(), "x")
             .unwrap()
             .unwrap();
 
-        assert_eq!(
-            table.len(),
-            repetitions,
-        );
+        assert_eq!(table.len(), repetitions,);
 
-        assert_eq!(
-            table.add.len(),
-            PIECE_TABLE_CHUNK_SIZE,
-        );
+        assert_eq!(table.add.len(), PIECE_TABLE_CHUNK_SIZE,);
 
         assert_eq!(
             table.pieces.len(),
-            repetitions.div_ceil(
-                PIECE_TABLE_CHUNK_SIZE
-            ),
+            repetitions.div_ceil(PIECE_TABLE_CHUNK_SIZE),
         );
 
-        assert_eq!(
-            table.read_range(0, 1)
-                .unwrap(),
-            b"x",
-        );
+        assert_eq!(table.read_range(0, 1).unwrap(), b"x",);
 
-        assert_eq!(
-            table.read_range(
-                repetitions - 1,
-                1,
-            )
-            .unwrap(),
-            b"x",
-        );
+        assert_eq!(table.read_range(repetitions - 1, 1,).unwrap(), b"x",);
 
-        table.swap_snapshot(
-            &mut snapshot
-        );
+        table.swap_snapshot(&mut snapshot);
 
         assert!(table.is_empty());
         assert!(table.pieces.is_empty());
 
-        table.swap_snapshot(
-            &mut snapshot
-        );
+        table.swap_snapshot(&mut snapshot);
 
-        assert_eq!(
-            table.len(),
-            repetitions,
-        );
+        assert_eq!(table.len(), repetitions,);
 
-        assert_eq!(
-            table.add.len(),
-            PIECE_TABLE_CHUNK_SIZE,
-        );
+        assert_eq!(table.add.len(), PIECE_TABLE_CHUNK_SIZE,);
     }
 
     #[test]
     fn replace_runs_validation_failures_are_atomic() {
-        let mut table =
-            table_with_text("aébcd");
+        let mut table = table_with_text("aébcd");
 
-        let text =
-            table.text().unwrap();
+        let text = table.text().unwrap();
 
-        let layout =
-            piece_layout(&table);
+        let layout = piece_layout(&table);
 
-        let add_length =
-            table.add.len();
+        let add_length = table.add.len();
 
         for runs in [
             vec![(0, 1, 0)],
@@ -4674,82 +3309,53 @@ mod tests {
             vec![(3, 5, 1), (1, 1, 1)],
         ] {
             assert!(
-                table.replace_runs(
-                    runs.into_iter(),
-                    "replacement",
-                )
-                .is_err()
+                table
+                    .replace_runs(runs.into_iter(), "replacement",)
+                    .is_err()
             );
 
-            assert_eq!(
-                table.text().unwrap(),
-                text,
-            );
+            assert_eq!(table.text().unwrap(), text,);
 
-            assert_eq!(
-                piece_layout(&table),
-                layout,
-            );
+            assert_eq!(piece_layout(&table), layout,);
 
-            assert_eq!(
-                table.add.len(),
-                add_length,
-            );
+            assert_eq!(table.add.len(), add_length,);
         }
     }
 
     #[test]
     fn visit_chunks_preserves_mixed_fragment_order() {
-        let (mut table, path) =
-            original_table("ace");
+        let (mut table, path) = original_table("ace");
 
-        table.insert(1, "B")
-            .unwrap();
+        table.insert(1, "B").unwrap();
 
-        table.insert(3, "D")
-            .unwrap();
+        table.insert(3, "D").unwrap();
 
         let mut chunks = Vec::new();
 
-        table.visit_chunks(|chunk| {
-            chunks.push(
-                std::str::from_utf8(chunk)
-                    .unwrap()
-                    .to_owned()
-            );
+        table
+            .visit_chunks(|chunk| {
+                chunks.push(std::str::from_utf8(chunk).unwrap().to_owned());
 
-            Ok(())
-        })
-        .unwrap();
+                Ok(())
+            })
+            .unwrap();
 
-        assert_eq!(
-            chunks,
-            ["a", "B", "c", "D", "e"],
-        );
+        assert_eq!(chunks, ["a", "B", "c", "D", "e"],);
 
-        assert_eq!(
-            chunks.concat(),
-            "aBcDe",
-        );
+        assert_eq!(chunks.concat(), "aBcDe",);
 
         drop(table);
-        std::fs::remove_file(path)
-            .ok();
+        std::fs::remove_file(path).ok();
     }
 
     #[test]
     fn timing_open_and_first_line() {
-        let mut path =
-            std::env::temp_dir();
+        let mut path = std::env::temp_dir();
 
-        path.push(
-            "potyi_timing_test.txt"
-        );
+        path.push("potyi_timing_test.txt");
 
         {
-            let mut file =
-                File::create(&path)
-                    .unwrap();
+            let mut file = File::create(&path).unwrap();
 
             for i in 0..100_000 {
                 write!(
@@ -4761,79 +3367,40 @@ mod tests {
             }
         }
 
-        let path_string =
-            path.to_string_lossy()
-                .to_string();
+        let path_string = path.to_string_lossy().to_string();
 
-        let start =
-            Instant::now();
+        let start = Instant::now();
 
-        let mut table =
-            PieceTable::open(
-                &path_string
-            )
-            .unwrap();
+        let mut table = PieceTable::open(&path_string).unwrap();
 
-        let open_time =
-            start.elapsed();
+        let open_time = start.elapsed();
 
-        let start =
-            Instant::now();
+        let start = Instant::now();
 
-        let line =
-            table.line_text(0)
-                .unwrap();
+        let line = table.line_text(0).unwrap();
 
-        let first_line_time =
-            start.elapsed();
+        let first_line_time = start.elapsed();
 
-        let start =
-            Instant::now();
+        let start = Instant::now();
 
-        let line_count =
-            table.line_count()
-                .unwrap();
+        let line_count = table.line_count().unwrap();
 
-        let line_count_time =
-            start.elapsed();
+        let line_count_time = start.elapsed();
 
-        println!(
-            "Timing test:"
-        );
+        println!("Timing test:");
 
-        println!(
-            "  open:       {:?}",
-            open_time
-        );
+        println!("  open:       {:?}", open_time);
 
-        println!(
-            "  first line: {:?}",
-            first_line_time
-        );
+        println!("  first line: {:?}", first_line_time);
 
-        println!(
-            "  line count: {:?}",
-            line_count_time
-        );
+        println!("  line count: {:?}", line_count_time);
 
-        println!(
-            "  lines:      {}",
-            line_count
-        );
+        println!("  lines:      {}", line_count);
 
-        assert_eq!(
-            line,
-            "The quick brown fox jumps over the lazy dog."
-        );
+        assert_eq!(line, "The quick brown fox jumps over the lazy dog.");
 
-        assert_eq!(
-            line_count,
-            100_000
-        );
+        assert_eq!(line_count, 100_000);
 
-        fs::remove_file(
-            path
-        )
-        .ok();
+        fs::remove_file(path).ok();
     }
 }

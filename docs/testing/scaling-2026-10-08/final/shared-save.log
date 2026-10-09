@@ -1,0 +1,6 @@
+
+running 1 test
+test app::input::tests::terminal_clicks_open_shared_views_and_edit_undo_save_from_either_pane ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 687 filtered out; finished in 0.22s
+

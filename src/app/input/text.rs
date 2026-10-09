@@ -1,8 +1,11 @@
 // Pötyi - SPDX-License-Identifier: GPL-3.0-or-later
+//! Text follows the key event's suppression state. Pane/Emacs suppression is
+//! checked first, terminal focus next, then Vim suppression, command-bar input,
+//! and document insertion. Do not merge or reorder these mode-specific checks.
 use super::*;
 
-pub(super) fn text(context: InputContext<'_, '_>, text: &str) -> Result<EventFlow, String> {
-    let InputContext {
+pub(super) fn text(context: TextContext<'_, '_>, text: &str) -> Result<EventFlow, String> {
+    let TextContext {
         pane_keys,
         editor,
         other_editor,

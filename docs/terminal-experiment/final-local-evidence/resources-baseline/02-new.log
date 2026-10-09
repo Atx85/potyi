@@ -1,0 +1,66 @@
+
+running 1 test
+test app::input::tests::terminal_resource_probe::matched_terminal_resource_probe ... 
+POTYI_TERM_RESOURCE {"event":"ready","phase":"ready","kind":"new","pid":57164,"elapsed_ms":1049.091,"draws":6,"turns":5}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"idle","kind":"new","pid":57164,"elapsed_ms":1049.503,"draws":6,"turns":5}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"idle","kind":"new","pid":57164,"elapsed_ms":3049.534,"draws":6,"turns":8}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"small_command","kind":"new","pid":57164,"elapsed_ms":3049.585,"draws":6,"turns":8}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"small_command","kind":"new","duration_ms":189.790}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"small_command","kind":"new","pid":57164,"elapsed_ms":3239.411,"draws":11,"turns":1309}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"small_idle","kind":"new","pid":57164,"elapsed_ms":3239.423,"draws":11,"turns":1309}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"small_idle","kind":"new","pid":57164,"elapsed_ms":5239.448,"draws":11,"turns":1676}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"stream_first","kind":"new","pid":57164,"elapsed_ms":5239.490,"draws":11,"turns":1676}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"stream_first","kind":"new","duration_ms":3516.831}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"stream_first","kind":"new","pid":57164,"elapsed_ms":8756.353,"draws":213,"turns":33686}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"plateau_first","kind":"new","pid":57164,"elapsed_ms":8756.364,"draws":213,"turns":33686}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"plateau_first","kind":"new","pid":57164,"elapsed_ms":10756.375,"draws":213,"turns":33798}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"stream_second","kind":"new","pid":57164,"elapsed_ms":10756.411,"draws":213,"turns":33798}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"stream_second","kind":"new","duration_ms":3529.694}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"stream_second","kind":"new","pid":57164,"elapsed_ms":14286.129,"draws":417,"turns":64804}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"plateau_second","kind":"new","pid":57164,"elapsed_ms":14286.140,"draws":417,"turns":64804}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"plateau_second","kind":"new","pid":57164,"elapsed_ms":16286.169,"draws":417,"turns":65298}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"resize","kind":"new","pid":57164,"elapsed_ms":16286.192,"draws":417,"turns":65298}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"resize","kind":"new","duration_ms":3808.073,"resizes":9}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"resize","kind":"new","pid":57164,"elapsed_ms":20094.293,"draws":653,"turns":100894}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copy_selected","kind":"new","pid":57164,"elapsed_ms":20094.550,"draws":653,"turns":100894}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"copy_selected","kind":"new","duration_ms":1.455,"copied_bytes":4096}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copy_selected","kind":"new","pid":57164,"elapsed_ms":20846.029,"draws":655,"turns":101080}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copy_all","kind":"new","pid":57164,"elapsed_ms":20846.062,"draws":655,"turns":101080}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"copy_all","kind":"new","duration_ms":209.739,"copied_bytes":4817806}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copy_all","kind":"new","pid":57164,"elapsed_ms":21805.831,"draws":658,"turns":101579}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copied_idle","kind":"new","pid":57164,"elapsed_ms":21805.881,"draws":658,"turns":101579}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copied_idle","kind":"new","pid":57164,"elapsed_ms":23805.896,"draws":658,"turns":102003}
+
+POTYI_TERM_RESOURCE {"event":"done","phase":"done","kind":"new","pid":57164,"elapsed_ms":23805.935,"draws":658,"turns":102003}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 893 filtered out; finished in 23.89s
+

@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-08",
+  "status": "Paused for user laptop shutdown. Do not continue until user resumes.",
+  "scope": "Finish embedded :term-new parity with original :term limits, preserve original and other LLM changes, low CPU/memory and bounded file storage.",
+  "workspace": "/Users/abanko/Desktop/untitled folder/potyi",
+  "working_copy": "/private/tmp/potyi-term-integration",
+  "branch": "feature/term-integration",
+  "starting_git_head": "1094e91",
+  "archives": [
+    {
+      "path": "integration-source.tar.gz",
+      "files": 587,
+      "bytes": 2840718,
+      "sha256": "6b74e6a2a1f95c87fb3aba1d8714608ebf4d12d99ce7669ef9b26d032ac5444e"
+    },
+    {
+      "path": "captured-baseline.tar.gz",
+      "files": 530,
+      "bytes": 2672164,
+      "sha256": "0bea4c0779151c6098597d1bfbaa513c118d4172c377b3e2e6e1085401587d0b"
+    },
+    {
+      "path": "store-builder.tar.gz",
+      "files": 579,
+      "bytes": 2808094,
+      "sha256": "c29e2b4783b2b47d9c71385a292d15f00f5725c64a624217c103657090326ff6"
+    },
+    {
+      "path": "session-builder.tar.gz",
+      "files": 584,
+      "bytes": 2826896,
+      "sha256": "e08c08f27e23f714f7d896b76b57250029f393cd1ebcfe952fc9addb3d9471ef"
+    },
+    {
+      "path": "independent-review.tar.gz",
+      "files": 50,
+      "bytes": 144618,
+      "sha256": "f88081b321250ccb961738f4d4007e23cfc4e13e593555873f3bb9d3ca2dec17"
+    }
+  ],
+  "protected_original_files_verified": [
+    "src/terminal.rs",
+    "src/terminal/listing.rs",
+    "src/terminal/colors.rs",
+    "src/terminal/git.rs",
+    "src/terminal/selection.rs",
+    "src/terminal/completion.rs",
+    "src/terminal/git_status.rs",
+    "src/terminal/frame.rs",
+    "src/terminal/locations.rs",
+    "src/terminal_layout.rs",
+    "src/terminal_text_cache.rs",
+    "src/app/input/keyboard/terminal.rs"
+  ],
+  "last_compile_passed": true,
+  "verified": [
+    "106 targeted app/backend checks passed before the latest Git UI, helper-provenance, F6 and clipboard mode edits.",
+    "8 new Git backend checks passed independently in builder.",
+    "8 new diagnostic-link checks passed independently in builder.",
+    "Independent reviewer passed 8 layout, 17 selection, and 5 source/copy/navigation checks.",
+    "Earlier true ARM64 macOS backend passed 89 tests. Most local app checks ran x86_64 under Rosetta on ARM hardware.",
+    "Original 12 protected terminal files remain byte-identical to captured baseline."
+  ],
+  "current_changes": [
+    "Unified 8 MiB typed disk transcript and ordered POSIX completion.",
+    "Columns and word-aware wrap/reflow with bounded sparse layout metadata.",
+    "Logical output selection, worker copy/navigation, mouse release quick opens.",
+    "Windows per-command hidden ordinary-pipe process and Job lifetime backend, bounded UTF8, EOF+exit completion; noninteractive/no persistent environment.",
+    "Git native worker with persisted repository context and commit links; root Back/snapshot glue drafted.",
+    "Per-source persisted relative diagnostic safety flag and bounded diagnostic resolver.",
+    "F6/Shift+Up output focus and successful clipboard linewise mode propagation added.",
+    "Native CI workflow prepared for supported Linux/Windows/macOS targets."
+  ],
+  "remaining": [
+    "Rerun full app acceptance against latest integrated source. Add Git Back restoration, keyboard-only focus, Vim linewise paste, wrapped-link SDL checks.",
+    "Complete Git Back button in renderer and verify detail state restore/Again/Clear/nested detail without a third permanent store.",
+    "Check Windows Git descendant lifetime: current structured Git uses Child.kill; reviewer found possible gpg/fsmonitor subprocess survival. Prefer Windows Job ownership or conservative option/config restrictions; runtime CI still required.",
+    "Independently review latest diagnostic integration and per-source relative safety metadata.",
+    "Resource probe plan prepared by store builder; implementation/three matched release A/B sample pairs remain.",
+    "Repeat Apple Silicon backend with the new matching harness main.rs (now in root), and native Linux container tests on a stable snapshot. Earlier container attempts exposed missing helper/Git/PATH setup; latest run passed 105/106 backend tests but used stale diagnostic UTF8 click fixture, corrected builder files now copied. No native Windows or Intel Mac hardware execution has occurred.",
+    "Validate Windows app semantics and native CI before claiming runtime support.",
+    "Safely reconcile own diff with latest shared checkout; do not overwrite inherited 533 dirty files or other agents changes. Prior shared integration.patch is older and not the current complete source.",
+    "Update docs/artifact export and launch a fresh final preview when complete."
+  ],
+  "resume": [
+    "Restore integration-source.tar.gz to an isolated worktree if /private/tmp was cleared. It includes the inherited dirty baseline, so never copy it wholesale over the shared checkout.",
+    "Use captured-baseline.tar.gz and changes.json to isolate this task delta. Compare each affected shared file and merge other LLM edits safely.",
+    "Reuse feature/ branches only. Original protected files must stay untouched.",
+    "Current agents were interrupted for shutdown; resume through fresh scoped subagents if needed.",
+    "Read evidence logs and reviewer snapshot for known tests/issues before retrying."
+  ],
+  "progress_estimates": {
+    "foundation": 100,
+    "browsing_columns_wrap": 100,
+    "selection_keyboard_copy": 90,
+    "git_views_back": 70,
+    "diagnostic_links": 75,
+    "platform_validation": 45,
+    "resource_comparison": 10,
+    "shared_integration_final_review": 0,
+    "overall": 70
+  }
+}

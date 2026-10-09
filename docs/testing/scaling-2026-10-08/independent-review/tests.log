@@ -1,0 +1,127 @@
+   Compiling potyi v0.1.8 (/private/tmp/potyi-line-budget-20261008)
+warning: variable does not need to be mutable
+   --> src/tests.rs:742:9
+    |
+742 |     let mut table = PieceTable::open(
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:829:9
+    |
+829 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:841:9
+    |
+841 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:852:9
+    |
+852 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/tests.rs:868:9
+    |
+868 |     let mut table =
+    |         ----^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src/tests.rs:1234:9
+     |
+1234 |     let mut table =
+     |         ----^^^^^
+     |         |
+     |         help: remove this `mut`
+
+warning: methods `line_text_from_start` and `cursor_line_column` are never used
+    --> src/piece_table.rs:1350:12
+     |
+ 376 | impl Document {
+     | ------------- methods in this implementation
+...
+1350 |     pub fn line_text_from_start(
+     |            ^^^^^^^^^^^^^^^^^^^^
+...
+1750 |     pub fn cursor_line_column(
+     |            ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: methods `debug`, `line_text_from_start`, and `replace_ranges` are never used
+   --> src/piece_table/view.rs:133:12
+    |
+ 42 | impl PieceTable {
+    | --------------- methods in this implementation
+...
+133 |     pub fn debug(&mut self) {
+    |            ^^^^^
+...
+227 |     pub fn line_text_from_start(&mut self, start: usize) -> io::Result<(String, usize)> {
+    |            ^^^^^^^^^^^^^^^^^^^^
+...
+357 |     pub(crate) fn replace_ranges<I>(
+    |                   ^^^^^^^^^^^^^^
+
+warning: associated function `search_bar_reserved_height` is never used
+    --> src/renderer.rs:1807:8
+     |
+ 191 | impl<'a> Renderer<'a> {
+     | --------------------- associated function in this implementation
+...
+1807 |     fn search_bar_reserved_height(
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `search_origin` is never read
+  --> src/search.rs:68:5
+   |
+65 | pub struct Searcher {
+   |            -------- field in this struct
+...
+68 |     search_origin: usize,
+   |     ^^^^^^^^^^^^^
+
+warning: field `pattern` is never read
+  --> src/syntax.rs:49:9
+   |
+47 | pub struct SyntaxRule {
+   |            ---------- field in this struct
+48 |     pub name: String,
+49 |     pub pattern: String,
+   |         ^^^^^^^
+   |
+   = note: `SyntaxRule` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `test_file` is never used
+   --> src/tests.rs:139:4
+    |
+139 | fn test_file(contents: &[u8]) -> PathBuf {
+    |    ^^^^^^^^^
+
+warning: `potyi` (bin "potyi" test) generated 12 warnings (run `cargo fix --bin "potyi" -p potyi --tests` to apply 6 suggestions)
+    Finished `test` profile [optimized + debuginfo] target(s) in 20.22s
+     Running unittests src/main.rs (target/debug/deps/potyi-540762392aa91646)
+
+running 4 tests
+test piece_table::line_budget_tests::alternating_distant_panes_report_reconstruction_cost ... ignored, Independent bounded-memory and distant-pane performance measurement
+test piece_table::line_budget_tests::edits_in_evicted_regions_and_snapshot_undo_discard_stale_checkpoints ... ok
+test piece_table::line_budget_tests::evicted_unicode_crlf_lines_reconstruct_exact_columns_and_page_destinations ... ok
+test piece_table::line_budget_tests::shared_views_edit_and_undo_correctly_after_line_metadata_eviction ... ok
+
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 687 filtered out; finished in 0.17s
+

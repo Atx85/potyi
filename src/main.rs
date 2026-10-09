@@ -14,62 +14,69 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-
-#![cfg_attr(
-    all(windows, not(debug_assertions)),
-    windows_subsystem = "windows"
-)]
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 static FONT_DATA: &[u8] = include_bytes!("../fonts/DejaVuSansMono.ttf");
 const APP_TITLE: &str = concat!("Pötyi  ", env!("POTYI_DISPLAY_VERSION"));
 
 mod app;
-mod editor;
-mod dpi_text;
-mod clipboard;
-mod command_bar;
-mod embedded_config;
-mod formatting;
-mod lsp;
-mod lsp_ui;
-mod lsp_setup;
-mod workspace_edit;
 #[cfg(test)]
 mod benchmarks;
+mod clipboard;
+mod command_bar;
+mod config;
+mod dpi_text;
+mod editor;
+mod emacs;
+mod embedded_config;
+mod experimental_terminal;
+mod formatting;
 mod keybindings;
 mod line_numbers;
+mod lsp;
+mod lsp_setup;
+mod lsp_ui;
+mod multi_cursor;
 mod piece_table;
 mod renderer;
 mod search;
 mod search_ui;
 mod startup;
-mod window;
 mod syntax;
 mod syntax_core;
-mod config;
-mod multi_cursor;
 mod terminal;
 mod terminal_layout;
 mod terminal_text_cache;
 mod vim;
-mod emacs;
+mod window;
+mod workspace_edit;
 
 // Shared internal types retained at the crate root for existing feature modules.
 use app::commands::CommandOutcome;
-use app::navigation::parse_location;
 #[cfg(test)]
 use app::navigation::apply_keybinding_mode;
-#[cfg(test)]
-use sdl3::keyboard::{Keycode, Mod};
+use app::navigation::parse_location;
 use editor::{CursorState, Editor, HistoryEntry, HistoryKind, TextChange, file_is_open_in};
-use piece_table::PieceTableSnapshot;
-use search::Searcher;
 #[cfg(test)]
 use piece_table::PieceTable;
+use piece_table::PieceTableSnapshot;
+#[cfg(test)]
+use sdl3::keyboard::{Keycode, Mod};
+use search::Searcher;
 #[cfg(test)]
 use vim::VimController;
 
 fn main() -> Result<(), String> {
+    let mut arguments = std::env::args();
+    arguments.next();
+    let first = arguments.next();
+    if first.as_deref() == Some("--term-request") {
+        return experimental_terminal::bridge::client(arguments.collect())
+            .map_err(|e| e.to_string());
+    }
+    if first.as_deref() == Some("--term-new") {
+        return experimental_terminal::run(arguments.next());
+    }
     app::run()
 }
 

@@ -1,0 +1,167 @@
+name: Experimental terminal native acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/terminal-experiment.yml
+      - Cargo.toml
+      - Cargo.lock
+      - build.rs
+      - src/**
+      - vendor/vt100/**
+      - tools/qa/terminal-backend/**
+
+concurrency:
+  group: terminal-native-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+
+jobs:
+  native:
+    name: Native terminal on ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            shell: /bin/sh
+            python: python3
+          - platform: windows-x86_64
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+            shell: cmd.exe
+            python: python
+          - platform: macos-arm64
+            runner: macos-15
+            target: aarch64-apple-darwin
+            shell: /bin/zsh
+            python: python3
+          - platform: macos-x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            shell: /bin/zsh
+            python: python3
+
+    defaults:
+      run:
+        shell: bash
+        # Native helper and command paths deliberately contain a space.
+        working-directory: potyi native
+
+    env:
+      BUILD_TARGET: ${{ matrix.target }}
+      SHELL: ${{ matrix.shell }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          path: potyi native
+
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config git \
+            libasound2-dev libpulse-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
+            libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+            libxkbcommon-dev libwayland-dev libdecor-0-dev \
+            libgl1-mesa-dev libegl1-mesa-dev \
+            libdbus-1-dev libudev-dev
+
+      - name: Install native Rust toolchain
+        run: rustup toolchain install stable --profile minimal --no-self-update --target "$BUILD_TARGET"
+
+      - name: Build the real native command helper
+        run: |
+          cargo +stable build --locked --target "$BUILD_TARGET" \
+            --manifest-path tools/qa/terminal-backend/Cargo.toml
+          "${{ matrix.python }}" - <<'PYTHON'
+          import os
+          from pathlib import Path
+          suffix = ".exe" if os.name == "nt" else ""
+          helper = (Path("tools/qa/terminal-backend/target") / os.environ["BUILD_TARGET"] / "debug" / ("potyi-terminal-backend-check" + suffix)).resolve()
+          if not helper.is_file():
+              raise SystemExit("Native helper was not built: " + str(helper))
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+              output.write("POTYI_TERM_TEST_CLIENT=" + str(helper) + "\n")
+          PYTHON
+
+      - name: Run native VT dependency safety checks
+        run: |
+          cargo +stable test --locked --target "$BUILD_TARGET" \
+            --manifest-path tools/qa/terminal-backend/Cargo.toml \
+            -p vt100 --lib -- --test-threads=1
+
+      - name: Run real backend, store, layout and selection checks
+        # Real PTY/ConPTY and pipe children run here. This is native execution,
+        # not a cross-target cargo check. Windows managed tests use pipe EOFs.
+        run: |
+          cargo +stable test --locked --target "$BUILD_TARGET" \
+            --manifest-path tools/qa/terminal-backend/Cargo.toml \
+            --lib -- --test-threads=1
+
+      - name: Build the application and production helper used by SDL fixtures
+        run: |
+          cargo +stable build --locked --bins --target "$BUILD_TARGET"
+          "${{ matrix.python }}" - <<'PYTHON'
+          import os
+          from pathlib import Path
+          suffix = ".exe" if os.name == "nt" else ""
+          helper = (Path("target") / os.environ["BUILD_TARGET"] / "debug" / ("potyi-term-helper" + suffix)).resolve()
+          if not helper.is_file():
+              raise SystemExit("Production helper was not built: " + str(helper))
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+              output.write("POTYI_TERM_TEST_CLIENT=" + str(helper) + "\n")
+          PYTHON
+
+      - name: Run embedded terminal and document safety checks
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_RENDER_DRIVER: software
+        run: |
+          cargo +stable test --locked --target "$BUILD_TARGET" \
+            experimental_terminal -- --include-ignored --test-threads=1
+
+      - name: Record test provenance
+        if: always()
+        env:
+          NATIVE_PLATFORM: ${{ matrix.platform }}
+        run: |
+          "${{ matrix.python }}" - <<'PYTHON'
+          import hashlib, json, os, platform, subprocess
+          from pathlib import Path
+          files = sorted(set([*Path("src").rglob("*.rs"), *Path("vendor/vt100/src").rglob("*.rs"), Path("Cargo.toml"), Path("Cargo.lock"), Path("tools/qa/terminal-backend/Cargo.toml"), Path("tools/qa/terminal-backend/Cargo.lock")]))
+          digest = hashlib.sha256()
+          for path in files:
+              digest.update(path.as_posix().encode())
+              digest.update(b"\0")
+              digest.update(path.read_bytes())
+          def command(args):
+              return subprocess.check_output(args, text=True).strip()
+          report = {"schema_version": 1, "platform": os.environ["NATIVE_PLATFORM"], "target": os.environ["BUILD_TARGET"], "os": platform.platform(), "machine": platform.machine(), "rustc": command(["rustc", "+stable", "-vV"]), "commit": command(["git", "rev-parse", "HEAD"]), "source_sha256": digest.hexdigest(), "profile": "debug", "sdl_driver": "dummy", "shell": os.environ["SHELL"], "helper": os.environ.get("POTYI_TERM_TEST_CLIENT"), "limitations": ["No resource comparison or desktop GPU presentation measurement.", "A failed acceptance step remains a failed job; provenance is not a passing result."]}
+          Path("terminal-native-provenance.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(report, indent=2))
+          PYTHON
+
+      - name: Upload native test provenance
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: terminal-native-${{ matrix.platform }}
+          path: potyi native/terminal-native-provenance.json
+          if-no-files-found: warn

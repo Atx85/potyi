@@ -1,0 +1,3 @@
+$ git -c core.abbrev=7 log --oneline --max-count=2
+5fbf44f Change fixture note
+a6a8bb5 First fixture commit

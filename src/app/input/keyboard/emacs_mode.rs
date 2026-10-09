@@ -22,6 +22,7 @@ pub(super) fn handle(
         dirty,
         split_mode,
         active_pane,
+        vim_enabled,
         ..
     } = context;
     if editor.config.keybinding_mode == KeybindingMode::Emacs {
@@ -41,7 +42,7 @@ pub(super) fn handle(
                 search_ui.close();
                 renderer.update_cursor(&editor.document);
                 *dirty = true;
-                return Ok(Some(EventFlow::Continue));
+                return Ok(KeyFlow::Handled);
             }
             if searching && matches!(key, Keycode::Return | Keycode::KpEnter) {
                 emacs.search_origin = None;
@@ -51,7 +52,7 @@ pub(super) fn handle(
                     .move_cursor(editor.document.cursor.position)
                     .map_err(|e| e.to_string())?;
                 *dirty = true;
-                return Ok(Some(EventFlow::Continue));
+                return Ok(KeyFlow::Handled);
             }
             if searching && control && matches!(key, Keycode::S | Keycode::R) {
                 let result = if key == Keycode::R {
@@ -64,7 +65,7 @@ pub(super) fn handle(
                 }
                 renderer.ensure_cursor_visible(&mut editor.document);
                 *dirty = true;
-                return Ok(Some(EventFlow::Continue));
+                return Ok(KeyFlow::Handled);
             }
             if control
                 && matches!(
@@ -123,7 +124,7 @@ pub(super) fn handle(
                 }
                 renderer.ensure_cursor_visible(&mut editor.document);
                 *dirty = true;
-                return Ok(Some(EventFlow::Continue));
+                return Ok(KeyFlow::Handled);
             }
         } else {
             let handled = emacs.key(
@@ -138,7 +139,7 @@ pub(super) fn handle(
                     command_bar.open(":");
                     command_bar.show_info(&error);
                     *dirty = true;
-                    return Ok(Some(EventFlow::Continue));
+                    return Ok(KeyFlow::Handled);
                 }
                 Ok(action) if action.consumed => {
                     let mut outcome = CommandOutcome::default();
@@ -152,7 +153,7 @@ pub(super) fn handle(
                             emacs.search_origin = None;
                             search_ui.close();
                             command_bar.open(text);
-                            if text == ":quit" && (editor.dirty || other_editor.dirty) {
+                            if text == ":quit" && (editor.is_dirty() || other_editor.is_dirty()) {
                                 command_bar.show_info(
                                     "Save modified documents before quitting with Ctrl+X Ctrl+C.",
                                 );
@@ -205,7 +206,7 @@ pub(super) fn handle(
                             ));
                             search_ui.close();
                             renderer.invalidate_scroll_cache();
-                            renderer.set_file_path(editor.path.as_deref());
+                            renderer.set_file_path(editor.path().as_deref());
                         }
                         emacs::Ui::Help => {
                             command_bar.open(":");
@@ -225,40 +226,32 @@ pub(super) fn handle(
                             renderer.set_split_mode(false);
                         }
                     }
-                    if outcome.quit {
-                        return Ok(Some(EventFlow::Quit));
-                    }
-                    if outcome.close_pane {
-                        close_focused_pane(split_mode, active_pane, editor, other_editor,
-                            vim, other_vim, renderer, terminal);
-                    }
-                    if outcome.focus_other {
-                        focus_pane(
-                            1 - *active_pane,
-                            &mut *active_pane,
-                            &mut *editor,
-                            &mut *other_editor,
-                            &mut *vim,
-                            &mut *other_vim,
-                            &mut *renderer,
-                        );
-                    }
-                    if action.changed || outcome.document_changed || outcome.document_reloaded {
-                        renderer.invalidate_scroll_cache();
-                    }
-                    if outcome.path_changed {
-                        renderer.set_file_path(editor.path.as_deref());
-                    }
-                    renderer.set_mode_label(editor_mode_label(&*editor, &*vim));
-                    renderer.update_cursor(&editor.document);
-                    renderer.ensure_cursor_visible(&mut editor.document);
-                    *dirty = true;
-                    return Ok(Some(EventFlow::Continue));
+                    let flow = command_outcome::apply(
+                        CommandOutcomeContext {
+                            editor,
+                            other_editor,
+                            renderer,
+                            terminal,
+                            vim,
+                            other_vim,
+                            search_ui,
+                            command_bar,
+                            dirty,
+                            split_mode,
+                            active_pane,
+                            vim_enabled,
+                        },
+                        outcome,
+                        CommandSource::Emacs {
+                            document_changed: action.changed,
+                        },
+                    );
+                    return Ok(flow.into());
                 }
                 _ => (),
             }
         }
     }
 
-    Ok(None)
+    Ok(KeyFlow::Pass)
 }

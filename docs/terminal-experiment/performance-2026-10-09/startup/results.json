@@ -1,0 +1,3851 @@
+{
+  "schema_version": 1,
+  "started_utc": "2026-10-09T12:23:40.264421+00:00",
+  "collector_sha256": "7d1c0312554fd3e565b0068cc6639c228ed65d07af3eaed3cfb71864d0bc9577",
+  "config_sha256": "7e380919eec43934d63274433602882ad412eedc7e21bb7adf5e7dedf19828ab",
+  "repetitions": 10,
+  "warm_commands_per_process": 5,
+  "workload": {
+    "command_sha256": "d2cf41e066a59a3b0fcb76ae38a1d9caa319cb87a2d918f9681a6faa87ae48ce",
+    "command_source": "built-in small command",
+    "expected_line": "POTYI_STARTUP_DONE"
+  },
+  "variants": [
+    {
+      "label": "before",
+      "source_root": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "binary": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+      "helper": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+      "build_provenance": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/build-provenance.json",
+      "identity": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "build_manifest": {
+        "algorithm": "sha256-relative-path-nul-file-v1",
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "source_before_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "source_after_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_path": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_path": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "source_root": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+        "profile": "release",
+        "target": "x86_64-apple-darwin",
+        "command": [
+          "cargo test --offline --locked --release --no-run",
+          "cargo build --offline --locked --release"
+        ],
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611",
+        "compiled_binary_path": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented-bin/potyi-tests",
+        "compiled_helper_path": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented-bin/potyi",
+        "copy_method": "Fresh path, identical SHA256-verified bytes. Equivalent unused helper/test copies for both variants."
+      },
+      "architecture": {
+        "os": "macOS-15.8.1-arm64-arm-64bit-Mach-O",
+        "collector_machine": "arm64",
+        "binary_file": "Mach-O 64-bit executable x86_64",
+        "hardware_machine": "arm64",
+        "arm_hardware": true,
+        "collector_rosetta": false,
+        "test_execution": "x86_64 release binary under Rosetta on ARM hardware"
+      }
+    },
+    {
+      "label": "after",
+      "source_root": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "binary": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+      "helper": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+      "build_provenance": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/build-provenance.json",
+      "identity": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "build_manifest": {
+        "algorithm": "sha256-relative-path-nul-file-v1",
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "source_before_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "source_after_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_path": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_path": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "source_root": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+        "profile": "release",
+        "target": "x86_64-apple-darwin",
+        "command": [
+          "cargo test --offline --locked --release --no-run",
+          "cargo build --offline --locked --release"
+        ],
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611",
+        "compiled_binary_path": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized-bin/potyi-tests",
+        "compiled_helper_path": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized-bin/potyi",
+        "copy_method": "Fresh path, identical SHA256-verified bytes. Equivalent unused helper/test copies for both variants."
+      },
+      "architecture": {
+        "os": "macOS-15.8.1-arm64-arm-64bit-Mach-O",
+        "collector_machine": "arm64",
+        "binary_file": "Mach-O 64-bit executable x86_64",
+        "hardware_machine": "arm64",
+        "arm_hardware": true,
+        "collector_rosetta": false,
+        "test_execution": "x86_64 release binary under Rosetta on ARM hardware"
+      }
+    }
+  ],
+  "runs": [
+    {
+      "name": "01-before-old",
+      "variant": "before",
+      "kind": "old",
+      "repetition": 1,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 3.2122341670037713,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 11265,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 0.99175,
+        "viewport_settled": 4.480208,
+        "clear": 1.423542,
+        "first_command_submit": 1.112458,
+        "first_command": 19.345708,
+        "warm_command_01_submit": 0.743209,
+        "warm_command_01": 16.592792,
+        "warm_command_02_submit": 0.6849580000000001,
+        "warm_command_02": 16.527,
+        "warm_command_03_submit": 0.735875,
+        "warm_command_03": 16.582666999999997,
+        "warm_command_04_submit": 0.709709,
+        "warm_command_04": 19.768,
+        "warm_command_05_submit": 0.787458,
+        "warm_command_05": 19.094583,
+        "legacy_open_ready": 1.103333
+      },
+      "warm_commands_ms": [
+        16.592792,
+        16.527,
+        16.582666999999997,
+        19.768,
+        19.094583
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "01-before-new",
+      "variant": "before",
+      "kind": "new",
+      "repetition": 1,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 3.717456541984575,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11287,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 8.07725,
+        "viewport_settled": 43.597667,
+        "clear": 0.733708,
+        "first_command_submit": 1.378417,
+        "first_command": 2832.4853340000004,
+        "warm_command_01_submit": 2.288709,
+        "warm_command_01": 173.940167,
+        "warm_command_02_submit": 0.873583,
+        "warm_command_02": 198.986,
+        "warm_command_03_submit": 0.905,
+        "warm_command_03": 135.42725,
+        "warm_command_04_submit": 1.956583,
+        "warm_command_04": 146.505208,
+        "warm_command_05_submit": 1.074958,
+        "warm_command_05": 142.363291,
+        "session_ready": 42.545167
+      },
+      "warm_commands_ms": [
+        173.940167,
+        198.986,
+        135.42725,
+        146.505208,
+        142.363291
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "01-after-old",
+      "variant": "after",
+      "kind": "old",
+      "repetition": 1,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 3.261537916987436,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 11351,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 0.9325,
+        "viewport_settled": 4.6719170000000005,
+        "clear": 1.11875,
+        "first_command_submit": 1.282208,
+        "first_command": 19.797791,
+        "warm_command_01_submit": 0.8400000000000001,
+        "warm_command_01": 17.986917000000002,
+        "warm_command_02_submit": 0.750125,
+        "warm_command_02": 16.13075,
+        "warm_command_03_submit": 0.715875,
+        "warm_command_03": 16.561208,
+        "warm_command_04_submit": 0.713708,
+        "warm_command_04": 15.041250000000002,
+        "warm_command_05_submit": 0.651375,
+        "warm_command_05": 15.963375,
+        "legacy_open_ready": 1.046917
+      },
+      "warm_commands_ms": [
+        17.986917000000002,
+        16.13075,
+        16.561208,
+        15.041250000000002,
+        15.963375
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "01-after-new",
+      "variant": "after",
+      "kind": "new",
+      "repetition": 1,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 3.3986781669955235,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11369,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 8.647541,
+        "viewport_settled": 44.040791000000006,
+        "clear": 0.64225,
+        "first_command_submit": 1.3159580000000002,
+        "first_command": 2636.158875,
+        "warm_command_01_submit": 1.5330000000000001,
+        "warm_command_01": 133.547417,
+        "warm_command_02_submit": 2.855458,
+        "warm_command_02": 132.055542,
+        "warm_command_03_submit": 5.648375,
+        "warm_command_03": 138.98729200000002,
+        "warm_command_04_submit": 1.481375,
+        "warm_command_04": 143.185958,
+        "warm_command_05_submit": 0.986167,
+        "warm_command_05": 126.79470900000001,
+        "session_ready": 43.018792
+      },
+      "warm_commands_ms": [
+        133.547417,
+        132.055542,
+        138.98729200000002,
+        143.185958,
+        126.79470900000001
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "02-after-new",
+      "variant": "after",
+      "kind": "new",
+      "repetition": 2,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9156810409913305,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11428,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 8.428333,
+        "viewport_settled": 43.474958,
+        "clear": 0.58175,
+        "first_command_submit": 1.2825,
+        "first_command": 143.866125,
+        "warm_command_01_submit": 0.922292,
+        "warm_command_01": 120.857,
+        "warm_command_02_submit": 0.879792,
+        "warm_command_02": 130.461167,
+        "warm_command_03_submit": 1.866208,
+        "warm_command_03": 151.142708,
+        "warm_command_04_submit": 1.054334,
+        "warm_command_04": 144.678042,
+        "warm_command_05_submit": 1.2835830000000001,
+        "warm_command_05": 135.211416,
+        "session_ready": 42.479541
+      },
+      "warm_commands_ms": [
+        120.857,
+        130.461167,
+        151.142708,
+        144.678042,
+        135.211416
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "02-after-old",
+      "variant": "after",
+      "kind": "old",
+      "repetition": 2,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.1618072090204805,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 11484,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 2.9878750000000003,
+        "viewport_settled": 6.927417,
+        "clear": 1.1737920000000002,
+        "first_command_submit": 1.095583,
+        "first_command": 20.698625,
+        "warm_command_01_submit": 0.752375,
+        "warm_command_01": 16.675667,
+        "warm_command_02_submit": 0.731083,
+        "warm_command_02": 16.476541,
+        "warm_command_03_submit": 0.6533329999999999,
+        "warm_command_03": 20.455583,
+        "warm_command_04_submit": 0.9115,
+        "warm_command_04": 20.874333,
+        "warm_command_05_submit": 0.9720840000000001,
+        "warm_command_05": 18.408542,
+        "legacy_open_ready": 3.1384590000000006
+      },
+      "warm_commands_ms": [
+        16.675667,
+        16.476541,
+        20.455583,
+        20.874333,
+        18.408542
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "02-before-new",
+      "variant": "before",
+      "kind": "new",
+      "repetition": 2,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9282869579910766,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11491,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 10.181958,
+        "viewport_settled": 45.672375,
+        "clear": 0.6451669999999999,
+        "first_command_submit": 1.6232090000000001,
+        "first_command": 142.073125,
+        "warm_command_01_submit": 1.586625,
+        "warm_command_01": 128.751042,
+        "warm_command_02_submit": 3.823,
+        "warm_command_02": 138.890375,
+        "warm_command_03_submit": 1.591917,
+        "warm_command_03": 145.74920899999998,
+        "warm_command_04_submit": 4.409041,
+        "warm_command_04": 148.936125,
+        "warm_command_05_submit": 0.9828330000000001,
+        "warm_command_05": 128.19816600000001,
+        "session_ready": 44.689958
+      },
+      "warm_commands_ms": [
+        128.751042,
+        138.890375,
+        145.74920899999998,
+        148.936125,
+        128.19816600000001
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "02-before-old",
+      "variant": "before",
+      "kind": "old",
+      "repetition": 2,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.14081783400615677,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 11541,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 1.0947500000000001,
+        "viewport_settled": 4.5015,
+        "clear": 1.038209,
+        "first_command_submit": 0.9954160000000001,
+        "first_command": 18.898374999999998,
+        "warm_command_01_submit": 0.651333,
+        "warm_command_01": 16.463416000000002,
+        "warm_command_02_submit": 0.7372080000000001,
+        "warm_command_02": 14.965042,
+        "warm_command_03_submit": 0.677042,
+        "warm_command_03": 14.935749999999999,
+        "warm_command_04_submit": 0.6283340000000001,
+        "warm_command_04": 16.154667,
+        "warm_command_05_submit": 0.654375,
+        "warm_command_05": 16.523375,
+        "legacy_open_ready": 1.193458
+      },
+      "warm_commands_ms": [
+        16.463416000000002,
+        14.965042,
+        14.935749999999999,
+        16.154667,
+        16.523375
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "03-before-old",
+      "variant": "before",
+      "kind": "old",
+      "repetition": 3,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.15353833400877193,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 11548,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 4.465625,
+        "viewport_settled": 8.14025,
+        "clear": 2.2085,
+        "first_command_submit": 1.252542,
+        "first_command": 18.164125,
+        "warm_command_01_submit": 0.814292,
+        "warm_command_01": 16.638875000000002,
+        "warm_command_02_submit": 0.908625,
+        "warm_command_02": 18.295542,
+        "warm_command_03_submit": 0.783125,
+        "warm_command_03": 17.523207999999997,
+        "warm_command_04_submit": 0.674917,
+        "warm_command_04": 16.546208,
+        "warm_command_05_submit": 0.665709,
+        "warm_command_05": 17.608167,
+        "legacy_open_ready": 4.573041999999999
+      },
+      "warm_commands_ms": [
+        16.638875000000002,
+        18.295542,
+        17.523207999999997,
+        16.546208,
+        17.608167
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "03-before-new",
+      "variant": "before",
+      "kind": "new",
+      "repetition": 3,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 1.189577459008433,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11555,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 7.18525,
+        "viewport_settled": 41.449042,
+        "clear": 0.730166,
+        "first_command_submit": 1.272,
+        "first_command": 375.006416,
+        "warm_command_01_submit": 0.8185,
+        "warm_command_01": 148.07075,
+        "warm_command_02_submit": 2.902,
+        "warm_command_02": 159.277625,
+        "warm_command_03_submit": 1.5342909999999998,
+        "warm_command_03": 157.187375,
+        "warm_command_04_submit": 0.904083,
+        "warm_command_04": 126.048291,
+        "warm_command_05_submit": 0.929667,
+        "warm_command_05": 132.84412500000002,
+        "session_ready": 40.412625
+      },
+      "warm_commands_ms": [
+        148.07075,
+        159.277625,
+        157.187375,
+        126.048291,
+        132.84412500000002
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "03-after-old",
+      "variant": "after",
+      "kind": "old",
+      "repetition": 3,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.1593083750049118,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 11610,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 1.016084,
+        "viewport_settled": 5.341125000000001,
+        "clear": 1.069792,
+        "first_command_submit": 1.1673339999999999,
+        "first_command": 19.264792,
+        "warm_command_01_submit": 0.806666,
+        "warm_command_01": 16.679790999999998,
+        "warm_command_02_submit": 0.71275,
+        "warm_command_02": 16.492417,
+        "warm_command_03_submit": 0.7494999999999999,
+        "warm_command_03": 17.915792,
+        "warm_command_04_submit": 0.7476670000000001,
+        "warm_command_04": 17.670667,
+        "warm_command_05_submit": 0.8581669999999999,
+        "warm_command_05": 16.825458,
+        "legacy_open_ready": 1.138292
+      },
+      "warm_commands_ms": [
+        16.679790999999998,
+        16.492417,
+        17.915792,
+        17.670667,
+        16.825458
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "03-after-new",
+      "variant": "after",
+      "kind": "new",
+      "repetition": 3,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9071234159928281,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11617,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 9.103125,
+        "viewport_settled": 44.453709,
+        "clear": 0.673584,
+        "first_command_submit": 1.335708,
+        "first_command": 140.91737500000002,
+        "warm_command_01_submit": 1.198375,
+        "warm_command_01": 133.510042,
+        "warm_command_02_submit": 1.060125,
+        "warm_command_02": 142.164791,
+        "warm_command_03_submit": 0.9801250000000001,
+        "warm_command_03": 137.082167,
+        "warm_command_04_submit": 1.715834,
+        "warm_command_04": 133.833584,
+        "warm_command_05_submit": 1.9598329999999997,
+        "warm_command_05": 130.84320799999998,
+        "session_ready": 43.43025
+      },
+      "warm_commands_ms": [
+        133.510042,
+        142.164791,
+        137.082167,
+        133.833584,
+        130.84320799999998
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "04-after-new",
+      "variant": "after",
+      "kind": "new",
+      "repetition": 4,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9381131670088507,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11673,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 12.402833000000001,
+        "viewport_settled": 52.39125,
+        "clear": 0.678334,
+        "first_command_submit": 1.306333,
+        "first_command": 140.83975,
+        "warm_command_01_submit": 1.6357089999999999,
+        "warm_command_01": 140.94558400000003,
+        "warm_command_02_submit": 2.1651249999999997,
+        "warm_command_02": 144.361667,
+        "warm_command_03_submit": 1.094792,
+        "warm_command_03": 135.904792,
+        "warm_command_04_submit": 1.036709,
+        "warm_command_04": 129.294792,
+        "warm_command_05_submit": 1.270292,
+        "warm_command_05": 134.761958,
+        "session_ready": 51.367542
+      },
+      "warm_commands_ms": [
+        140.94558400000003,
+        144.361667,
+        135.904792,
+        129.294792,
+        134.761958
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "04-after-old",
+      "variant": "after",
+      "kind": "old",
+      "repetition": 4,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.1439785840047989,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 11724,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 0.956375,
+        "viewport_settled": 4.621959,
+        "clear": 0.817542,
+        "first_command_submit": 1.075875,
+        "first_command": 17.774541000000003,
+        "warm_command_01_submit": 0.736792,
+        "warm_command_01": 16.638541999999998,
+        "warm_command_02_submit": 0.6937920000000001,
+        "warm_command_02": 17.651709,
+        "warm_command_03_submit": 0.676625,
+        "warm_command_03": 14.966833000000001,
+        "warm_command_04_submit": 0.698625,
+        "warm_command_04": 16.584000000000003,
+        "warm_command_05_submit": 0.7827500000000001,
+        "warm_command_05": 16.625416,
+        "legacy_open_ready": 1.056125
+      },
+      "warm_commands_ms": [
+        16.638541999999998,
+        17.651709,
+        14.966833000000001,
+        16.584000000000003,
+        16.625416
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "04-before-new",
+      "variant": "before",
+      "kind": "new",
+      "repetition": 4,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 1.0852856250130571,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11736,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 8.059791,
+        "viewport_settled": 42.093625,
+        "clear": 0.761208,
+        "first_command_submit": 1.239875,
+        "first_command": 306.491334,
+        "warm_command_01_submit": 1.191292,
+        "warm_command_01": 146.13762499999999,
+        "warm_command_02_submit": 1.30825,
+        "warm_command_02": 130.1205,
+        "warm_command_03_submit": 1.0232080000000001,
+        "warm_command_03": 130.755208,
+        "warm_command_04_submit": 0.9413750000000001,
+        "warm_command_04": 138.496084,
+        "warm_command_05_submit": 1.5548330000000001,
+        "warm_command_05": 144.046292,
+        "session_ready": 41.032875
+      },
+      "warm_commands_ms": [
+        146.13762499999999,
+        130.1205,
+        130.755208,
+        138.496084,
+        144.046292
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "04-before-old",
+      "variant": "before",
+      "kind": "old",
+      "repetition": 4,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.15772449999349192,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 11781,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 0.918542,
+        "viewport_settled": 4.6390839999999995,
+        "clear": 1.15825,
+        "first_command_submit": 1.158,
+        "first_command": 18.038999999999998,
+        "warm_command_01_submit": 0.722708,
+        "warm_command_01": 20.201792,
+        "warm_command_02_submit": 0.684334,
+        "warm_command_02": 17.89625,
+        "warm_command_03_submit": 0.803458,
+        "warm_command_03": 17.911541,
+        "warm_command_04_submit": 0.798,
+        "warm_command_04": 19.079917,
+        "warm_command_05_submit": 0.720375,
+        "warm_command_05": 19.006583,
+        "legacy_open_ready": 1.030417
+      },
+      "warm_commands_ms": [
+        20.201792,
+        17.89625,
+        17.911541,
+        19.079917,
+        19.006583
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "05-before-old",
+      "variant": "before",
+      "kind": "old",
+      "repetition": 5,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.14466625000932254,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 11788,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 0.842166,
+        "viewport_settled": 4.572083,
+        "clear": 0.803083,
+        "first_command_submit": 1.0805,
+        "first_command": 19.486333000000002,
+        "warm_command_01_submit": 0.7066250000000001,
+        "warm_command_01": 16.495209,
+        "warm_command_02_submit": 0.695,
+        "warm_command_02": 16.226333,
+        "warm_command_03_submit": 0.727584,
+        "warm_command_03": 16.569292,
+        "warm_command_04_submit": 0.662125,
+        "warm_command_04": 14.983500000000001,
+        "warm_command_05_submit": 0.617209,
+        "warm_command_05": 17.801209,
+        "legacy_open_ready": 0.9516249999999998
+      },
+      "warm_commands_ms": [
+        16.495209,
+        16.226333,
+        16.569292,
+        14.983500000000001,
+        17.801209
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "05-before-new",
+      "variant": "before",
+      "kind": "new",
+      "repetition": 5,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9656131670053583,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11800,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 7.973375,
+        "viewport_settled": 43.276125,
+        "clear": 0.668167,
+        "first_command_submit": 1.282708,
+        "first_command": 134.3045,
+        "warm_command_01_submit": 1.364125,
+        "warm_command_01": 170.395875,
+        "warm_command_02_submit": 1.640125,
+        "warm_command_02": 145.238916,
+        "warm_command_03_submit": 0.938458,
+        "warm_command_03": 143.12758300000002,
+        "warm_command_04_submit": 1.5842910000000001,
+        "warm_command_04": 140.54274999999998,
+        "warm_command_05_submit": 1.040292,
+        "warm_command_05": 145.955334,
+        "session_ready": 42.182209
+      },
+      "warm_commands_ms": [
+        170.395875,
+        145.238916,
+        143.12758300000002,
+        140.54274999999998,
+        145.955334
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "05-after-old",
+      "variant": "after",
+      "kind": "old",
+      "repetition": 5,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.15092250000452623,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 11845,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 0.869125,
+        "viewport_settled": 4.566625,
+        "clear": 0.930916,
+        "first_command_submit": 1.052958,
+        "first_command": 19.490208,
+        "warm_command_01_submit": 0.6361669999999999,
+        "warm_command_01": 16.428,
+        "warm_command_02_submit": 0.6451669999999999,
+        "warm_command_02": 16.170458,
+        "warm_command_03_submit": 0.6701250000000001,
+        "warm_command_03": 18.925666,
+        "warm_command_04_submit": 0.743709,
+        "warm_command_04": 17.666042,
+        "warm_command_05_submit": 0.8686670000000001,
+        "warm_command_05": 18.130084,
+        "legacy_open_ready": 0.9664590000000001
+      },
+      "warm_commands_ms": [
+        16.428,
+        16.170458,
+        18.925666,
+        17.666042,
+        18.130084
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "05-after-new",
+      "variant": "after",
+      "kind": "new",
+      "repetition": 5,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9338290420128033,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11852,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 8.627834,
+        "viewport_settled": 44.883417,
+        "clear": 0.683375,
+        "first_command_submit": 1.2026249999999998,
+        "first_command": 131.514916,
+        "warm_command_01_submit": 1.657709,
+        "warm_command_01": 159.024125,
+        "warm_command_02_submit": 0.9219579999999999,
+        "warm_command_02": 129.370833,
+        "warm_command_03_submit": 0.9997910000000001,
+        "warm_command_03": 130.995666,
+        "warm_command_04_submit": 1.182875,
+        "warm_command_04": 155.970541,
+        "warm_command_05_submit": 5.41275,
+        "warm_command_05": 139.078042,
+        "session_ready": 43.983833
+      },
+      "warm_commands_ms": [
+        159.024125,
+        129.370833,
+        130.995666,
+        155.970541,
+        139.078042
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "06-after-new",
+      "variant": "after",
+      "kind": "new",
+      "repetition": 6,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9331438750086818,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11908,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 7.513167,
+        "viewport_settled": 52.203582999999995,
+        "clear": 0.569708,
+        "first_command_submit": 1.336375,
+        "first_command": 144.238209,
+        "warm_command_01_submit": 1.1012909999999998,
+        "warm_command_01": 131.959208,
+        "warm_command_02_submit": 1.2247919999999999,
+        "warm_command_02": 129.609917,
+        "warm_command_03_submit": 1.170375,
+        "warm_command_03": 134.985375,
+        "warm_command_04_submit": 1.982167,
+        "warm_command_04": 153.227958,
+        "warm_command_05_submit": 1.237875,
+        "warm_command_05": 128.62591700000002,
+        "session_ready": 51.281084
+      },
+      "warm_commands_ms": [
+        131.959208,
+        129.609917,
+        134.985375,
+        153.227958,
+        128.62591700000002
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "06-after-old",
+      "variant": "after",
+      "kind": "old",
+      "repetition": 6,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.18254666699795052,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 11959,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 0.9339580000000001,
+        "viewport_settled": 4.683458,
+        "clear": 1.340541,
+        "first_command_submit": 1.3255000000000001,
+        "first_command": 23.290083,
+        "warm_command_01_submit": 0.885,
+        "warm_command_01": 18.159625,
+        "warm_command_02_submit": 0.8315,
+        "warm_command_02": 18.049958,
+        "warm_command_03_submit": 0.821417,
+        "warm_command_03": 18.12325,
+        "warm_command_04_submit": 0.943917,
+        "warm_command_04": 18.445166999999998,
+        "warm_command_05_submit": 0.923042,
+        "warm_command_05": 20.968417,
+        "legacy_open_ready": 1.0440420000000001
+      },
+      "warm_commands_ms": [
+        18.159625,
+        18.049958,
+        18.12325,
+        18.445166999999998,
+        20.968417
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "06-before-new",
+      "variant": "before",
+      "kind": "new",
+      "repetition": 6,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9299167080025654,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 11973,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 8.59225,
+        "viewport_settled": 44.205124999999995,
+        "clear": 0.819458,
+        "first_command_submit": 1.217292,
+        "first_command": 141.89625,
+        "warm_command_01_submit": 1.154166,
+        "warm_command_01": 137.26970799999998,
+        "warm_command_02_submit": 2.798042,
+        "warm_command_02": 141.867,
+        "warm_command_03_submit": 2.0543340000000003,
+        "warm_command_03": 151.178542,
+        "warm_command_04_submit": 1.8696249999999999,
+        "warm_command_04": 141.869667,
+        "warm_command_05_submit": 1.0865,
+        "warm_command_05": 125.954917,
+        "session_ready": 43.064750000000004
+      },
+      "warm_commands_ms": [
+        137.26970799999998,
+        141.867,
+        151.178542,
+        141.869667,
+        125.954917
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "06-before-old",
+      "variant": "before",
+      "kind": "old",
+      "repetition": 6,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.14491254201857373,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 12018,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 2.1645000000000003,
+        "viewport_settled": 5.678,
+        "clear": 1.925167,
+        "first_command_submit": 1.2171669999999999,
+        "first_command": 17.897834000000003,
+        "warm_command_01_submit": 0.704625,
+        "warm_command_01": 16.560708,
+        "warm_command_02_submit": 0.639833,
+        "warm_command_02": 16.182375,
+        "warm_command_03_submit": 0.667667,
+        "warm_command_03": 14.969042,
+        "warm_command_04_submit": 0.674542,
+        "warm_command_04": 17.649834,
+        "warm_command_05_submit": 0.6735000000000001,
+        "warm_command_05": 16.107,
+        "legacy_open_ready": 2.2696669999999997
+      },
+      "warm_commands_ms": [
+        16.560708,
+        16.182375,
+        14.969042,
+        17.649834,
+        16.107
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "07-before-old",
+      "variant": "before",
+      "kind": "old",
+      "repetition": 7,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.17290412497823127,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 12025,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 1.0885829999999999,
+        "viewport_settled": 5.1246670000000005,
+        "clear": 2.332375,
+        "first_command_submit": 1.15825,
+        "first_command": 17.966708,
+        "warm_command_01_submit": 0.931666,
+        "warm_command_01": 18.150583,
+        "warm_command_02_submit": 0.856584,
+        "warm_command_02": 16.7545,
+        "warm_command_03_submit": 0.88075,
+        "warm_command_03": 29.485457999999998,
+        "warm_command_04_submit": 0.7315,
+        "warm_command_04": 26.782207999999997,
+        "warm_command_05_submit": 0.754875,
+        "warm_command_05": 16.718291999999998,
+        "legacy_open_ready": 1.195791
+      },
+      "warm_commands_ms": [
+        18.150583,
+        16.7545,
+        29.485457999999998,
+        26.782207999999997,
+        16.718291999999998
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "07-before-new",
+      "variant": "before",
+      "kind": "new",
+      "repetition": 7,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9285858749935869,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 12037,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 7.886417,
+        "viewport_settled": 42.043,
+        "clear": 0.6152920000000001,
+        "first_command_submit": 1.172958,
+        "first_command": 140.121375,
+        "warm_command_01_submit": 1.288667,
+        "warm_command_01": 139.710334,
+        "warm_command_02_submit": 1.2883339999999999,
+        "warm_command_02": 133.59970900000002,
+        "warm_command_03_submit": 1.1154579999999998,
+        "warm_command_03": 138.30625,
+        "warm_command_04_submit": 2.0225,
+        "warm_command_04": 148.402583,
+        "warm_command_05_submit": 1.295167,
+        "warm_command_05": 141.401917,
+        "session_ready": 40.973041
+      },
+      "warm_commands_ms": [
+        139.710334,
+        133.59970900000002,
+        138.30625,
+        148.402583,
+        141.401917
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "07-after-old",
+      "variant": "after",
+      "kind": "old",
+      "repetition": 7,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.15557804197305813,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 12082,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 2.467875,
+        "viewport_settled": 6.276458000000001,
+        "clear": 2.973375,
+        "first_command_submit": 1.124166,
+        "first_command": 19.139416,
+        "warm_command_01_submit": 0.828,
+        "warm_command_01": 17.904957999999997,
+        "warm_command_02_submit": 0.729542,
+        "warm_command_02": 16.557292,
+        "warm_command_03_submit": 0.667625,
+        "warm_command_03": 20.222792,
+        "warm_command_04_submit": 0.737834,
+        "warm_command_04": 16.604417,
+        "warm_command_05_submit": 0.635791,
+        "warm_command_05": 16.159208,
+        "legacy_open_ready": 2.563875
+      },
+      "warm_commands_ms": [
+        17.904957999999997,
+        16.557292,
+        20.222792,
+        16.604417,
+        16.159208
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "07-after-new",
+      "variant": "after",
+      "kind": "new",
+      "repetition": 7,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9263226670154836,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 12089,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 10.091417,
+        "viewport_settled": 44.130750000000006,
+        "clear": 0.7126250000000001,
+        "first_command_submit": 1.3573330000000001,
+        "first_command": 143.286708,
+        "warm_command_01_submit": 7.304583,
+        "warm_command_01": 149.277625,
+        "warm_command_02_submit": 0.865334,
+        "warm_command_02": 128.335667,
+        "warm_command_03_submit": 1.908334,
+        "warm_command_03": 144.649584,
+        "warm_command_04_submit": 1.19275,
+        "warm_command_04": 139.886666,
+        "warm_command_05_submit": 1.38475,
+        "warm_command_05": 130.89425,
+        "session_ready": 43.112708000000005
+      },
+      "warm_commands_ms": [
+        149.277625,
+        128.335667,
+        144.649584,
+        139.886666,
+        130.89425
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "08-after-new",
+      "variant": "after",
+      "kind": "new",
+      "repetition": 8,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.8963619580026716,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 12145,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 8.400291000000001,
+        "viewport_settled": 43.916916,
+        "clear": 0.571875,
+        "first_command_submit": 1.359334,
+        "first_command": 138.17399999999998,
+        "warm_command_01_submit": 0.996167,
+        "warm_command_01": 129.01195900000002,
+        "warm_command_02_submit": 1.275709,
+        "warm_command_02": 141.49775,
+        "warm_command_03_submit": 1.193584,
+        "warm_command_03": 138.112709,
+        "warm_command_04_submit": 3.627916,
+        "warm_command_04": 128.45333300000001,
+        "warm_command_05_submit": 1.112834,
+        "warm_command_05": 130.954709,
+        "session_ready": 42.920667
+      },
+      "warm_commands_ms": [
+        129.01195900000002,
+        141.49775,
+        138.112709,
+        128.45333300000001,
+        130.954709
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "08-after-old",
+      "variant": "after",
+      "kind": "old",
+      "repetition": 8,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.14108462497824803,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 12200,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 0.942208,
+        "viewport_settled": 4.485791,
+        "clear": 0.913459,
+        "first_command_submit": 1.1042910000000001,
+        "first_command": 17.869333,
+        "warm_command_01_submit": 0.737,
+        "warm_command_01": 16.028208,
+        "warm_command_02_submit": 0.696958,
+        "warm_command_02": 15.049833,
+        "warm_command_03_submit": 0.635583,
+        "warm_command_03": 15.966583,
+        "warm_command_04_submit": 0.66425,
+        "warm_command_04": 14.940833000000001,
+        "warm_command_05_submit": 0.6549159999999999,
+        "warm_command_05": 14.747665999999999,
+        "legacy_open_ready": 1.058667
+      },
+      "warm_commands_ms": [
+        16.028208,
+        15.049833,
+        15.966583,
+        14.940833000000001,
+        14.747665999999999
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "08-before-new",
+      "variant": "before",
+      "kind": "new",
+      "repetition": 8,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 1.010346875002142,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 12208,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 8.123334,
+        "viewport_settled": 141.665334,
+        "clear": 0.726375,
+        "first_command_submit": 1.368833,
+        "first_command": 134.042625,
+        "warm_command_01_submit": 1.413042,
+        "warm_command_01": 142.209458,
+        "warm_command_02_submit": 1.521875,
+        "warm_command_02": 146.92545900000002,
+        "warm_command_03_submit": 2.2474589999999997,
+        "warm_command_03": 131.273,
+        "warm_command_04_submit": 3.8943749999999997,
+        "warm_command_04": 133.430708,
+        "warm_command_05_submit": 2.828,
+        "warm_command_05": 137.157917,
+        "session_ready": 140.452375
+      },
+      "warm_commands_ms": [
+        142.209458,
+        146.92545900000002,
+        131.273,
+        133.430708,
+        137.157917
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "08-before-old",
+      "variant": "before",
+      "kind": "old",
+      "repetition": 8,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.14985774998785928,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 12253,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 0.94775,
+        "viewport_settled": 4.501708,
+        "clear": 2.850334,
+        "first_command_submit": 1.008208,
+        "first_command": 24.951332999999998,
+        "warm_command_01_submit": 0.745792,
+        "warm_command_01": 16.528208999999997,
+        "warm_command_02_submit": 0.689625,
+        "warm_command_02": 16.565584,
+        "warm_command_03_submit": 0.667375,
+        "warm_command_03": 14.982917,
+        "warm_command_04_submit": 0.664667,
+        "warm_command_04": 14.882,
+        "warm_command_05_submit": 0.6447080000000001,
+        "warm_command_05": 16.657583,
+        "legacy_open_ready": 1.0519999999999998
+      },
+      "warm_commands_ms": [
+        16.528208999999997,
+        16.565584,
+        14.982917,
+        14.882,
+        16.657583
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "09-before-old",
+      "variant": "before",
+      "kind": "old",
+      "repetition": 9,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.17028333302005194,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 12260,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 4.692333,
+        "viewport_settled": 8.431416,
+        "clear": 1.072083,
+        "first_command_submit": 1.151292,
+        "first_command": 17.803542,
+        "warm_command_01_submit": 0.638125,
+        "warm_command_01": 16.566208,
+        "warm_command_02_submit": 0.748542,
+        "warm_command_02": 34.608292,
+        "warm_command_03_submit": 1.882625,
+        "warm_command_03": 19.256833,
+        "warm_command_04_submit": 0.828375,
+        "warm_command_04": 18.107499999999998,
+        "warm_command_05_submit": 0.7757499999999999,
+        "warm_command_05": 16.69425,
+        "legacy_open_ready": 4.8075410000000005
+      },
+      "warm_commands_ms": [
+        16.566208,
+        34.608292,
+        19.256833,
+        18.107499999999998,
+        16.69425
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "09-before-new",
+      "variant": "before",
+      "kind": "new",
+      "repetition": 9,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9284727920021396,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 12272,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 7.791666,
+        "viewport_settled": 44.469625,
+        "clear": 0.636834,
+        "first_command_submit": 1.309834,
+        "first_command": 136.736125,
+        "warm_command_01_submit": 1.163875,
+        "warm_command_01": 138.05545899999998,
+        "warm_command_02_submit": 1.789625,
+        "warm_command_02": 150.880792,
+        "warm_command_03_submit": 1.488083,
+        "warm_command_03": 144.17445800000002,
+        "warm_command_04_submit": 1.419958,
+        "warm_command_04": 140.09474999999998,
+        "warm_command_05_submit": 1.145458,
+        "warm_command_05": 130.71670799999998,
+        "session_ready": 43.464875
+      },
+      "warm_commands_ms": [
+        138.05545899999998,
+        150.880792,
+        144.17445800000002,
+        140.09474999999998,
+        130.71670799999998
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "09-after-old",
+      "variant": "after",
+      "kind": "old",
+      "repetition": 9,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.1445517920074053,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 12317,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 0.858792,
+        "viewport_settled": 4.3735420000000005,
+        "clear": 0.744667,
+        "first_command_submit": 1.14575,
+        "first_command": 18.021959,
+        "warm_command_01_submit": 0.809708,
+        "warm_command_01": 16.691291,
+        "warm_command_02_submit": 0.6858329999999999,
+        "warm_command_02": 14.952958,
+        "warm_command_03_submit": 0.6611250000000001,
+        "warm_command_03": 16.551707999999998,
+        "warm_command_04_submit": 0.681625,
+        "warm_command_04": 16.097,
+        "warm_command_05_submit": 0.685125,
+        "warm_command_05": 15.012041,
+        "legacy_open_ready": 0.96275
+      },
+      "warm_commands_ms": [
+        16.691291,
+        14.952958,
+        16.551707999999998,
+        16.097,
+        15.012041
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "09-after-new",
+      "variant": "after",
+      "kind": "new",
+      "repetition": 9,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9838066250085831,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 12324,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 7.517167,
+        "viewport_settled": 41.825083,
+        "clear": 0.603291,
+        "first_command_submit": 1.446666,
+        "first_command": 237.832791,
+        "warm_command_01_submit": 0.966792,
+        "warm_command_01": 125.23825,
+        "warm_command_02_submit": 0.9695,
+        "warm_command_02": 141.52895800000002,
+        "warm_command_03_submit": 1.733541,
+        "warm_command_03": 135.547958,
+        "warm_command_04_submit": 1.363583,
+        "warm_command_04": 126.45724999999999,
+        "warm_command_05_submit": 1.129084,
+        "warm_command_05": 127.278084,
+        "session_ready": 40.778791000000005
+      },
+      "warm_commands_ms": [
+        125.23825,
+        141.52895800000002,
+        135.547958,
+        126.45724999999999,
+        127.278084
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "10-after-new",
+      "variant": "after",
+      "kind": "new",
+      "repetition": 10,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.9170105000084732,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 12380,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 7.542958,
+        "viewport_settled": 44.915416,
+        "clear": 0.590375,
+        "first_command_submit": 1.166833,
+        "first_command": 128.20775,
+        "warm_command_01_submit": 1.3483340000000001,
+        "warm_command_01": 158.646084,
+        "warm_command_02_submit": 1.289959,
+        "warm_command_02": 133.806,
+        "warm_command_03_submit": 1.3583749999999999,
+        "warm_command_03": 128.788292,
+        "warm_command_04_submit": 1.099792,
+        "warm_command_04": 126.58383300000001,
+        "warm_command_05_submit": 1.6601249999999999,
+        "warm_command_05": 147.72708400000002,
+        "session_ready": 43.910583
+      },
+      "warm_commands_ms": [
+        158.646084,
+        133.806,
+        128.788292,
+        126.58383300000001,
+        147.72708400000002
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "10-after-old",
+      "variant": "after",
+      "kind": "old",
+      "repetition": 10,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "d6f0a4f7f68dfcf5cdc77a4c84c1bb9b9252b4dcf5625663ef2efdb6f4b66d44",
+        "binary_sha256": "059c6020e42df7087ab356084406c38f0d9da7457183045f4d8da18f7383b931",
+        "helper_sha256": "31c82e81e4c36bd5e6b6bbf87e5896f2be7b4762521b867398d3e1f5c66457cb",
+        "build_provenance_sha256": "c9de9c9381b00bffc1b337c6694e4eea0ae884fdd28148493a56ec9eb5a790e6",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.17141254100715742,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 12441,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 0.949375,
+        "viewport_settled": 4.435042,
+        "clear": 0.855541,
+        "first_command_submit": 1.074667,
+        "first_command": 18.077292,
+        "warm_command_01_submit": 0.7389169999999999,
+        "warm_command_01": 16.589209,
+        "warm_command_02_submit": 0.7967920000000001,
+        "warm_command_02": 16.789084,
+        "warm_command_03_submit": 0.823291,
+        "warm_command_03": 20.714083000000002,
+        "warm_command_04_submit": 0.7933330000000001,
+        "warm_command_04": 18.081583,
+        "warm_command_05_submit": 0.70525,
+        "warm_command_05": 34.437709,
+        "legacy_open_ready": 1.0621669999999999
+      },
+      "warm_commands_ms": [
+        16.589209,
+        16.789084,
+        20.714083000000002,
+        18.081583,
+        34.437709
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "10-before-new",
+      "variant": "before",
+      "kind": "new",
+      "repetition": 10,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 1.0085055840027053,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "new",
+        "pid": 12448,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 7.709458,
+        "viewport_settled": 42.779708,
+        "clear": 0.7238330000000001,
+        "first_command_submit": 1.3432089999999999,
+        "first_command": 209.005167,
+        "warm_command_01_submit": 1.2087910000000002,
+        "warm_command_01": 152.548875,
+        "warm_command_02_submit": 2.695791,
+        "warm_command_02": 143.39675,
+        "warm_command_03_submit": 1.1919170000000001,
+        "warm_command_03": 125.90837499999999,
+        "warm_command_04_submit": 1.260958,
+        "warm_command_04": 149.705542,
+        "warm_command_05_submit": 1.4519579999999999,
+        "warm_command_05": 141.394291,
+        "session_ready": 41.833334
+      },
+      "warm_commands_ms": [
+        152.548875,
+        143.39675,
+        125.90837499999999,
+        149.705542,
+        141.394291
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "new",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    },
+    {
+      "name": "10-before-old",
+      "variant": "before",
+      "kind": "old",
+      "repetition": 10,
+      "command": [
+        "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+        "app::input::tests::terminal_startup_probe::matched_terminal_startup_probe",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "cwd": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "returncode": 0,
+      "identity_before": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "identity_after": {
+        "source_sha256": "17928d72ad9ae6489b01da1a58fc1675fb69e65ba45e86029efc379a5b02bb0b",
+        "binary_sha256": "5fb90e0018c23493e8d9e681ce2a66fcb5b17a9c4f70bee6774443633d9f9345",
+        "helper_sha256": "063bd28b015d8b05aa82e24dec228c2163c2ced7c70a6301b49a7294ce44205f",
+        "build_provenance_sha256": "9f5c26b456455bbf9f130a6e092b4c117a74fefa426e251b1e75bdbd5891b8f1",
+        "probe_sha256": "38a84722222e6565b37214312eeb5da01c7aa3c655f63b6cb249ae7988121611"
+      },
+      "whole_process_seconds": 0.15778004200547002,
+      "context": {
+        "command_source": "built-in small command",
+        "event": "context",
+        "fixture_setup_measured": false,
+        "helper_trace_included": false,
+        "kind": "old",
+        "pid": 12493,
+        "video_driver": "dummy",
+        "visible": false,
+        "warm_commands": 5
+      },
+      "helper_trace_enabled": false,
+      "durations_ms": {
+        "open_return": 1.055125,
+        "viewport_settled": 4.822667,
+        "clear": 0.97175,
+        "first_command_submit": 1.229083,
+        "first_command": 18.027833,
+        "warm_command_01_submit": 0.770583,
+        "warm_command_01": 18.125083,
+        "warm_command_02_submit": 1.1093330000000001,
+        "warm_command_02": 18.294666,
+        "warm_command_03_submit": 0.7305,
+        "warm_command_03": 20.308875,
+        "warm_command_04_submit": 0.714375,
+        "warm_command_04": 19.0665,
+        "warm_command_05_submit": 0.829333,
+        "warm_command_05": 18.082417,
+        "legacy_open_ready": 1.182333
+      },
+      "warm_commands_ms": [
+        18.125083,
+        18.294666,
+        20.308875,
+        19.0665,
+        18.082417
+      ],
+      "environment": {
+        "SHELL": "/bin/zsh",
+        "SDL_VIDEODRIVER": "dummy",
+        "SDL_AUDIODRIVER": "dummy",
+        "SDL_RENDER_DRIVER": "software",
+        "POTYI_TERM_TEST_CLIENT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+        "POTYI_TERM_STARTUP_KIND": "old",
+        "POTYI_TERM_STARTUP_ROOT": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-results/fixture",
+        "POTYI_TERM_STARTUP_VISIBLE": "0",
+        "POTYI_TERM_STARTUP_HOLD_MS": "0"
+      }
+    }
+  ],
+  "limitations": [
+    "No build, profiler, or process sampler may run concurrently.",
+    "Fresh process first commands are not proven cold OS-cache launches.",
+    "Fixture SDL/window/font setup precedes pane timing; whole-process wall time is separate.",
+    "Session readiness is first app poll observation, not backend event generation time.",
+    "Command timing includes output, layout and final draw settlement; no physical keyboard/scanout timing.",
+    "Warm pooled values are correlated within each Session; per-Session warm medians are also retained.",
+    "Nearest-rank p95 from fewer than ten fresh processes is weak evidence.",
+    "This collector provides no RSS/CPU results; use the separate matched resource runner."
+  ],
+  "summary": {
+    "after/new": {
+      "fresh_processes": 10,
+      "stages": {
+        "open_return": {
+          "count": 10,
+          "median_ms": 8.528083500000001,
+          "min_ms": 7.513167,
+          "max_ms": 12.402833000000001,
+          "p95_nearest_rank_ms": 12.402833000000001
+        },
+        "viewport_settled": {
+          "count": 10,
+          "median_ms": 44.292229500000005,
+          "min_ms": 41.825083,
+          "max_ms": 52.39125,
+          "p95_nearest_rank_ms": 52.39125
+        },
+        "clear": {
+          "count": 10,
+          "median_ms": 0.6227705,
+          "min_ms": 0.569708,
+          "max_ms": 0.7126250000000001,
+          "p95_nearest_rank_ms": 0.7126250000000001
+        },
+        "first_command_submit": {
+          "count": 10,
+          "median_ms": 1.325833,
+          "min_ms": 1.166833,
+          "max_ms": 1.446666,
+          "p95_nearest_rank_ms": 1.446666
+        },
+        "first_command": {
+          "count": 10,
+          "median_ms": 142.1020415,
+          "min_ms": 128.20775,
+          "max_ms": 2636.158875,
+          "p95_nearest_rank_ms": 2636.158875
+        },
+        "warm_command_01_submit": {
+          "count": 10,
+          "median_ms": 1.2733545,
+          "min_ms": 0.922292,
+          "max_ms": 7.304583,
+          "p95_nearest_rank_ms": 7.304583
+        },
+        "warm_command_01": {
+          "count": 10,
+          "median_ms": 133.5287295,
+          "min_ms": 120.857,
+          "max_ms": 159.024125,
+          "p95_nearest_rank_ms": 159.024125
+        },
+        "warm_command_02_submit": {
+          "count": 10,
+          "median_ms": 1.1424585,
+          "min_ms": 0.865334,
+          "max_ms": 2.855458,
+          "p95_nearest_rank_ms": 2.855458
+        },
+        "warm_command_02": {
+          "count": 10,
+          "median_ms": 132.930771,
+          "min_ms": 128.335667,
+          "max_ms": 144.361667,
+          "p95_nearest_rank_ms": 144.361667
+        },
+        "warm_command_03_submit": {
+          "count": 10,
+          "median_ms": 1.2759795,
+          "min_ms": 0.9801250000000001,
+          "max_ms": 5.648375,
+          "p95_nearest_rank_ms": 5.648375
+        },
+        "warm_command_03": {
+          "count": 10,
+          "median_ms": 136.49347949999998,
+          "min_ms": 128.788292,
+          "max_ms": 151.142708,
+          "p95_nearest_rank_ms": 151.142708
+        },
+        "warm_command_04_submit": {
+          "count": 10,
+          "median_ms": 1.2781665,
+          "min_ms": 1.036709,
+          "max_ms": 3.627916,
+          "p95_nearest_rank_ms": 3.627916
+        },
+        "warm_command_04": {
+          "count": 10,
+          "median_ms": 136.86012499999998,
+          "min_ms": 126.45724999999999,
+          "max_ms": 155.970541,
+          "p95_nearest_rank_ms": 155.970541
+        },
+        "warm_command_05_submit": {
+          "count": 10,
+          "median_ms": 1.2769375,
+          "min_ms": 0.986167,
+          "max_ms": 5.41275,
+          "p95_nearest_rank_ms": 5.41275
+        },
+        "warm_command_05": {
+          "count": 10,
+          "median_ms": 130.92447950000002,
+          "min_ms": 126.79470900000001,
+          "max_ms": 147.72708400000002,
+          "p95_nearest_rank_ms": 147.72708400000002
+        },
+        "session_ready": {
+          "count": 10,
+          "median_ms": 43.271479,
+          "min_ms": 40.778791000000005,
+          "max_ms": 51.367542,
+          "p95_nearest_rank_ms": 51.367542
+        },
+        "warm_pooled": {
+          "count": 50,
+          "median_ms": 134.297771,
+          "min_ms": 120.857,
+          "max_ms": 159.024125,
+          "p95_nearest_rank_ms": 155.970541
+        },
+        "per_session_warm_medians": {
+          "count": 10,
+          "median_ms": 133.819792,
+          "min_ms": 127.278084,
+          "max_ms": 139.886666,
+          "p95_nearest_rank_ms": 139.886666
+        }
+      },
+      "first_commands_ms": [
+        2636.158875,
+        143.866125,
+        140.91737500000002,
+        140.83975,
+        131.514916,
+        144.238209,
+        143.286708,
+        138.17399999999998,
+        237.832791,
+        128.20775
+      ]
+    },
+    "after/old": {
+      "fresh_processes": 10,
+      "stages": {
+        "open_return": {
+          "count": 10,
+          "median_ms": 0.9457915,
+          "min_ms": 0.858792,
+          "max_ms": 2.9878750000000003,
+          "p95_nearest_rank_ms": 2.9878750000000003
+        },
+        "viewport_settled": {
+          "count": 10,
+          "median_ms": 4.6469380000000005,
+          "min_ms": 4.3735420000000005,
+          "max_ms": 6.927417,
+          "p95_nearest_rank_ms": 6.927417
+        },
+        "clear": {
+          "count": 10,
+          "median_ms": 1.000354,
+          "min_ms": 0.744667,
+          "max_ms": 2.973375,
+          "p95_nearest_rank_ms": 2.973375
+        },
+        "first_command_submit": {
+          "count": 10,
+          "median_ms": 1.1142285,
+          "min_ms": 1.052958,
+          "max_ms": 1.3255000000000001,
+          "p95_nearest_rank_ms": 1.3255000000000001
+        },
+        "first_command": {
+          "count": 10,
+          "median_ms": 19.202104,
+          "min_ms": 17.774541000000003,
+          "max_ms": 23.290083,
+          "p95_nearest_rank_ms": 23.290083
+        },
+        "warm_command_01_submit": {
+          "count": 10,
+          "median_ms": 0.7795205000000001,
+          "min_ms": 0.6361669999999999,
+          "max_ms": 0.885,
+          "p95_nearest_rank_ms": 0.885
+        },
+        "warm_command_01": {
+          "count": 10,
+          "median_ms": 16.677729,
+          "min_ms": 16.028208,
+          "max_ms": 18.159625,
+          "p95_nearest_rank_ms": 18.159625
+        },
+        "warm_command_02_submit": {
+          "count": 10,
+          "median_ms": 0.7211460000000001,
+          "min_ms": 0.6451669999999999,
+          "max_ms": 0.8315,
+          "p95_nearest_rank_ms": 0.8315
+        },
+        "warm_command_02": {
+          "count": 10,
+          "median_ms": 16.484479,
+          "min_ms": 14.952958,
+          "max_ms": 18.049958,
+          "p95_nearest_rank_ms": 18.049958
+        },
+        "warm_command_03_submit": {
+          "count": 10,
+          "median_ms": 0.6733750000000001,
+          "min_ms": 0.635583,
+          "max_ms": 0.823291,
+          "p95_nearest_rank_ms": 0.823291
+        },
+        "warm_command_03": {
+          "count": 10,
+          "median_ms": 18.019520999999997,
+          "min_ms": 14.966833000000001,
+          "max_ms": 20.714083000000002,
+          "p95_nearest_rank_ms": 20.714083000000002
+        },
+        "warm_command_04_submit": {
+          "count": 10,
+          "median_ms": 0.7407714999999999,
+          "min_ms": 0.66425,
+          "max_ms": 0.943917,
+          "p95_nearest_rank_ms": 0.943917
+        },
+        "warm_command_04": {
+          "count": 10,
+          "median_ms": 17.1352295,
+          "min_ms": 14.940833000000001,
+          "max_ms": 20.874333,
+          "p95_nearest_rank_ms": 20.874333
+        },
+        "warm_command_05_submit": {
+          "count": 10,
+          "median_ms": 0.744,
+          "min_ms": 0.635791,
+          "max_ms": 0.9720840000000001,
+          "p95_nearest_rank_ms": 0.9720840000000001
+        },
+        "warm_command_05": {
+          "count": 10,
+          "median_ms": 16.725437,
+          "min_ms": 14.747665999999999,
+          "max_ms": 34.437709,
+          "p95_nearest_rank_ms": 34.437709
+        },
+        "legacy_open_ready": {
+          "count": 10,
+          "median_ms": 1.057396,
+          "min_ms": 0.96275,
+          "max_ms": 3.1384590000000006,
+          "p95_nearest_rank_ms": 3.1384590000000006
+        },
+        "warm_pooled": {
+          "count": 50,
+          "median_ms": 16.6571045,
+          "min_ms": 14.747665999999999,
+          "max_ms": 34.437709,
+          "p95_nearest_rank_ms": 20.874333
+        },
+        "per_session_warm_medians": {
+          "count": 10,
+          "median_ms": 16.725437,
+          "min_ms": 15.049833,
+          "max_ms": 18.408542,
+          "p95_nearest_rank_ms": 18.408542
+        }
+      },
+      "first_commands_ms": [
+        19.797791,
+        20.698625,
+        19.264792,
+        17.774541000000003,
+        19.490208,
+        23.290083,
+        19.139416,
+        17.869333,
+        18.021959,
+        18.077292
+      ]
+    },
+    "before/new": {
+      "fresh_processes": 10,
+      "stages": {
+        "open_return": {
+          "count": 10,
+          "median_ms": 8.016583,
+          "min_ms": 7.18525,
+          "max_ms": 10.181958,
+          "p95_nearest_rank_ms": 10.181958
+        },
+        "viewport_settled": {
+          "count": 10,
+          "median_ms": 43.436896000000004,
+          "min_ms": 41.449042,
+          "max_ms": 141.665334,
+          "p95_nearest_rank_ms": 141.665334
+        },
+        "clear": {
+          "count": 10,
+          "median_ms": 0.725104,
+          "min_ms": 0.6152920000000001,
+          "max_ms": 0.819458,
+          "p95_nearest_rank_ms": 0.819458
+        },
+        "first_command_submit": {
+          "count": 10,
+          "median_ms": 1.296271,
+          "min_ms": 1.172958,
+          "max_ms": 1.6232090000000001,
+          "p95_nearest_rank_ms": 1.6232090000000001
+        },
+        "first_command": {
+          "count": 10,
+          "median_ms": 141.9846875,
+          "min_ms": 134.042625,
+          "max_ms": 2832.4853340000004,
+          "p95_nearest_rank_ms": 2832.4853340000004
+        },
+        "warm_command_01_submit": {
+          "count": 10,
+          "median_ms": 1.248729,
+          "min_ms": 0.8185,
+          "max_ms": 2.288709,
+          "p95_nearest_rank_ms": 2.288709
+        },
+        "warm_command_01": {
+          "count": 10,
+          "median_ms": 144.1735415,
+          "min_ms": 128.751042,
+          "max_ms": 173.940167,
+          "p95_nearest_rank_ms": 173.940167
+        },
+        "warm_command_02_submit": {
+          "count": 10,
+          "median_ms": 1.7148750000000001,
+          "min_ms": 0.873583,
+          "max_ms": 3.823,
+          "p95_nearest_rank_ms": 3.823
+        },
+        "warm_command_02": {
+          "count": 10,
+          "median_ms": 144.317833,
+          "min_ms": 130.1205,
+          "max_ms": 198.986,
+          "p95_nearest_rank_ms": 198.986
+        },
+        "warm_command_03_submit": {
+          "count": 10,
+          "median_ms": 1.34,
+          "min_ms": 0.905,
+          "max_ms": 2.2474589999999997,
+          "p95_nearest_rank_ms": 2.2474589999999997
+        },
+        "warm_command_03": {
+          "count": 10,
+          "median_ms": 140.71691650000002,
+          "min_ms": 125.90837499999999,
+          "max_ms": 157.187375,
+          "p95_nearest_rank_ms": 157.187375
+        },
+        "warm_command_04_submit": {
+          "count": 10,
+          "median_ms": 1.726958,
+          "min_ms": 0.904083,
+          "max_ms": 4.409041,
+          "p95_nearest_rank_ms": 4.409041
+        },
+        "warm_command_04": {
+          "count": 10,
+          "median_ms": 141.2062085,
+          "min_ms": 126.048291,
+          "max_ms": 149.705542,
+          "p95_nearest_rank_ms": 149.705542
+        },
+        "warm_command_05_submit": {
+          "count": 10,
+          "median_ms": 1.115979,
+          "min_ms": 0.929667,
+          "max_ms": 2.828,
+          "p95_nearest_rank_ms": 2.828
+        },
+        "warm_command_05": {
+          "count": 10,
+          "median_ms": 139.276104,
+          "min_ms": 125.954917,
+          "max_ms": 145.955334,
+          "p95_nearest_rank_ms": 145.955334
+        },
+        "session_ready": {
+          "count": 10,
+          "median_ms": 42.363687999999996,
+          "min_ms": 40.412625,
+          "max_ms": 140.452375,
+          "p95_nearest_rank_ms": 140.452375
+        },
+        "warm_pooled": {
+          "count": 50,
+          "median_ms": 141.8683335,
+          "min_ms": 125.90837499999999,
+          "max_ms": 198.986,
+          "p95_nearest_rank_ms": 170.395875
+        },
+        "per_session_warm_medians": {
+          "count": 10,
+          "median_ms": 140.98087499999997,
+          "min_ms": 137.157917,
+          "max_ms": 148.07075,
+          "p95_nearest_rank_ms": 148.07075
+        }
+      },
+      "first_commands_ms": [
+        2832.4853340000004,
+        142.073125,
+        375.006416,
+        306.491334,
+        134.3045,
+        141.89625,
+        140.121375,
+        134.042625,
+        136.736125,
+        209.005167
+      ]
+    },
+    "before/old": {
+      "fresh_processes": 10,
+      "stages": {
+        "open_return": {
+          "count": 10,
+          "median_ms": 1.071854,
+          "min_ms": 0.842166,
+          "max_ms": 4.692333,
+          "p95_nearest_rank_ms": 4.692333
+        },
+        "viewport_settled": {
+          "count": 10,
+          "median_ms": 4.7308755,
+          "min_ms": 4.480208,
+          "max_ms": 8.431416,
+          "p95_nearest_rank_ms": 8.431416
+        },
+        "clear": {
+          "count": 10,
+          "median_ms": 1.290896,
+          "min_ms": 0.803083,
+          "max_ms": 2.850334,
+          "p95_nearest_rank_ms": 2.850334
+        },
+        "first_command_submit": {
+          "count": 10,
+          "median_ms": 1.154646,
+          "min_ms": 0.9954160000000001,
+          "max_ms": 1.252542,
+          "p95_nearest_rank_ms": 1.252542
+        },
+        "first_command": {
+          "count": 10,
+          "median_ms": 18.1015625,
+          "min_ms": 17.803542,
+          "max_ms": 24.951332999999998,
+          "p95_nearest_rank_ms": 24.951332999999998
+        },
+        "warm_command_01_submit": {
+          "count": 10,
+          "median_ms": 0.7329585000000001,
+          "min_ms": 0.638125,
+          "max_ms": 0.931666,
+          "p95_nearest_rank_ms": 0.931666
+        },
+        "warm_command_01": {
+          "count": 10,
+          "median_ms": 16.5795,
+          "min_ms": 16.463416000000002,
+          "max_ms": 20.201792,
+          "p95_nearest_rank_ms": 20.201792
+        },
+        "warm_command_02_submit": {
+          "count": 10,
+          "median_ms": 0.7161040000000001,
+          "min_ms": 0.639833,
+          "max_ms": 1.1093330000000001,
+          "p95_nearest_rank_ms": 1.1093330000000001
+        },
+        "warm_command_02": {
+          "count": 10,
+          "median_ms": 16.660042,
+          "min_ms": 14.965042,
+          "max_ms": 34.608292,
+          "p95_nearest_rank_ms": 34.608292
+        },
+        "warm_command_03_submit": {
+          "count": 10,
+          "median_ms": 0.7331875,
+          "min_ms": 0.667375,
+          "max_ms": 1.882625,
+          "p95_nearest_rank_ms": 1.882625
+        },
+        "warm_command_03": {
+          "count": 10,
+          "median_ms": 17.0529375,
+          "min_ms": 14.935749999999999,
+          "max_ms": 29.485457999999998,
+          "p95_nearest_rank_ms": 29.485457999999998
+        },
+        "warm_command_04_submit": {
+          "count": 10,
+          "median_ms": 0.692313,
+          "min_ms": 0.6283340000000001,
+          "max_ms": 0.828375,
+          "p95_nearest_rank_ms": 0.828375
+        },
+        "warm_command_04": {
+          "count": 10,
+          "median_ms": 17.878667,
+          "min_ms": 14.882,
+          "max_ms": 26.782207999999997,
+          "p95_nearest_rank_ms": 26.782207999999997
+        },
+        "warm_command_05_submit": {
+          "count": 10,
+          "median_ms": 0.6969375,
+          "min_ms": 0.617209,
+          "max_ms": 0.829333,
+          "p95_nearest_rank_ms": 0.829333
+        },
+        "warm_command_05": {
+          "count": 10,
+          "median_ms": 17.1632295,
+          "min_ms": 16.107,
+          "max_ms": 19.094583,
+          "p95_nearest_rank_ms": 19.094583
+        },
+        "legacy_open_ready": {
+          "count": 10,
+          "median_ms": 1.1878955,
+          "min_ms": 0.9516249999999998,
+          "max_ms": 4.8075410000000005,
+          "p95_nearest_rank_ms": 4.8075410000000005
+        },
+        "warm_pooled": {
+          "count": 50,
+          "median_ms": 16.706271,
+          "min_ms": 14.882,
+          "max_ms": 34.608292,
+          "p95_nearest_rank_ms": 26.782207999999997
+        },
+        "per_session_warm_medians": {
+          "count": 10,
+          "median_ms": 17.058,
+          "min_ms": 16.154667,
+          "max_ms": 19.006583,
+          "p95_nearest_rank_ms": 19.006583
+        }
+      },
+      "first_commands_ms": [
+        19.345708,
+        18.898374999999998,
+        18.164125,
+        18.038999999999998,
+        19.486333000000002,
+        17.897834000000003,
+        17.966708,
+        24.951332999999998,
+        17.803542,
+        18.027833
+      ]
+    }
+  },
+  "completed_utc": "2026-10-09T12:24:25.519511+00:00",
+  "complete": true
+}

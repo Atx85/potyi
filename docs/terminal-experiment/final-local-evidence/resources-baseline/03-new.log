@@ -1,0 +1,66 @@
+
+running 1 test
+test app::input::tests::terminal_resource_probe::matched_terminal_resource_probe ... 
+POTYI_TERM_RESOURCE {"event":"ready","phase":"ready","kind":"new","pid":57809,"elapsed_ms":1050.956,"draws":6,"turns":5}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"idle","kind":"new","pid":57809,"elapsed_ms":1051.359,"draws":6,"turns":5}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"idle","kind":"new","pid":57809,"elapsed_ms":3051.390,"draws":6,"turns":416}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"small_command","kind":"new","pid":57809,"elapsed_ms":3051.449,"draws":6,"turns":416}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"small_command","kind":"new","duration_ms":215.969}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"small_command","kind":"new","pid":57809,"elapsed_ms":3267.440,"draws":11,"turns":1514}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"small_idle","kind":"new","pid":57809,"elapsed_ms":3267.452,"draws":11,"turns":1514}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"small_idle","kind":"new","pid":57809,"elapsed_ms":5267.466,"draws":11,"turns":2202}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"stream_first","kind":"new","pid":57809,"elapsed_ms":5267.508,"draws":11,"turns":2202}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"stream_first","kind":"new","duration_ms":3472.460}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"stream_first","kind":"new","pid":57809,"elapsed_ms":8740.012,"draws":212,"turns":38755}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"plateau_first","kind":"new","pid":57809,"elapsed_ms":8740.024,"draws":212,"turns":38755}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"plateau_first","kind":"new","pid":57809,"elapsed_ms":10740.035,"draws":212,"turns":39595}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"stream_second","kind":"new","pid":57809,"elapsed_ms":10740.075,"draws":212,"turns":39595}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"stream_second","kind":"new","duration_ms":3497.641}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"stream_second","kind":"new","pid":57809,"elapsed_ms":14237.739,"draws":414,"turns":70282}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"plateau_second","kind":"new","pid":57809,"elapsed_ms":14237.752,"draws":414,"turns":70282}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"plateau_second","kind":"new","pid":57809,"elapsed_ms":16237.762,"draws":414,"turns":70989}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"resize","kind":"new","pid":57809,"elapsed_ms":16237.797,"draws":414,"turns":70989}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"resize","kind":"new","duration_ms":3874.865,"resizes":9}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"resize","kind":"new","pid":57809,"elapsed_ms":20112.684,"draws":654,"turns":106619}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copy_selected","kind":"new","pid":57809,"elapsed_ms":20112.939,"draws":654,"turns":106619}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"copy_selected","kind":"new","duration_ms":1.356,"copied_bytes":4096}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copy_selected","kind":"new","pid":57809,"elapsed_ms":20864.315,"draws":656,"turns":106851}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copy_all","kind":"new","pid":57809,"elapsed_ms":20864.346,"draws":656,"turns":106851}
+
+POTYI_TERM_RESOURCE {"event":"operation","phase":"copy_all","kind":"new","duration_ms":207.316,"copied_bytes":4817806}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copy_all","kind":"new","pid":57809,"elapsed_ms":21821.707,"draws":659,"turns":107363}
+
+POTYI_TERM_RESOURCE {"event":"phase","phase":"copied_idle","kind":"new","pid":57809,"elapsed_ms":21821.731,"draws":659,"turns":107363}
+
+POTYI_TERM_RESOURCE {"event":"end","phase":"copied_idle","kind":"new","pid":57809,"elapsed_ms":23821.744,"draws":659,"turns":107966}
+
+POTYI_TERM_RESOURCE {"event":"done","phase":"done","kind":"new","pid":57809,"elapsed_ms":23821.772,"draws":659,"turns":107966}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 893 filtered out; finished in 23.90s
+

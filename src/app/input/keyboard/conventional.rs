@@ -2,34 +2,28 @@
 use super::*;
 
 pub(super) fn escape(
-    context: InputContext<'_, '_>,
+    editor: &mut Editor,
+    dirty: &mut bool,
+    vim_enabled: bool,
     key: Keycode,
-    _keymod: Mod,
-    _repeat: bool,
 ) -> KeyResult {
-    let InputContext {
-        editor,
-        dirty,
-        vim_enabled,
-        ..
-    } = context;
-    if !*vim_enabled && key == Keycode::Escape {
+    if !vim_enabled && key == Keycode::Escape {
         editor.clear_secondary_cursors();
         *dirty = true;
-        return Ok(Some(EventFlow::Continue));
+        return Ok(KeyFlow::Handled);
     }
 
-    Ok(None)
+    Ok(KeyFlow::Pass)
 }
 
 pub(super) fn handle(
-    context: InputContext<'_, '_>,
+    context: EditContext<'_, '_>,
     _key: Keycode,
     _keymod: Mod,
     _repeat: bool,
     bound_command: Option<Command>,
 ) -> Result<EventFlow, String> {
-    let InputContext {
+    let EditContext {
         editor,
         renderer,
         vim,
@@ -78,7 +72,7 @@ pub(super) fn handle(
 
             Command::Save => {
                 match editor.save() {
-                    Ok(()) => renderer.set_file_path(editor.path.as_deref()),
+                    Ok(()) => renderer.set_file_path(editor.path().as_deref()),
                     Err(error) => {
                         command_bar.open(":save");
                         command_bar.set_status(error.to_string());

@@ -1,0 +1,18 @@
+    Checking potyi v0.1.8 (/private/tmp/potyi-term-integration)
+error[E0425]: cannot find function `commit_at` in module `super::super::git_detail`
+   --> src/experimental_terminal/pane_output.rs:351:51
+    |
+351 |                         super::super::git_detail::commit_at(&record,anchor.utf8_byte_offset).ok().flatten()
+    |                                                   ^^^^^^^^^ not found in `super::super::git_detail`
+
+warning: unused import: `Row`
+ --> src/experimental_terminal/pane.rs:4:44
+  |
+4 |     browser::{BrowseAction, Browser, Kind, Row},
+  |                                            ^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0425`.
+warning: `potyi` (bin "potyi") generated 1 warning
+error: could not compile `potyi` (bin "potyi") due to 1 previous error; 1 warning emitted

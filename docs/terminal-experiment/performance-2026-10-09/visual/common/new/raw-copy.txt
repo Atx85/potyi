@@ -1,0 +1,4 @@
+$ printf '\ttrail  \nlong\rX\n'
+	trail  
+long
+X

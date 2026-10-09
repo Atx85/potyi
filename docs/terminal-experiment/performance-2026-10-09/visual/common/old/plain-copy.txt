@@ -1,0 +1,5 @@
+$ printf '\033[31mred\033[0m\nordinary output\nerror: source.rs:2:3 failure\nwarning: watch this\n'
+red
+ordinary output
+error: source.rs:2:3 failure
+warning: watch this

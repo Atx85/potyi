@@ -1,0 +1,10 @@
+test_failed_run_keeps_partial_measurement_without_claiming_completion (test_scaling.ScalingTests.test_failed_run_keeps_partial_measurement_without_claiming_completion) ... ok
+test_interrupted_final_write_keeps_prior_events (test_scaling.ScalingTests.test_interrupted_final_write_keeps_prior_events) ... ok
+test_libtest_prefix_and_partial_records_survive_timeout (test_scaling.ScalingTests.test_libtest_prefix_and_partial_records_survive_timeout) ... ok
+test_summary_excludes_warmup_and_incomplete_runs_and_separates_first_edit (test_scaling.ScalingTests.test_summary_excludes_warmup_and_incomplete_runs_and_separates_first_edit) ... ok
+test_zero_exit_without_completion_is_failure (test_scaling.ScalingTests.test_zero_exit_without_completion_is_failure) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.547s
+
+OK

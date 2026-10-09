@@ -1,0 +1,8 @@
+EDITOR CONFIG: tab_width=2, insert_spaces=false, line_numbers=Dynamic, keybindings=Conventional
+Editor startup / PieceTable open: 1.402916ms
+PieceTable::open(/private/tmp/potyi-term-integration/tools/dev.py): 817.875µs
+PieceTable::open(/private/tmp/potyi-term-integration/tools/dev.py): 1.522958ms
+Render: 32.338875ms
+Render: 29.064959ms
+Render: 22.937167ms
+Render: 22.412792ms

@@ -73,6 +73,28 @@ pub(super) fn drop_file(
         return Ok(EventFlow::Continue);
     }
 
+    if renderer.experimental_focused() {
+        super::super::experimental::open_link(
+            crate::experimental_terminal::links::FileLink {
+                path: std::path::PathBuf::from(filename),
+                line: None,
+                column: None,
+                byte_column: false,
+                read_only: false,
+                other_pane: false,
+            },
+            editor,
+            other_editor,
+            renderer,
+            terminal,
+            active_pane,
+            *split_mode,
+            vim,
+            other_vim,
+        );
+        *dirty = true;
+        return Ok(EventFlow::Continue);
+    }
     if let Err(error) = editor.open(&filename) {
         command_bar.open(":");
         command_bar.show_info(&format!("Could not open {filename}: {error}"));
@@ -85,7 +107,7 @@ pub(super) fn drop_file(
         renderer.set_mode_label(Some(vim.mode_label()));
     }
 
-    if let Some(path) = editor.path.as_deref() {
+    if let Some(path) = editor.path().as_deref() {
         renderer.set_file_path(Some(path));
     }
 

@@ -159,8 +159,8 @@ mod tests {
         assert_eq!(editor.document.text().unwrap(), "unsaved work");
         assert_eq!(editor.document.revision(), revision);
         assert_eq!(editor.undo_stack.len(), undo_steps);
-        assert!(editor.dirty);
-        assert!(editor.path.is_none());
+        assert!(editor.is_dirty());
+        assert!(editor.path().is_none());
     }
 
     #[cfg(unix)]

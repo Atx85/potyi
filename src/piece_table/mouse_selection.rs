@@ -57,8 +57,12 @@ impl MouseSelection {
     }
 }
 
-impl PieceTable {
-    fn mouse_range(&mut self, position: usize, unit: SelectionUnit) -> io::Result<Range<usize>> {
+impl super::Document {
+    pub(super) fn mouse_range(
+        &mut self,
+        position: usize,
+        unit: SelectionUnit,
+    ) -> io::Result<Range<usize>> {
         let mut position = position.min(self.len());
         self.ensure_boundary(position)?;
         match unit {

@@ -262,7 +262,7 @@ fn text_object_missing_matches_escape_and_read_only_are_safe() {
     escape(&mut vim, &mut editor, &clipboard);
     press(&mut vim, &mut editor, &clipboard, "w");
     assert_eq!(editor.document.text().unwrap(), "word (keep)");
-    editor.read_only = true;
+    editor.set_read_only(true);
     press(&mut vim, &mut editor, &clipboard, "ci(");
     assert_eq!(vim.mode(), VimMode::Normal);
     assert_eq!(editor.document.text().unwrap(), "word (keep)");

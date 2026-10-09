@@ -1,0 +1,18 @@
+{
+  "variants": [
+    {
+      "label": "before",
+      "source_root": "/private/tmp/potyi-terminal-performance-20261009-111723/baseline-instrumented",
+      "binary": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi-tests",
+      "helper": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/potyi",
+      "build_provenance": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/before/build-provenance.json"
+    },
+    {
+      "label": "after",
+      "source_root": "/private/tmp/potyi-terminal-performance-20261009-111723/optimized",
+      "binary": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi-tests",
+      "helper": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/potyi",
+      "build_provenance": "/private/tmp/potyi-terminal-performance-20261009-111723/startup-bin/after/build-provenance.json"
+    }
+  ]
+}

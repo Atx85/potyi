@@ -12,19 +12,19 @@ pub(crate) fn synchronize_pane_views(
         return Ok(());
     }
     let text_changed = editor.document.revision() != other.document.revision();
-    let path_changed = editor.path != other.path;
+    let path_changed = editor.path() != other.path();
     Editor::synchronize_views(editor, other)?;
     if text_changed || path_changed {
         renderer.invalidate_scroll_cache();
         renderer.update_cursor(&editor.document);
         if path_changed {
-            renderer.set_file_path(editor.path.as_deref());
+            renderer.set_file_path(editor.path().as_deref());
         }
         renderer.swap_view();
         renderer.invalidate_scroll_cache();
         renderer.update_cursor(&other.document);
         if path_changed {
-            renderer.set_file_path(other.path.as_deref());
+            renderer.set_file_path(other.path().as_deref());
         }
         renderer.swap_view();
     }
@@ -113,9 +113,7 @@ pub(crate) fn focus_pane_preserving_view(
     if shared {
         vim.pause_shared_view(editor);
         // Input dispatch has already synchronized the text. Finish the outgoing
-        // Vim group before giving the incoming view its shared undo history.
-        other_editor.undo_stack.clone_from(&editor.undo_stack);
-        other_editor.redo_stack.clone_from(&editor.redo_stack);
+        // Vim group before switching to the incoming view of the shared history.
         editor.multi_edit_group = None;
         other_editor.multi_edit_group = None;
     }
@@ -129,7 +127,7 @@ pub(crate) fn focus_pane_preserving_view(
     renderer.swap_view();
     *active_pane = target;
     renderer.set_active_pane(target);
-    renderer.set_file_path(editor.path.as_deref());
+    renderer.set_file_path(editor.path().as_deref());
     renderer.invalidate_scroll_cache();
     renderer.update_cursor(&editor.document);
     renderer.set_mode_label(editor_mode_label(editor, vim));
@@ -151,6 +149,9 @@ pub(crate) fn close_focused_pane(
     }
     if renderer.terminal_focused(terminal) {
         terminal.close_to_editor();
+    }
+    if renderer.experimental_focused() {
+        renderer.hide_experimental();
     }
     *split_mode = false;
     renderer.set_split_mode(false);
@@ -179,7 +180,7 @@ pub(crate) fn open_folder_workspace(
     renderer: &mut Renderer<'_>,
     terminal: &mut Terminal,
 ) -> Result<(), String> {
-    if terminal.is_running() {
+    if terminal.is_running() || renderer.experimental_command_running() {
         return Err("Wait for the running terminal command before opening a folder".into());
     }
     let root = root.canonicalize().map_err(|error| error.to_string())?;
@@ -190,13 +191,15 @@ pub(crate) fn open_folder_workspace(
     } else {
         &*other_editor
     };
-    let empty = if right.dirty {
+    let empty = if right.is_dirty() {
         None
     } else {
         Some(Editor::new(right.config.clone()).map_err(|error| error.to_string())?)
     };
 
-    terminal.clear().map_err(|error| error.to_string())?;
+    if !renderer.has_experimental() {
+        terminal.clear().map_err(|error| error.to_string())?;
+    }
     *split_mode = true;
     renderer.set_split_mode(true);
     focus_pane(
@@ -225,12 +228,17 @@ pub(crate) fn open_folder_workspace(
         other_vim,
         renderer,
     );
-    renderer.place_terminal_in_active_pane();
-    terminal.set_listing_width(renderer.terminal_columns());
-    terminal.open(None);
-    terminal
-        .enter_directory(&root)
-        .map_err(|error| error.to_string())?;
+    if renderer.has_experimental() {
+        renderer.open_experimental(&root, None)?;
+        renderer.experimental_enter_directory(&root)?;
+    } else {
+        renderer.place_terminal_in_active_pane();
+        terminal.set_listing_width(renderer.terminal_columns());
+        terminal.open(None);
+        terminal
+            .enter_directory(&root)
+            .map_err(|error| error.to_string())?;
+    }
     focus_pane(
         1,
         active_pane,
@@ -293,9 +301,13 @@ pub(crate) fn open_terminal_document(
     if file_is_open_in(path, other_editor) {
         return Ok(true);
     }
-    let focus_other = editor.dirty;
-    let (target, source) = if focus_other { (other_editor, editor) } else { (editor, other_editor) };
-    if target.dirty && target.path.is_none() {
+    let focus_other = editor.is_dirty();
+    let (target, source) = if focus_other {
+        (other_editor, editor)
+    } else {
+        (editor, other_editor)
+    };
+    if target.is_dirty() && target.path().is_none() {
         return Err(io::Error::new(
             io::ErrorKind::Other,
             "Both panes have unsaved changes. Give the selected document a filename with :save-as before opening another.",
@@ -316,7 +328,7 @@ pub(crate) fn replace_terminal_document(
     if file_is_open_in(path, target) {
         return Ok(());
     }
-    if target.dirty && target.path.is_none() {
+    if target.is_dirty() && target.path().is_none() {
         return Err(io::Error::other(
             "The selected pane has unsaved changes in an unnamed document. Give it a filename with :save-as before opening another file.",
         ));
@@ -326,14 +338,19 @@ pub(crate) fn replace_terminal_document(
     } else {
         let mut replacement = Editor::new(target.config.clone())?;
         replacement.open(path)?;
-        replacement.read_only = read_only;
+        replacement.set_read_only(read_only);
         replacement
     };
-    if target.dirty {
-        target.save().map_err(|error| io::Error::new(error.kind(), format!(
-            "Could not save {} before switching: {error}. Your edits are still open.",
-            terminal::display_path(target.path.as_deref().expect("named document")),
-        )))?;
+    if target.is_dirty() {
+        target.save().map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!(
+                    "Could not save {} before switching: {error}. Your edits are still open.",
+                    terminal::display_path(target.path().as_deref().expect("named document")),
+                ),
+            )
+        })?;
         // Propagate the saved state before this view detaches from a shared file.
         Editor::synchronize_views(target, source)?;
     }
@@ -473,7 +490,7 @@ pub(crate) fn handle_terminal_action_in_pane(
     }
 
     if !focus_other {
-        renderer.set_file_path(target.path.as_deref());
+        renderer.set_file_path(target.path().as_deref());
         renderer.invalidate_scroll_cache();
         renderer.update_cursor(&target.document);
         renderer.ensure_cursor_visible(&mut target.document);

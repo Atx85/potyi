@@ -58,7 +58,7 @@ pub(super) fn handle(
                 }
             }
 
-            return Ok(Some(EventFlow::Continue));
+            return Ok(KeyFlow::Handled);
         }
 
         let mut input_changed = false;
@@ -153,69 +153,26 @@ pub(super) fn handle(
             .map_err(|error| error.to_string())?;
         }
 
-        if outcome.quit {
-            return Ok(Some(EventFlow::Quit));
-        }
-        if outcome.close_pane {
-            close_focused_pane(split_mode, active_pane, editor, other_editor,
-                vim, other_vim, renderer, terminal);
-        }
-
-        if outcome.toggle_split {
-            *split_mode = !*split_mode;
-            renderer.set_split_mode(*split_mode);
-        }
-
-        if outcome.focus_other {
-            focus_pane(
-                1 - *active_pane,
-                &mut *active_pane,
-                &mut *editor,
-                &mut *other_editor,
-                &mut *vim,
-                &mut *other_vim,
-                &mut *renderer,
-            );
-        }
-
-        if outcome.path_changed {
-            renderer.set_file_path(editor.path.as_deref());
-        }
-
-        if outcome.document_changed || outcome.document_reloaded {
-            renderer.invalidate_scroll_cache();
-        }
-
-        if let Some(mode) = outcome.keybinding_mode {
-            apply_keybinding_mode(
-                mode,
-                &mut *vim_enabled,
-                &mut *editor,
-                &mut *other_editor,
-                &mut *vim,
-                &mut *other_vim,
-                &mut *renderer,
-            );
-        }
-
-        if *vim_enabled && outcome.document_reloaded {
-            vim.reset();
-            renderer.set_mode_label(Some(vim.mode_label()));
-        }
-
-        if outcome.cursor_changed {
-            renderer.update_cursor(&editor.document);
-        }
-
-        if search_ui.current_match().is_some() {
-            renderer.ensure_search_match_visible(&mut editor.document, &*search_ui, &*command_bar);
-        } else if outcome.cursor_changed {
-            renderer.ensure_cursor_visible(&mut editor.document);
-        }
-
-        *dirty = true;
-        return Ok(Some(EventFlow::Continue));
+        let flow = command_outcome::apply(
+            CommandOutcomeContext {
+                editor,
+                other_editor,
+                renderer,
+                terminal,
+                vim,
+                other_vim,
+                search_ui,
+                command_bar,
+                dirty,
+                split_mode,
+                active_pane,
+                vim_enabled,
+            },
+            outcome,
+            CommandSource::Keyboard,
+        );
+        return Ok(flow.into());
     }
 
-    Ok(None)
+    Ok(KeyFlow::Pass)
 }

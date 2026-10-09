@@ -1,0 +1,38 @@
+{
+  "src/terminal.rs": {
+    "sha256": "b7a32ae5a6e9e1a306057fea7fef45ad657b5161e3c98d10f97617c217647dac",
+    "unchanged": true
+  },
+  "src/terminal/colors.rs": {
+    "sha256": "c6437ceeab809c6aa236edca765732e92776533c4518645297277f1b3741dfd5",
+    "unchanged": true
+  },
+  "src/terminal/completion.rs": {
+    "sha256": "c2c2e29e42abe58c4cd70934024627214587777ab6dec8eb37bec8ef8734eee0",
+    "unchanged": true
+  },
+  "src/terminal/frame.rs": {
+    "sha256": "2fa25a7524c914a2509841fdc165314e0ffb4d36df0d13ae42c49bf5719331f0",
+    "unchanged": true
+  },
+  "src/terminal/git.rs": {
+    "sha256": "1b26e2fb8e14dcc1b99d696fde3fe79e54f28ea60c42f39a33cd728cded8910e",
+    "unchanged": true
+  },
+  "src/terminal/git_status.rs": {
+    "sha256": "05013df9ab495d870146d3bd2b18c176b803fdb35b05adbcb9cbabd4f101ce5e",
+    "unchanged": true
+  },
+  "src/terminal/listing.rs": {
+    "sha256": "2a12928d702e7051be923249cb6a86cc6837f758b02852e2167cfae4ebab89b8",
+    "unchanged": true
+  },
+  "src/terminal/locations.rs": {
+    "sha256": "3c63e93a559d629550a6f65600b5b9373a0f18368d190071152acf48e7a3ca87",
+    "unchanged": true
+  },
+  "src/terminal/selection.rs": {
+    "sha256": "59769abc09edde068d353f91a89a3363defbb6afb6893ac251e80b601a8fca49",
+    "unchanged": true
+  }
+}
